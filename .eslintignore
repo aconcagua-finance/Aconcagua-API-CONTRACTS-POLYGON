@@ -1,0 +1,17 @@
+!.*
+.cache/
+coverage
+dist
+lib
+examples/blog/*
+node_modules
+private
+public
+tmp
+web-build/
+web-report/
+babel.config.js
+.jest.init.js
+prettier.config.js
+jest.config.js
+hardhat.config.js

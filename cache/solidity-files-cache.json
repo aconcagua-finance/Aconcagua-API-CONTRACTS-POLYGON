@@ -1,0 +1,41 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/Users/michepersonal/Downloads/Github/Aconcagua-Finance/Aconcagua-API-CONTRACTS-MUMBAI/contracts/ColateralContract_v1_0_0.sol": {
+      "lastModificationDate": 1666791613377,
+      "contentHash": "fb2dd77ef99f98a851f7edb733514d79",
+      "sourceName": "contracts/ColateralContract_v1_0_0.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0", "^0.8.0", "^0.8.0", "^0.8.0", "^0.8", ">=0.7.0 <0.9.0"],
+      "artifacts": [
+        "Address",
+        "ColateralContract_v1_0_0",
+        "Context",
+        "IERC20",
+        "Ownable",
+        "Strings"
+      ]
+    }
+  }
+}
