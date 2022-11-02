@@ -30,24 +30,6 @@ const createSchema = Joi.object({
 
   creditType: Joi.string().required(),
 
-  currency: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.string().required(),
-    otherwise: Joi.string(),
-  }),
-  amount: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
   dueDate: Joi.alternatives().conditional('creditType', {
     is: [
       Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
@@ -58,89 +40,8 @@ const createSchema = Joi.object({
     otherwise: Joi.date().allow(null, ''),
   }),
 
-  amortizationType: Joi.alternatives().conditional('creditType', {
-    is: [Types.CreditTypes.CREDIT_TYPE_INSTALLMENT],
-    then: Joi.string().required(),
-    otherwise: Joi.string(),
-  }),
-  taxType: Joi.alternatives().conditional('creditType', {
-    is: [Types.CreditTypes.CREDIT_TYPE_INSTALLMENT],
-    then: Joi.string().required(),
-    otherwise: Joi.string(),
-  }),
   numberOfInstallments: Joi.alternatives().conditional('creditType', {
     is: [Types.CreditTypes.CREDIT_TYPE_INSTALLMENT],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-
-  tna: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-  tea: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-  cftWithoutTaxes: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-
-  cftWithTaxes: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-
-  capitalAmount: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-  interestsAmount: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-  taxesAmount: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
-    then: Joi.number().required(),
-    otherwise: Joi.number(),
-  }),
-  otherExpenses: Joi.alternatives().conditional('creditType', {
-    is: [
-      Types.CreditTypes.CREDIT_TYPE_BULLET_ADVANCED,
-      Types.CreditTypes.CREDIT_TYPE_BULLET_EXPIRATION,
-    ],
     then: Joi.number().required(),
     otherwise: Joi.number(),
   }),
@@ -169,6 +70,8 @@ const requiredBaseFields = [
   'contractSignerAddress',
   'contractName',
   'creditType',
+  'currency',
+  'amount',
 ];
 
 const schemas = {
