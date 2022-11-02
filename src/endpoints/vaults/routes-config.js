@@ -6,7 +6,7 @@ const {
   remove,
   findByUser,
   findByCompany,
-  setRescueAcount,
+
   getVaultBalances,
   withdraw,
   rescue,
@@ -111,14 +111,6 @@ exports.vaultsRoutesConfig = function (app) {
       allowStaffRelationship: true,
     }),
     create,
-  ]);
-
-  // update un documento,  solo la prop asociada al rescue wallet account
-  app.patch('/:companyId/:userId/:id/setRescueAcount', [
-    Audit.logger,
-    Auth.isAuthenticated,
-    Auth.isAuthorized({ hasAppRole: [Types.AppRols.APP_ADMIN] }),
-    setRescueAcount,
   ]);
 
   // update un documento, el companyId / userId es para validacion de permisos

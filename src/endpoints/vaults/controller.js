@@ -219,6 +219,23 @@ exports.patch = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
 
+  const { id } = req.params;
+
+  try {
+    const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
+
+    const { rescueWalletAccount } = req.body;
+
+    if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
+      console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
+      await setSmartContractRescueAcount({ vault: existentDoc, rescueWalletAccount });
+
+      console.log('RescueWalletAccount in blockchain set OK');
+    }
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+
   await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
 };
 
@@ -268,7 +285,7 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
 exports.create = async function (req, res) {
   try {
     const { userId } = res.locals;
-    const auditUid = userId ? userId : targetUserId; // TODO MICHEL SOLO userId asignar
+    const auditUid = userId;
     const { userId: targetUserId, companyId } = req.params;
 
     if (!targetUserId || !companyId) {
@@ -371,58 +388,37 @@ exports.create = async function (req, res) {
   }
 };
 
-exports.setRescueAcount = async function (req, res) {
-  const { userId } = res.locals;
-  const auditUid = userId;
+const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
+  const contractJson = require('../../../artifacts/contracts/' +
+    vault.contractName +
+    '.sol/' +
+    vault.contractName +
+    '.json');
+  const abi = contractJson.abi;
 
-  try {
-    const { userId: targetUserId } = req.params;
+  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
 
-    const itemId = req.params.id;
+  // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
 
-    const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id: itemId });
+  // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
+  const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
 
-    const contractJson = require('../../../artifacts/contracts/' +
-      smartContract.contractName +
-      '.sol/' +
-      smartContract.contractName +
-      '.json');
-    const abi = contractJson.abi;
+  // // Get the deployed contract.
+  const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, userWallet);
 
-    console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
+  // console.log('before: ' + (await blockchainContract.rescueWalletAccount()));
 
-    // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-
-    // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
-    const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-    // // Get the deployed contract.
-    const blockchainContract = new hre.ethers.Contract(
-      smartContract.contractAddress,
-      abi,
-      userWallet
-    );
-
-    console.log('before: ' + (await blockchainContract.rescueWalletAccount()));
-
-    const setTx1 = await blockchainContract.setRescueWalletAccount(req.body.rescueWalletAccount);
-    await setTx1.wait();
-    console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
-  } catch (err) {
-    return ErrorHelper.handleError(req, res, err);
-  }
-
-  await patch(req, res, auditUid, COLLECTION_NAME, schemas.configure);
+  const setTx1 = await blockchainContract.setRescueWalletAccount(rescueWalletAccount);
+  await setTx1.wait();
+  console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
 };
 
 exports.getVaultBalances = async function (req, res) {
   const { id } = req.params;
 
   try {
+    // TODO MICHEL
     // return res.status(200).send([
     //   {
     //     currency: 'usdc',
@@ -578,9 +574,9 @@ const balancesToValuations = (balancesWithToken, valuations) => {
 };
 
 exports.withdraw = async function (req, res) {
-  const { id, token } = req.params;
+  const { id } = req.params;
 
-  const { amount } = req.body;
+  const { amount, token } = req.body;
 
   try {
     if (!id || !token || !amount) {
@@ -643,9 +639,9 @@ exports.withdraw = async function (req, res) {
 };
 
 exports.rescue = async function (req, res) {
-  const { id, token } = req.params;
+  const { id } = req.params;
 
-  const { amount } = req.body;
+  const { amount, token } = req.body;
 
   try {
     if (!id || !token || !amount) {
@@ -701,7 +697,7 @@ exports.rescue = async function (req, res) {
       await wd.wait();
     }
 
-    return res.status(200).send(null);
+    return res.status(200).send({ ethAmount });
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }

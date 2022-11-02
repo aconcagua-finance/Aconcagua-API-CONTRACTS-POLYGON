@@ -19,6 +19,8 @@ const basicData = {
   taxesAmount: Joi.number(),
   otherExpenses: Joi.number(),
 
+  rescueWalletAccount: Joi.string().allow(''),
+
   notes: Joi.string().allow(''),
   attachments: Joi.any(),
 };
@@ -160,10 +162,6 @@ const updateSchema = Joi.object({
   ...basicData,
 });
 
-const configure = Joi.object({
-  rescueWalletAccount: Joi.string().allow(''),
-});
-
 const requiredBaseFields = [
   'userId',
   'companyId',
@@ -176,7 +174,6 @@ const requiredBaseFields = [
 const schemas = {
   create: createSchema.fork(requiredBaseFields, (field) => field.required()),
   update: updateSchema,
-  configure,
 };
 
 module.exports = schemas;
