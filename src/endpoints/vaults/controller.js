@@ -15,7 +15,7 @@ const { Auth } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
-const { VaultCurrencyTypes } = require('../../types/vaultCurrencyTypes');
+const { CurrencyTypes } = require('../../types/CurrencyTypes');
 
 const schemas = require('./schemas');
 
@@ -423,6 +423,26 @@ exports.getVaultBalances = async function (req, res) {
   const { id } = req.params;
 
   try {
+    // return res.status(200).send([
+    //   {
+    //     currency: 'usdc',
+    //     balance: 0.1,
+    //     valuations: [
+    //       { currency: 'usd', value: 0.1 },
+    //       { currency: 'ars', value: 30 },
+    //     ],
+    //   },
+    //   {
+    //     currency: 'usdt',
+    //     balance: 0,
+    //     valuations: [
+    //       { currency: 'usd', value: 0 },
+    //       { currency: 'ars', value: 0 },
+    //     ],
+    //   },
+    //   { currency: 'usd', value: 0.1, balance: 0.1, isValuation: true },
+    //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
+    // ]);
     console.log('ENTRO A getVaultBalances' + id);
     const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
@@ -457,24 +477,104 @@ exports.getVaultBalances = async function (req, res) {
 
     console.log('Get the deployed contract done');
 
-    const balances = await blockchainContract.getBalances();
+    const contractBalances = await blockchainContract.getBalances();
 
-    console.log('BALANCES FOR ' + id + ': ' + JSON.stringify(balances));
+    console.log('BALANCES FOR ' + id + ': ' + JSON.stringify(contractBalances));
 
-    const balancesWithToken = [
-      { currency: VaultCurrencyTypes.LOCAL, balance: Utils.formatEther(balances[0]) },
-      { currency: VaultCurrencyTypes.USDC, balance: Utils.formatEther(balances[1]) },
-      { currency: VaultCurrencyTypes.USDT, balance: Utils.formatEther(balances[2]) },
+    const balancesWithCurrencies = [
+      // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
+      { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) },
+      { currency: CurrencyTypes.USDT, balance: parseFloat(Utils.formatEther(contractBalances[2])) },
     ];
 
-    console.log('BALANCES WITH TOKEN FOR ' + id + ': ' + JSON.stringify(balancesWithToken));
-    return res.status(200).send(balancesWithToken);
+    const valuations = await getCurrenciesValuations();
+
+    const balancesWithValuations = balancesToValuations(balancesWithCurrencies, valuations);
+
+    const sumarizedBalances = [];
+    balancesWithValuations.forEach((balanceWithPrice) => {
+      balanceWithPrice.valuations.forEach((valuation) => {
+        const sumarizedBalance = sumarizedBalances.find((item) => {
+          return item.currency === valuation.currency;
+        });
+
+        if (sumarizedBalance) sumarizedBalance.balance += valuation.value;
+        else {
+          sumarizedBalances.push({ ...valuation, balance: valuation.value, isValuation: true });
+        }
+      });
+    });
+
+    const allBalances = [...balancesWithValuations, ...sumarizedBalances];
+    console.log('BALANCES WITH TOKEN FOR ' + id + ': ' + JSON.stringify(allBalances));
+
+    return res.status(200).send(allBalances);
     // const setTx1 = await blockchainContract.setRescueWalletAccount(req.body.rescueWalletAccount);
     // await setTx1.wait();
     // console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
+};
+
+const getCurrenciesValuations = async () => {
+  return [
+    {
+      currency: CurrencyTypes.USDT,
+      targetCurrency: CurrencyTypes.USD,
+      value: 1,
+      updatedAt: new Date(Date.now()),
+    },
+    {
+      currency: CurrencyTypes.USDC,
+      targetCurrency: CurrencyTypes.USD,
+      value: 1,
+      updatedAt: new Date(Date.now()),
+    },
+    {
+      currency: CurrencyTypes.USD,
+      targetCurrency: CurrencyTypes.ARS,
+      value: 300,
+      updatedAt: new Date(Date.now()),
+    },
+  ];
+};
+
+const balancesToValuations = (balancesWithToken, valuations) => {
+  const newBalances = [];
+  const usdToarsValuation = valuations.find((item) => {
+    return item.currency === CurrencyTypes.USD && item.targetCurrency === CurrencyTypes.ARS;
+  });
+
+  balancesWithToken.forEach((balanceWithToken) => {
+    const usdValuation = valuations.find((item) => {
+      return (
+        item.currency === balanceWithToken.currency && item.targetCurrency === CurrencyTypes.USD
+      );
+    });
+
+    if (usdValuation) {
+      const newBalance = {
+        ...balanceWithToken,
+        valuations: [
+          {
+            currency: CurrencyTypes.USD,
+            value: usdValuation.value * balanceWithToken.balance,
+          },
+        ],
+      };
+
+      if (usdToarsValuation) {
+        newBalance.valuations.push({
+          currency: CurrencyTypes.ARS,
+          value: usdValuation.value * balanceWithToken.balance * usdToarsValuation.value,
+        });
+      }
+      newBalances.push(newBalance);
+    }
+  });
+
+  return newBalances;
 };
 
 exports.withdraw = async function (req, res) {
@@ -521,17 +621,17 @@ exports.withdraw = async function (req, res) {
 
     const ethAmount = Utils.parseEther(amount);
 
-    if (token === VaultCurrencyTypes.LOCAL) {
+    if (token === CurrencyTypes.LOCAL) {
       const wd = await blockchainContract.withdraw(ethAmount);
       await wd.wait();
     }
 
-    if (token === VaultCurrencyTypes.USDC) {
+    if (token === CurrencyTypes.USDC) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount);
       await wd.wait();
     }
 
-    if (token === VaultCurrencyTypes.USDT) {
+    if (token === CurrencyTypes.USDT) {
       const wd = await blockchainContract.withdrawUSDT(ethAmount);
       await wd.wait();
     }
@@ -586,17 +686,17 @@ exports.rescue = async function (req, res) {
 
     const ethAmount = Utils.parseEther(amount);
 
-    if (token === VaultCurrencyTypes.LOCAL) {
+    if (token === CurrencyTypes.LOCAL) {
       const wd = await blockchainContract.rescue(ethAmount);
       await wd.wait();
     }
 
-    if (token === VaultCurrencyTypes.USDC) {
+    if (token === CurrencyTypes.USDC) {
       const wd = await blockchainContract.rescueUSDC(ethAmount);
       await wd.wait();
     }
 
-    if (token === VaultCurrencyTypes.USDT) {
+    if (token === CurrencyTypes.USDT) {
       const wd = await blockchainContract.rescueUSDT(ethAmount);
       await wd.wait();
     }
