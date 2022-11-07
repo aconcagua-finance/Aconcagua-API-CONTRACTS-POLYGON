@@ -419,6 +419,7 @@ exports.getVaultBalances = async function (req, res) {
 
   try {
     // TODO MICHEL
+
     // return res.status(200).send([
     //   {
     //     currency: 'usdc',
@@ -466,6 +467,7 @@ exports.getVaultBalances = async function (req, res) {
 
     // // Get the deployed contract.
     const blockchainContract = new hre.ethers.Contract(
+      // '0x14bd5806E43A541A871C3CB0E0Fc6142786BB406',
       smartContract.contractAddress,
       abi,
       userWallet
@@ -475,12 +477,15 @@ exports.getVaultBalances = async function (req, res) {
 
     const contractBalances = await blockchainContract.getBalances();
 
-    console.log('BALANCES FOR ' + id + ': ' + JSON.stringify(contractBalances));
+    console.log('BALANCES FOR' + id + ': ' + JSON.stringify(contractBalances));
 
     const balancesWithCurrencies = [
       // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
-      { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) },
-      { currency: CurrencyTypes.USDT, balance: parseFloat(Utils.formatEther(contractBalances[2])) },
+      { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) }, // 18 decimales
+      {
+        currency: CurrencyTypes.USDT,
+        balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
+      },
     ];
 
     const valuations = await getCurrenciesValuations();
