@@ -643,7 +643,7 @@ exports.withdraw = async function (req, res) {
     }
 
     if (token === CurrencyTypes.USDC) {
-      console.log('ESTIMATING GAST USDC', amount, ethAmount);
+      console.log('ESTIMATING GAS USDC', amount, ethAmount);
 
       const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
 
@@ -656,7 +656,7 @@ exports.withdraw = async function (req, res) {
     }
 
     if (token === CurrencyTypes.USDT) {
-      console.log('ESTIMATING GAST USDT', amount, ethAmount);
+      console.log('ESTIMATING GAS USDT', amount, ethAmount);
       const gasEstimated = await blockchainContract.estimateGas.withdrawUSDT(ethAmount);
 
       console.log('GAS ESTIMATED: ', gasEstimated);
@@ -671,7 +671,7 @@ exports.withdraw = async function (req, res) {
 
     return res.status(200).send(null);
   } catch (err) {
-    console.error('ERROR ACA3:', JSON.stringify(getParsedEthersError(err)));
+    console.error('ERROR ACA 4:', JSON.stringify(getParsedEthersError(err)));
     return ErrorHelper.handleError(req, res, err);
   }
 };
