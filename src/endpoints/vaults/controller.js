@@ -832,7 +832,7 @@ exports.onVaultUpdate = functions.firestore
       const db = admin.firestore();
       const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
 
-      console.log('onVaultUpdate success' + documentPath);
+      console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
       console.error('error onVaultUpdate document', documentPath, err);
 
