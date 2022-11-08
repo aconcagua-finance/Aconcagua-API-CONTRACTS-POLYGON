@@ -633,10 +633,8 @@ exports.withdraw = async function (req, res) {
       userWallet
     );
 
-    // const ethAmount =
-    //   token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
-
-    const ethAmount = Utils.parseEther(amount);
+    const ethAmount =
+      token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
 
     if (token === CurrencyTypes.LOCAL) {
       const wd = await blockchainContract.withdraw(ethAmount);
