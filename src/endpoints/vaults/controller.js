@@ -482,8 +482,12 @@ const fetchVaultBalances = async (vault) => {
 
   return allBalances;
 };
+
 exports.getVaultBalances = async function (req, res) {
   const { id } = req.params;
+
+  const { userId } = res.locals;
+  const auditUid = userId;
 
   try {
     // TODO MICHEL
@@ -512,6 +516,14 @@ exports.getVaultBalances = async function (req, res) {
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
     const allBalances = await fetchVaultBalances(vault);
+
+    // actualizo
+    await updateSingleItem({
+      collectionName: COLLECTION_NAME,
+      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      auditUid,
+      id: vault.id,
+    });
 
     return res.status(200).send(allBalances);
   } catch (err) {
