@@ -649,7 +649,7 @@ exports.withdraw = async function (req, res) {
 
       console.log('GAS ESTIMATED: ', gasEstimated);
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 10000),
+        gasLimit: Math.ceil(gasEstimated * 1000),
         gasPrice: 2000000000,
       });
       await wd.wait();
@@ -662,7 +662,7 @@ exports.withdraw = async function (req, res) {
       console.log('GAS ESTIMATED: ', gasEstimated);
 
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 10000),
+        gasLimit: Math.ceil(gasEstimated * 1000),
         gasPrice: 2000000000,
       });
 
