@@ -637,6 +637,9 @@ exports.withdraw = async function (req, res) {
     const ethAmount =
       token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
 
+    const maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+    const maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+
     if (token === CurrencyTypes.LOCAL) {
       const wd = await blockchainContract.withdraw(ethAmount);
       await wd.wait();
@@ -649,8 +652,11 @@ exports.withdraw = async function (req, res) {
 
       console.log('GAS ESTIMATED: ', gasEstimated);
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 100),
-        gasPrice: 2000000000,
+        // gasLimit: Math.ceil(gasEstimated * 100),
+        // gasPrice: 2000000000,
+
+        maxFeePerGas,
+        maxPriorityFeePerGas,
       });
       await wd.wait();
     }
@@ -662,8 +668,10 @@ exports.withdraw = async function (req, res) {
       console.log('GAS ESTIMATED: ', gasEstimated);
 
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 100),
-        gasPrice: 2000000000,
+        // gasLimit: Math.ceil(gasEstimated * 100),
+        // gasPrice: 2000000000,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
       });
 
       await wd.wait();
@@ -671,7 +679,7 @@ exports.withdraw = async function (req, res) {
 
     return res.status(200).send(null);
   } catch (err) {
-    console.error('ERROR ACA 5:', JSON.stringify(getParsedEthersError(err)));
+    console.error('ERROR ACA 6:', JSON.stringify(getParsedEthersError(err)));
     return ErrorHelper.handleError(req, res, err);
   }
 };
