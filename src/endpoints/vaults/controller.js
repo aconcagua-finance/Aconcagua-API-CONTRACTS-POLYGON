@@ -783,7 +783,7 @@ const markVaultsToUpdate = async function () {
 exports.cronFetchVaultsBalances = functions
   .runWith({
     memory: '1GB',
-    timeoutSeconds: '540',
+    // timeoutSeconds: 540,
   })
   .pubsub.schedule('every 60 minutes')
   .timeZone('America/New_York') // Users can choose timezone - default is America/Los_Angeles
