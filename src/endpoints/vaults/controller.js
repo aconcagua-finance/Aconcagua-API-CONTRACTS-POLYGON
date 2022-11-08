@@ -679,7 +679,17 @@ exports.withdraw = async function (req, res) {
 
     return res.status(200).send(null);
   } catch (err) {
-    console.error('ERROR ACA 6:', JSON.stringify(getParsedEthersError(err)));
+    const parsedErr = getParsedEthersError(err);
+
+    console.error('ERROR ACA 6:', JSON.stringify(parsedErr));
+
+    if (parsedErr && parsedErr.context) {
+      return ErrorHelper.handleError(
+        req,
+        res,
+        new Error(parsedErr.code + ' - ' + parsedErr.context)
+      );
+    }
     return ErrorHelper.handleError(req, res, err);
   }
 };
