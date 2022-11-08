@@ -642,6 +642,8 @@ exports.withdraw = async function (req, res) {
     }
 
     if (token === CurrencyTypes.USDC) {
+      console.log('ESTIMATING GAST USDC', amount, ethAmount);
+
       const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
 
       console.log('GAS ESTIMATED: ', gasEstimated);
@@ -652,6 +654,7 @@ exports.withdraw = async function (req, res) {
     }
 
     if (token === CurrencyTypes.USDT) {
+      console.log('ESTIMATING GAST USDT', amount, ethAmount);
       const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
 
       console.log('GAS ESTIMATED: ', gasEstimated);
