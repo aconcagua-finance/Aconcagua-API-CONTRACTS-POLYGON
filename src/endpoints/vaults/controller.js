@@ -649,7 +649,7 @@ exports.withdraw = async function (req, res) {
 
       console.log('GAS ESTIMATED: ', gasEstimated);
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 100000),
+        gasLimit: Math.ceil(gasEstimated * 10000),
         gasPrice: 2000000000,
       });
       await wd.wait();
@@ -662,7 +662,7 @@ exports.withdraw = async function (req, res) {
       console.log('GAS ESTIMATED: ', gasEstimated);
 
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
-        gasLimit: Math.ceil(gasEstimated * 100000),
+        gasLimit: Math.ceil(gasEstimated * 10000),
         gasPrice: 2000000000,
       });
 
@@ -671,7 +671,7 @@ exports.withdraw = async function (req, res) {
 
     return res.status(200).send(null);
   } catch (err) {
-    console.error('ERROR ACA2:', JSON.stringify(getParsedEthersError(err)));
+    console.error('ERROR ACA3:', JSON.stringify(getParsedEthersError(err)));
     return ErrorHelper.handleError(req, res, err);
   }
 };
