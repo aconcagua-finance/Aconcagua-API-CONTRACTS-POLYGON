@@ -642,12 +642,24 @@ exports.withdraw = async function (req, res) {
     }
 
     if (token === CurrencyTypes.USDC) {
-      const wd = await blockchainContract.withdrawUSDC(ethAmount);
+      const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
+
+      console.log('GAS ESTIMATED: ', gasEstimated);
+      const wd = await blockchainContract.withdrawUSDC(ethAmount, {
+        gasLimit: Math.ceil(gasEstimated * 1.1),
+      });
       await wd.wait();
     }
 
     if (token === CurrencyTypes.USDT) {
-      const wd = await blockchainContract.withdrawUSDT(ethAmount);
+      const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
+
+      console.log('GAS ESTIMATED: ', gasEstimated);
+
+      const wd = await blockchainContract.withdrawUSDT(ethAmount, {
+        gasLimit: Math.ceil(gasEstimated * 1.1),
+      });
+
       await wd.wait();
     }
 
