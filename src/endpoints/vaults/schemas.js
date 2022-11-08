@@ -3,6 +3,7 @@ const Joi = require('joi');
 const { Types } = require('../../vs-core');
 
 const basicData = {
+  loanStatus: Joi.string(),
   currency: Joi.string(),
   amount: Joi.number(),
   dueDate: Joi.date().allow(null, ''),
@@ -70,6 +71,7 @@ const requiredBaseFields = [
   'contractSignerAddress',
   'contractName',
   'creditType',
+  'loanStatus',
   'currency',
   'amount',
 ];

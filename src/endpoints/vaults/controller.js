@@ -414,6 +414,74 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
   console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
 };
 
+const fetchVaultBalances = async (vault) => {
+  const smartContract = vault;
+
+  const contractJson = require('../../../artifacts/contracts/' +
+    smartContract.contractName +
+    '.sol/' +
+    smartContract.contractName +
+    '.json');
+  const abi = contractJson.abi;
+
+  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
+
+  // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+
+  console.log('alchemmy config done');
+
+  // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
+  const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
+
+  console.log('wallet config done');
+
+  // // Get the deployed contract.
+  const blockchainContract = new hre.ethers.Contract(
+    // '0x14bd5806E43A541A871C3CB0E0Fc6142786BB406',
+    smartContract.contractAddress,
+    abi,
+    userWallet
+  );
+
+  console.log('Get the deployed contract done');
+
+  const contractBalances = await blockchainContract.getBalances();
+
+  console.log('BALANCES FOR' + vault.id + ': ' + JSON.stringify(contractBalances));
+
+  const balancesWithCurrencies = [
+    // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
+    { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) }, // 18 decimales
+    {
+      currency: CurrencyTypes.USDT,
+      balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
+    },
+  ];
+
+  const valuations = await getCurrenciesValuations();
+
+  const balancesWithValuations = balancesToValuations(balancesWithCurrencies, valuations);
+
+  const sumarizedBalances = [];
+  balancesWithValuations.forEach((balanceWithPrice) => {
+    balanceWithPrice.valuations.forEach((valuation) => {
+      const sumarizedBalance = sumarizedBalances.find((item) => {
+        return item.currency === valuation.currency;
+      });
+
+      if (sumarizedBalance) sumarizedBalance.balance += valuation.value;
+      else {
+        sumarizedBalances.push({ ...valuation, balance: valuation.value, isValuation: true });
+      }
+    });
+  });
+
+  const allBalances = [...balancesWithValuations, ...sumarizedBalances];
+  console.log('BALANCES WITH TOKEN FOR ' + vault.id + ': ' + JSON.stringify(allBalances));
+
+  return allBalances;
+};
 exports.getVaultBalances = async function (req, res) {
   const { id } = req.params;
 
@@ -441,78 +509,11 @@ exports.getVaultBalances = async function (req, res) {
     //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
     // ]);
     console.log('ENTRO A getVaultBalances' + id);
-    const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
+    const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
-    const contractJson = require('../../../artifacts/contracts/' +
-      smartContract.contractName +
-      '.sol/' +
-      smartContract.contractName +
-      '.json');
-    const abi = contractJson.abi;
-
-    console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-    // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-
-    console.log('alchemmy config done');
-
-    // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
-    const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-    console.log('wallet config done');
-
-    // // Get the deployed contract.
-    const blockchainContract = new hre.ethers.Contract(
-      // '0x14bd5806E43A541A871C3CB0E0Fc6142786BB406',
-      smartContract.contractAddress,
-      abi,
-      userWallet
-    );
-
-    console.log('Get the deployed contract done');
-
-    const contractBalances = await blockchainContract.getBalances();
-
-    console.log('BALANCES FOR' + id + ': ' + JSON.stringify(contractBalances));
-
-    const balancesWithCurrencies = [
-      // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
-      { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) }, // 18 decimales
-      {
-        currency: CurrencyTypes.USDT,
-        balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
-      },
-    ];
-
-    const valuations = await getCurrenciesValuations();
-
-    const balancesWithValuations = balancesToValuations(balancesWithCurrencies, valuations);
-
-    const sumarizedBalances = [];
-    balancesWithValuations.forEach((balanceWithPrice) => {
-      balanceWithPrice.valuations.forEach((valuation) => {
-        const sumarizedBalance = sumarizedBalances.find((item) => {
-          return item.currency === valuation.currency;
-        });
-
-        if (sumarizedBalance) sumarizedBalance.balance += valuation.value;
-        else {
-          sumarizedBalances.push({ ...valuation, balance: valuation.value, isValuation: true });
-        }
-      });
-    });
-
-    const allBalances = [...balancesWithValuations, ...sumarizedBalances];
-    console.log('BALANCES WITH TOKEN FOR ' + id + ': ' + JSON.stringify(allBalances));
+    const allBalances = await fetchVaultBalances(vault);
 
     return res.status(200).send(allBalances);
-    // const setTx1 = await blockchainContract.setRescueWalletAccount(req.body.rescueWalletAccount);
-    // await setTx1.wait();
-    // console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -709,3 +710,132 @@ exports.rescue = async function (req, res) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+const getVaultsToUpdate = async function () {
+  const db = admin.firestore();
+  const ref = db.collection(COLLECTION_NAME);
+
+  console.log('Consultando vaults para actualizar');
+  const querySnapshot = await ref
+    .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+
+    .where('loanStatus', 'in', [
+      Types.LoanStatusTypes.LOAN_STATUS_TYPE_ACTIVE,
+      Types.LoanStatusTypes.LOAN_STATUS_TYPE_DEFAULTER,
+    ])
+    .get();
+
+  let vaults = [];
+
+  if (querySnapshot.docs) {
+    vaults = querySnapshot.docs.map((doc) => {
+      const id = doc.id;
+      const data = doc.data();
+      data.createdAt = data.createdAt ? data.createdAt.toDate() : null;
+      data.updatedAt = data.updatedAt ? data.updatedAt.toDate() : null;
+      data.eventDate = data.eventDate ? data.eventDate.toDate() : null;
+      data.eventCreationDate = data.eventCreationDate ? data.eventCreationDate.toDate() : null;
+
+      return { id, ...data };
+    });
+  }
+
+  return vaults;
+};
+
+const MAX_BALANCES_RETRIES = 5;
+const markVaultsToUpdate = async function () {
+  const db = admin.firestore();
+
+  // TODO MICHEL HACER LOTES
+  const batch = db.batch();
+
+  const vaults = await getVaultsToUpdate();
+
+  // const boundaryStartDate = new Date(Date.now());
+  // boundaryStartDate.setDate(boundaryStartDate.getDate() - 45);
+
+  vaults.forEach((vault) => {
+    const ref = db.collection(COLLECTION_NAME).doc(vault.id);
+
+    let balancesUpdateRetries = 0;
+    if (vault.mustUpdate) {
+      balancesUpdateRetries = vault.balancesUpdateCount ? vault.balancesUpdateCount + 1 : 1;
+    } else balancesUpdateRetries = 0;
+
+    if (MAX_BALANCES_RETRIES <= balancesUpdateRetries) {
+      console.error('Max retries reached for contract ' + vault.id, JSON.stringify(vault));
+    }
+
+    const assistanceUpdateData = {
+      mustUpdate: true,
+      balancesUpdateCount: balancesUpdateRetries,
+    };
+
+    const updates = { ...assistanceUpdateData };
+
+    batch.update(ref, updates);
+  });
+
+  await batch.commit();
+};
+
+exports.cronFetchVaultsBalances = functions
+  .runWith({
+    memory: '1GB',
+    timeoutSeconds: '540',
+  })
+  .pubsub.schedule('every 60 minutes')
+  .timeZone('America/New_York') // Users can choose timezone - default is America/Los_Angeles
+  .onRun(async (context) => {
+    try {
+      await markVaultsToUpdate();
+
+      LoggerHelper.appLogger({
+        message: 'CRON cronFetchVaultBalances - OK',
+        data: null,
+
+        notifyAdmin: true,
+      });
+    } catch (err) {
+      ErrorHelper.handleCronError({
+        message: 'CRON cronFetchVaultBalances - ERROR: ' + err.message,
+        error: err,
+      });
+    }
+  });
+
+exports.onVaultUpdate = functions.firestore
+  .document(COLLECTION_NAME + '/{docId}')
+  .onUpdate(async (change, context) => {
+    const { docId } = context.params;
+    const documentPath = `${COLLECTION_NAME}/${docId}`;
+    const before = change.before.data();
+    const after = change.after.data();
+
+    try {
+      console.log('onVaultUpdate ' + documentPath);
+
+      if (!after.mustUpdate) return;
+
+      const allBalances = await fetchVaultBalances({ ...after, id: docId });
+
+      console.log('onVaultUpdate post fetch smart contract data' + documentPath);
+
+      const updateData = {
+        lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
+        mustUpdate: false,
+        balancesUpdateRetries: 0,
+        balances: allBalances,
+      };
+
+      const db = admin.firestore();
+      const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+
+      console.log('onVaultUpdate success' + documentPath);
+    } catch (err) {
+      console.error('error onVaultUpdate document', documentPath, err);
+
+      return null;
+    }
+  });

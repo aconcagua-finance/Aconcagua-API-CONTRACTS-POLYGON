@@ -43,7 +43,7 @@ echo "ETHERSCAN_API_KEY="${ETHERSCAN_API_KEY} >> .env
 echo "USDC_TOKEN_ADDRESS="${USDC_TOKEN_ADDRESS} >> .env
 echo "USDT_TOKEN_ADDRESS="${USDT_TOKEN_ADDRESS} >> .env
 
-firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon
+firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate
 #firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
 
 echo "deploy complete!"

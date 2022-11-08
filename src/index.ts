@@ -11,6 +11,8 @@ import { FirebaseConfig } from './config/firebaseConfig';
 
 const { vaultsRoutesConfig } = require('./endpoints/vaults/routes-config');
 
+const { cronFetchVaultsBalances, onVaultUpdate } = require('./endpoints/vaults/controller');
+
 console.log('NODE_ENV:', process.env.NODE_ENV, 'ENVIRONMENT:', process.env.ENVIRONMENT);
 
 admin.initializeApp(FirebaseConfig);
@@ -58,3 +60,6 @@ exports.vaultsPolygon = functions
     // minInstances: envProjectId === "my-production-project" ? 5 : 0,
   })
   .https.onRequest(vaultsApp);
+
+exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
+exports.onVaultUpdate = onVaultUpdate;
