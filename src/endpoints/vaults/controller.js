@@ -49,6 +49,7 @@ const {
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  GAS_STATION_URL,
 } = require('../../config/appConfig');
 
 const hre = require('hardhat');
@@ -600,7 +601,7 @@ const getGasPrice = async () => {
   try {
     const { data } = await axios({
       method: 'get',
-      url: 'https://gasstation-mainnet.matic.network/v2',
+      url: GAS_STATION_URL,
       // url: isProd
       //   ? 'https://gasstation-mainnet.matic.network/v2'
       //   : 'https://gasstation-mumbai.matic.today/v2',
