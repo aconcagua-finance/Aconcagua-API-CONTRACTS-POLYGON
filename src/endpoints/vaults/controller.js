@@ -16,7 +16,7 @@ const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
 const { CurrencyTypes } = require('../../types/CurrencyTypes');
-
+const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
 const schemas = require('./schemas');
 
@@ -637,8 +637,31 @@ exports.withdraw = async function (req, res) {
     const ethAmount =
       token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
 
-    const maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
-    const maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+    // get max fees from gas station
+    let maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+    let maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+    try {
+      const { data } = await axios({
+        method: 'get',
+        url: 'https://gasstation-mainnet.matic.network/v2',
+        // url: isProd
+        //   ? 'https://gasstation-mainnet.matic.network/v2'
+        //   : 'https://gasstation-mumbai.matic.today/v2',
+      });
+      maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
+      maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
+        Math.ceil(data.fast.maxPriorityFee) + '',
+        'gwei'
+      );
+    } catch (e) {
+      console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
+      // ignore
+    }
+
+    // send tx with custom gas
+    // const tx = await contract.multicall(calldata, {
+
+    // });
 
     if (token === CurrencyTypes.LOCAL) {
       const wd = await blockchainContract.withdraw(ethAmount);
@@ -654,8 +677,8 @@ exports.withdraw = async function (req, res) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
-        // maxFeePerGas,
-        // maxPriorityFeePerGas,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
       });
       await wd.wait();
     }
@@ -669,8 +692,8 @@ exports.withdraw = async function (req, res) {
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
-        // maxFeePerGas,
-        // maxPriorityFeePerGas,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
       });
 
       await wd.wait();
