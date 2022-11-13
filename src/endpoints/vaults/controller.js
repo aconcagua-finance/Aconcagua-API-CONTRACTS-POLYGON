@@ -15,7 +15,7 @@ const { Auth } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
-const { CurrencyTypes } = require('../../types/CurrencyTypes');
+const { CurrencyTypes } = require('../../types/currencyTypes');
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
 const schemas = require('./schemas');
