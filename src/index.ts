@@ -11,7 +11,11 @@ import { FirebaseConfig } from './config/firebaseConfig';
 
 const { vaultsRoutesConfig } = require('./endpoints/vaults/routes-config');
 
-const { cronFetchVaultsBalances, onVaultUpdate } = require('./endpoints/vaults/controller');
+const {
+  cronFetchVaultsBalances,
+  onVaultUpdate,
+  onVaultCreate,
+} = require('./endpoints/vaults/controller');
 
 console.log('NODE_ENV:', process.env.NODE_ENV, 'ENVIRONMENT:', process.env.ENVIRONMENT);
 
@@ -63,3 +67,4 @@ exports.vaultsPolygon = functions
 
 exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
 exports.onVaultUpdate = onVaultUpdate;
+exports.onVaultCreate = onVaultCreate;
