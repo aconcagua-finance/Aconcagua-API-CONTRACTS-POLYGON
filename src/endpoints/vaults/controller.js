@@ -939,9 +939,9 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
       return balance.currency === arsCurrency;
     });
 
-    if (beforeARS && afterARS && beforeARS.value > afterARS.value) {
+    if (beforeARS && afterARS && beforeARS.balance > afterARS.balance) {
       movementType = 'minus';
-      movementAmount = afterARS.value - beforeARS.value;
+      movementAmount = afterARS.balance - beforeARS.balance;
       if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
     }
   }
