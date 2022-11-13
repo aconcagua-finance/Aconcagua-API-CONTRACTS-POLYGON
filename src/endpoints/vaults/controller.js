@@ -929,6 +929,8 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   let movementType = 'plus';
   let movementAmount = 0;
 
+  console.log('before:', JSON.stringify(before), 'after:', JSON.stringify(after));
+
   if (before && after && before.balances && after.balances) {
     const arsCurrency = CurrencyTypes.ARS;
     const beforeARS = before.balances.find((balance) => {
@@ -939,10 +941,19 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
       return balance.currency === arsCurrency;
     });
 
-    if (beforeARS && afterARS && beforeARS.balance > afterARS.balance) {
-      movementType = 'minus';
+    if (
+      beforeARS &&
+      afterARS &&
+      typeof afterARS.balance === 'number' &&
+      typeof beforeARS.balance === 'number'
+    ) {
       movementAmount = afterARS.balance - beforeARS.balance;
+
       if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
+
+      if (beforeARS.balance > afterARS.balance) {
+        movementType = 'minus';
+      }
     }
   }
 
