@@ -950,6 +950,7 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
     ...after,
     vaultId: docId,
     movementType, // plus / minus
+    movementAmount,
     transactionType,
   };
 
