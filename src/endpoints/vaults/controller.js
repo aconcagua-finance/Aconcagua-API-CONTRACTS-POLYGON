@@ -957,18 +957,22 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
     }
   }
 
-  const updateData = {
+  const createData = {
     ...after,
     vaultId: docId,
     movementType, // plus / minus
     movementAmount,
     transactionType,
+
+    state: Types.StateTypes.STATE_ACTIVE,
+    ...creationStruct('admin'),
   };
 
-  delete updateData.id;
+  delete createData.id;
+  delete createData.contractDeployment;
 
   const db = admin.firestore();
-  const doc = await db.collection(Collections.VAULT_TRANSACTIONS).doc().set(updateData);
+  const doc = await db.collection(Collections.VAULT_TRANSACTIONS).doc().set(createData);
 };
 
 // eslint-disable-next-line camelcase
