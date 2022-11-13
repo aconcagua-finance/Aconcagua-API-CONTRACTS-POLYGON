@@ -901,6 +901,107 @@ exports.cronFetchVaultsBalances = functions
     }
   });
 
+// eslint-disable-next-line camelcase
+const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
+  try {
+    if (!after.mustUpdate) return;
+
+    const allBalances = await fetchVaultBalances({ ...after, id: docId });
+
+    console.log('onVaultUpdate post fetch smart contract data' + docId);
+
+    const updateData = {
+      lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
+      mustUpdate: false,
+      balancesUpdateRetries: 0,
+      balances: allBalances,
+    };
+
+    const db = admin.firestore();
+    const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+  } catch (e) {
+    console.error('Error actualizando los balances del contrato ' + docId + '. ' + e.message);
+    throw e;
+  }
+};
+
+const createVaultBalanceChangeTransaction = async ({ docId, before, after, transactionType }) => {
+  let movementType = 'plus';
+  let movementAmount = 0;
+
+  if (before && after && before.balances && after.balances) {
+    const arsCurrency = CurrencyTypes.ARS;
+    const beforeARS = before.balances.find((balance) => {
+      return balance.currency === arsCurrency;
+    });
+
+    const afterARS = after.balances.find((balance) => {
+      return balance.currency === arsCurrency;
+    });
+
+    if (beforeARS && afterARS && beforeARS.value > afterARS.value) {
+      movementType = 'minus';
+      movementAmount = afterARS.value - beforeARS.value;
+      if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
+    }
+  }
+
+  const updateData = {
+    ...after,
+    vaultId: docId,
+    movementType, // plus / minus
+    transactionType,
+  };
+
+  delete updateData.id;
+
+  const db = admin.firestore();
+  const doc = await db.collection(Collections.VAULT_TRANSACTIONS).doc().set(updateData);
+};
+
+// eslint-disable-next-line camelcase
+const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
+  try {
+    if (!before.balances && !after.balances) return;
+
+    if (!before.balances && after.balances) {
+      await createVaultBalanceChangeTransaction({
+        docId,
+        before,
+        after,
+        transactionType: 'balances-update',
+      });
+      return;
+    }
+
+    if (before.balances.length !== after.balances.length) {
+      console.log('Son distintos por cantidad ' + docId);
+      await createVaultBalanceChangeTransaction({
+        docId,
+        before,
+        after,
+        transactionType: 'balances-update',
+      });
+      return;
+    }
+
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
+      console.log('Son distintos por comparacion ' + docId);
+
+      await createVaultBalanceChangeTransaction({
+        docId,
+        before,
+        after,
+        transactionType: 'balances-update',
+      });
+      return;
+    }
+  } catch (e) {
+    console.error('Error creando la transaccion ' + docId + '. ' + e.message);
+    throw e;
+  }
+};
+
 exports.onVaultUpdate = functions.firestore
   .document(COLLECTION_NAME + '/{docId}')
   .onUpdate(async (change, context) => {
@@ -911,26 +1012,37 @@ exports.onVaultUpdate = functions.firestore
 
     try {
       console.log('onVaultUpdate ' + documentPath);
-
-      if (!after.mustUpdate) return;
-
-      const allBalances = await fetchVaultBalances({ ...after, id: docId });
-
-      console.log('onVaultUpdate post fetch smart contract data' + documentPath);
-
-      const updateData = {
-        lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
-        mustUpdate: false,
-        balancesUpdateRetries: 0,
-        balances: allBalances,
-      };
-
-      const db = admin.firestore();
-      const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
-
+      await onVaultUpdate_ThenUpdateBalances({ after, docId });
+      await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
-      console.error('error onVaultUpdate document', documentPath, err);
+      console.error('error onUpdate document', documentPath, err);
+
+      return null;
+    }
+  });
+
+exports.onVaultCreate = functions.firestore
+  .document(COLLECTION_NAME + '/{docId}')
+  .onCreate(async (snapshot, context) => {
+    const { docId } = context.params;
+    // const docId = snapshot.key;
+    const documentPath = `${COLLECTION_NAME}/${docId}`;
+    try {
+      const before = null;
+      const after = snapshot.data();
+
+      console.log('onVaultCreate ' + documentPath);
+
+      await createVaultBalanceChangeTransaction({
+        docId,
+        before,
+        after,
+        transactionType: 'vault-create',
+      });
+      console.log('onVaultCreate success ' + documentPath);
+    } catch (err) {
+      console.error('error onCreate document', documentPath, err);
 
       return null;
     }
