@@ -56,7 +56,7 @@ const hre = require('hardhat');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
-const INDEXED_FILTERS = ['userId', 'companyId'];
+const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
 const USER_ENTITY_PROPERTY_NAME = 'userId';
@@ -957,6 +957,10 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
     }
   }
 
+  if (movementAmount === 0 && transactionType !== 'vault-create') {
+    return;
+  }
+
   const createData = {
     ...after,
     vaultId: docId,
@@ -1028,6 +1032,7 @@ exports.onVaultUpdate = functions.firestore
 
     try {
       console.log('onVaultUpdate ' + documentPath);
+      // se ejecuta el onVaultUpdate_ThenUpdateBalances dado que el cron que corre y marca las vaults para actualizar no actualiza los saldos, solo deja marcas
       await onVaultUpdate_ThenUpdateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
       console.log('onVaultUpdate success ' + documentPath);
@@ -1056,6 +1061,7 @@ exports.onVaultCreate = functions.firestore
         after,
         transactionType: 'vault-create',
       });
+
       console.log('onVaultCreate success ' + documentPath);
     } catch (err) {
       console.error('error onCreate document', documentPath, err);

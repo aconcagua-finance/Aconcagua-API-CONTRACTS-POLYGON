@@ -13,12 +13,105 @@ const { Auth } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 
-const mapTofirestoreFilter = (value) => {
+const mapTofirestoreFilter = (key, value) => {
+  if (key === 'state') return parseInt(value); // fix michel por state
+  // if (value === '0' || value === '1') return value; // fix michel por state
+
   if (typeof value === 'string' && new Date(value) !== 'Invalid Date' && !isNaN(new Date(value))) {
     return new Date(value);
   }
 
   return value;
+};
+
+const buildQuerySnapshot = ({ ref, filters, filterState, indexedFilters }) => {
+  let querySnapshot = ref;
+
+  if (typeof filterState !== 'undefined' && filterState !== null) {
+    querySnapshot = querySnapshot.where('state', '==', filterState);
+  }
+  // querySnapshot = querySnapshot.orderBy('createdAt', 'asc');
+
+  // console.log('COLLECTION:' + collectionName, indexedFilters, filters);
+
+  if (filters && indexedFilters && indexedFilters.length) {
+    const filtersKeys = Object.keys(filters);
+
+    filtersKeys.forEach((key) => {
+      if (!indexedFilters.includes(key)) return;
+
+      if (filters[key].$equal) {
+        const filterValue = mapTofirestoreFilter(key, filters[key].$equal);
+
+        console.log('Filter equal: ', key, filterValue);
+
+        querySnapshot = querySnapshot.where(key, '==', filterValue);
+      }
+
+      if (filters[key].$nequal) {
+        const filterValue = mapTofirestoreFilter(key, filters[key].$nequal);
+
+        querySnapshot = querySnapshot.where(key, '!=', filterValue);
+      }
+
+      if (filters[key].$contains) {
+        // lo dejo pasar pq no existe contains en filtro de indice de firestore
+      }
+
+      if (filters[key].$in) {
+        const filterValue = mapTofirestoreFilter(key, filters[key].$in);
+
+        querySnapshot = querySnapshot.where(key, 'array-contains', filterValue);
+      }
+
+      if (filters[key].$gte) {
+        const filterValue = mapTofirestoreFilter(key, filters[key].$gte);
+
+        console.log('Filter gte: ', key, filterValue);
+
+        querySnapshot = querySnapshot.where(key, '>=', filterValue);
+      }
+    });
+  }
+
+  return querySnapshot;
+};
+
+// equal: Equals
+// nequal: Not equals
+// lt: Lower than
+// gt: Greater than
+// lte: Lower than or equal to
+// gte: Greater than or equal to
+// in: Included in an array of values
+// nin: Isn't included in an array of values
+// contains: Contains
+// ncontains: Doesn't contain
+// containss: Contains case sensitive
+// ncontainss: Doesn't contain case sensitive
+const countItems = async function ({
+  collectionName,
+
+  filterState,
+  filters,
+  indexedFilters,
+}) {
+  try {
+    const db = admin.firestore();
+    const ref = db.collection(collectionName);
+
+    console.log(
+      'Count with Filters (' + collectionName + '): ' + JSON.stringify({ filters, indexedFilters })
+    );
+
+    let querySnapshot = buildQuerySnapshot({ ref, filters, filterState, indexedFilters });
+
+    querySnapshot = await querySnapshot.get();
+
+    return querySnapshot.size;
+  } catch (err) {
+    throw new CustomError.TechnicalError('ERROR_FETCH', null, err.message, err);
+  }
 };
 
 // equal: Equals
@@ -44,51 +137,16 @@ const fetchItems = async function ({
     const db = admin.firestore();
     const ref = db.collection(collectionName);
 
-    let querySnapshot = ref.limit(limit);
-    if (typeof filterState !== 'undefined' && filterState !== null) {
-      querySnapshot = querySnapshot.where('state', '==', filterState);
-    }
-    // querySnapshot = querySnapshot.orderBy('createdAt', 'asc');
+    console.log(
+      'Find with Filters (' + collectionName + '): ' + JSON.stringify({ filters, indexedFilters })
+    );
 
-    // console.log('COLLECTION:' + collectionName, indexedFilters, filters);
-
-    if (filters && indexedFilters && indexedFilters.length) {
-      const filtersKeys = Object.keys(filters);
-
-      filtersKeys.forEach((key) => {
-        if (!indexedFilters.includes(key)) return;
-
-        console.log(key + ':' + JSON.stringify(filters[key]));
-
-        if (filters[key].$equal) {
-          const filterValue = mapTofirestoreFilter(filters[key].$equal);
-
-          querySnapshot = querySnapshot.where(key, '==', filterValue);
-        }
-
-        if (filters[key].$nequal) {
-          const filterValue = mapTofirestoreFilter(filters[key].$nequal);
-
-          querySnapshot = querySnapshot.where(key, '!=', filterValue);
-        }
-
-        if (filters[key].$contains) {
-          // lo dejo pasar pq no existe contains en filtro de indice de firestore
-        }
-
-        if (filters[key].$in) {
-          const filterValue = mapTofirestoreFilter(filters[key].$in);
-
-          querySnapshot = querySnapshot.where(key, 'array-contains', filterValue);
-        }
-
-        if (filters[key].$gte) {
-          const filterValue = mapTofirestoreFilter(filters[key].$gte);
-
-          querySnapshot = querySnapshot.where(key, '>=', filterValue);
-        }
-      });
-    }
+    let querySnapshot = buildQuerySnapshot({
+      ref: ref.limit(limit),
+      filters,
+      filterState,
+      indexedFilters,
+    });
 
     querySnapshot = await querySnapshot.get();
     if (!querySnapshot.docs) return [];
@@ -215,9 +273,9 @@ const fetchItemsByIds = async function ({ collectionName, ids }) {
   }
 };
 
-const onlyUnique = (value, index, self) => {
+function onlyUnique(value, index, self) {
   return self.indexOf(value) === index;
-};
+}
 
 // equal: Equals
 // nequal: Not equals
@@ -232,7 +290,7 @@ const onlyUnique = (value, index, self) => {
 // containss: Contains case sensitive
 // ncontainss: Doesn't contain case sensitive
 
-const filterItems = function ({ items, limit = 100, offset = 0, filters }) {
+const filterItems = function ({ items, limit = 100, offset = 0, filters, indexedFilters }) {
   if (!items || items.length === 0) return { items: [], hasMore: false, total: 0, pageSize: limit };
 
   offset = parseInt(offset);
@@ -245,7 +303,15 @@ const filterItems = function ({ items, limit = 100, offset = 0, filters }) {
   // key, value, operator
 
   if (filters) {
-    const filtersKeys = Object.keys(filters);
+    let filtersKeys = Object.keys(filters);
+
+    if (indexedFilters) {
+      filtersKeys = filtersKeys.filter((key) => {
+        return !indexedFilters.find((item) => {
+          return item === key;
+        });
+      });
+    }
 
     filtersKeys.forEach((key) => {
       if (filters[key].$contains) {
@@ -514,6 +580,8 @@ const getFirebaseUserByEmail = async function (email) {
 };
 
 exports.fetchItems = fetchItems;
+exports.countItems = countItems;
+
 exports.fetchSingleItem = fetchSingleItem;
 exports.updateSingleItem = updateSingleItem;
 exports.deleteSingleItem = deleteSingleItem;
@@ -555,7 +623,7 @@ exports.find = async function (req, res, collectionName, indexedFilters, postPro
 
     console.log('OK - all - fetch (' + collectionName + '): ' + items.length);
 
-    const filteredItems = filterItems({ items, limit, offset, filters });
+    const filteredItems = filterItems({ items, limit, offset, filters, indexedFilters });
 
     if (filteredItems.items) {
       console.log('OK - all - filter (' + collectionName + '): ' + filteredItems.items.length);
@@ -608,7 +676,7 @@ exports.findWithUserRelationshipInner = async function ({
 
   console.log('OK - all - fetch (' + collectionName + '): ' + items.length);
 
-  const filteredItems = filterItems({ items, limit, offset, filters });
+  const filteredItems = filterItems({ items, limit, offset, filters, indexedFilters });
 
   if (filteredItems.items) {
     console.log('OK - all - filter(' + collectionName + '): ' + filteredItems.items.length);
@@ -1095,14 +1163,11 @@ exports.listByPropInner = async function ({
   if (!filters) filters = {};
   // { staffId: { '$equal': 'oKlebI6i03FAAZHsLWzn' } }
 
-  // puede que pretenda sin filtro
-  if (primaryEntityPropName) {
-    if (overridePrimaryRelationshipOperator) {
-      filters[primaryEntityPropName] = {
-        [overridePrimaryRelationshipOperator]: primaryEntityValue,
-      };
-    } else filters[primaryEntityPropName] = { $equal: primaryEntityValue };
-  }
+  if (overridePrimaryRelationshipOperator) {
+    filters[primaryEntityPropName] = {
+      [overridePrimaryRelationshipOperator]: primaryEntityValue,
+    };
+  } else filters[primaryEntityPropName] = { $equal: primaryEntityValue };
 
   console.log('Query (' + listByCollectionName + ') with filters:', filters);
 
@@ -1115,7 +1180,7 @@ exports.listByPropInner = async function ({
 
   console.log('OK - all - fetch (' + listByCollectionName + '): ' + items.length);
 
-  const filteredItems = filterItems({ items, limit, offset, filters });
+  const filteredItems = filterItems({ items, limit, offset, filters, indexedFilters });
 
   if (filteredItems.items) {
     console.log('OK - all - filter(' + listByCollectionName + '): ' + filteredItems.items.length);
@@ -1291,29 +1356,26 @@ exports.getByPropInner = async function ({
   );
 
   if (items && items.length) {
-    // a veces solo consulta por relaciones
-    if (primaryEntityPropName) {
-      const primaryEntityValue = items[0][primaryEntityPropName];
+    const primaryEntityValue = items[0][primaryEntityPropName];
 
-      // obtengo la entidad principal
-      if (primaryEntityCollectionName === Collections.USERS) {
-        // obtengo los usuarios por id
-        const firebaseUser = await getFirebaseUserById(primaryEntityValue);
+    // obtengo la entidad principal
+    if (primaryEntityCollectionName === Collections.USERS) {
+      // obtengo los usuarios por id
+      const firebaseUser = await getFirebaseUserById(primaryEntityValue);
 
-        items = items.map((item) => {
-          return { ...item, ...firebaseUser };
-        });
-      } else if (primaryEntityCollectionName) {
-        console.log('getByPropInner find primaryEntityById: ' + primaryEntityValue, items);
-        const primaryEntityDocument = await fetchSingleItem({
-          collectionName: primaryEntityCollectionName,
-          id: primaryEntityValue,
-        });
+      items = items.map((item) => {
+        return { ...item, ...firebaseUser };
+      });
+    } else if (primaryEntityCollectionName) {
+      console.log('getByPropInner find primaryEntityById: ' + primaryEntityValue, items);
+      const primaryEntityDocument = await fetchSingleItem({
+        collectionName: primaryEntityCollectionName,
+        id: primaryEntityValue,
+      });
 
-        items = items.map((item) => {
-          return { ...primaryEntityDocument, ...item };
-        });
-      }
+      items = items.map((item) => {
+        return { ...primaryEntityDocument, ...item };
+      });
     }
 
     // obtengo las relaciones
