@@ -933,6 +933,35 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
 
   if (before && after && before.balances && after.balances) {
     const arsCurrency = CurrencyTypes.ARS;
+    const usdCurrency = CurrencyTypes.USD;
+
+    const beforeUSD = before.balances.find((balance) => {
+      return balance.currency === usdCurrency;
+    });
+
+    const afterUSD = after.balances.find((balance) => {
+      return balance.currency === usdCurrency;
+    });
+
+    // quien invoca a esta fn entiende de un cambio de balance por la comparacion de los strings del obj balances, entonces invoca con 'balances-update'
+    // aca evaluamos el importe en USD, dado que por ahora solo se usan monedas en valor igual al USD, si vario el balance en USD quiere decir que hubo un movimiento de un token (crypto)
+    // en ese caso cambio el transaction type
+    if (
+      transactionType === 'balances-update' &&
+      beforeUSD &&
+      afterUSD &&
+      typeof afterUSD.balance === 'number' &&
+      typeof beforeUSD.balance === 'number'
+    ) {
+      let usdMovementAmount = afterUSD.balance - beforeUSD.balance;
+
+      if (usdMovementAmount < 0) usdMovementAmount = usdMovementAmount * -1; // saco el signo
+
+      if (usdMovementAmount > 0) {
+        transactionType = 'crypto-update';
+      }
+    }
+
     const beforeARS = before.balances.find((balance) => {
       return balance.currency === arsCurrency;
     });
