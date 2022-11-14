@@ -977,7 +977,7 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   delete createData.id;
   delete createData.contractDeployment;
 
-  console.log('Creando transaccion: ' + JSON.stringify(createData));
+  console.log('Creando transaccion: (' + transactionType + ')' + JSON.stringify(createData));
 
   const db = admin.firestore();
   const doc = await db.collection(Collections.VAULT_TRANSACTIONS).doc().set(createData);
