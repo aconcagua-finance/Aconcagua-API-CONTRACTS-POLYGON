@@ -139,6 +139,8 @@ exports.findByCompany = async function (req, res) {
           return item;
         });
 
+        // TODO MICHEL
+        // items.items = allItems;
         items.items = allItems;
 
         return items;
@@ -194,7 +196,7 @@ exports.findByUser = async function (req, res) {
 };
 
 exports.get = async function (req, res) {
-  const { id } = req.params;
+  const { id, userId, companyId } = req.params;
 
   await getByProp({
     req,
@@ -211,6 +213,10 @@ exports.get = async function (req, res) {
       { collectionName: Collections.COMPANIES, propertyName: COMPANY_ENTITY_PROPERTY_NAME },
     ],
     postProcessor: async (item) => {
+      // Importante para validar permisos - complementario a routes-config
+      if (userId && item.userId !== userId) throw new Error('userId missmatch');
+      if (companyId && item.companyId !== companyId) throw new Error('companyId missmatch');
+
       if (item.dueDate) item.dueDate = item.dueDate.toDate();
       return item;
     },

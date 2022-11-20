@@ -24,12 +24,13 @@ exports.vaultsRoutesConfig = function (app) {
     Auth.isAuthorized({
       hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
       allowStaffRelationship: true,
+      allowSameUser: true,
     }),
     get,
   ]);
 
   // busca un documento por ID, el companyId es para validacion de permisos
-  app.get('/by-commpany/:companyId/:id', [
+  app.get('/by-company/:companyId/:id', [
     Audit.logger,
     Auth.isAuthenticated,
     Auth.isAuthorized({
