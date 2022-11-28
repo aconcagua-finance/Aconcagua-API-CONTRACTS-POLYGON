@@ -110,6 +110,7 @@ exports.vaultsRoutesConfig = function (app) {
     Auth.isAuthorized({
       hasAppRole: [Types.AppRols.APP_ADMIN],
       allowStaffRelationship: true,
+      isEnterpriseEmployee: true,
     }),
     create,
   ]);

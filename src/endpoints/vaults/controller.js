@@ -624,6 +624,7 @@ const getGasPrice = async () => {
 
   return { maxFeePerGas, maxPriorityFeePerGas };
 };
+
 exports.withdraw = async function (req, res) {
   const { id } = req.params;
 
