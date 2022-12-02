@@ -341,6 +341,7 @@ exports.create = async function (req, res) {
 
     const body = req.body;
     body.userId = targetUserId;
+    body.companyId = companyId;
     body.contractAddress = contractAddress;
     body.contractSignerAddress = signerAddress;
     body.contractDeployment = contractDeployment;
