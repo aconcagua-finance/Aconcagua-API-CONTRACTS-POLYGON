@@ -41,6 +41,7 @@ const {
   listByProp,
   getByProp,
   listByPropInner,
+  secureArgsValidation,
 } = require('../baseEndpoint');
 
 const {
@@ -227,9 +228,15 @@ exports.patch = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
 
-  const { id } = req.params;
+  const { id, userId: targetUserId, companyId } = req.params;
 
   try {
+    await secureArgsValidation({
+      collectionName: COLLECTION_NAME,
+      id,
+      secureArgs: { companyId, userId: targetUserId },
+    });
+
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
     const { rescueWalletAccount } = req.body;
