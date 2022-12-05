@@ -681,6 +681,15 @@ exports.withdraw = async function (req, res) {
     const withdrawInUSD = amount * tokenToUSDValuation.value;
     const withdrawInARS = withdrawInUSD * usdToARSValuation.value;
 
+    if (withdrawInARS > smartContract.amount) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_AMOUNT',
+        null,
+        'El monto es superior al monto del crédito',
+        null
+      );
+    }
+
     const contractJson = require('../../../artifacts/contracts/' +
       smartContract.contractName +
       '.sol/' +
