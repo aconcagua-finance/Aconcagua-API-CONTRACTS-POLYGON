@@ -864,7 +864,13 @@ exports.rescue = async function (req, res) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_AMOUNT',
         null,
-        'El monto es superior al monto del crédito',
+        'El monto es superior al monto del crédito (' +
+          rescueInARS +
+          ' > ' +
+          deposits +
+          ' - ' +
+          smartContract.amount +
+          ')',
         null
       );
     }
