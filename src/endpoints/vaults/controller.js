@@ -861,6 +861,15 @@ exports.rescue = async function (req, res) {
     const deposits = arsBalance.balance;
 
     if (rescueInARS > deposits - smartContract.amount) {
+      console.error(
+        'El monto es superior al monto del crédito (' +
+          rescueInARS +
+          ' > ' +
+          deposits +
+          ' - ' +
+          smartContract.amount +
+          ')'
+      );
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_AMOUNT',
         null,
@@ -939,6 +948,24 @@ exports.rescue = async function (req, res) {
         null
       );
     }
+
+    const rescueTotalAmountARS = smartContract.rescueTotalAmountARS
+      ? smartContract.rescueTotalAmountARS
+      : 0;
+
+    const rescueTotalAmountUSD = smartContract.rescueTotalAmountUSD
+      ? smartContract.rescueTotalAmountUSD
+      : 0;
+
+    await updateSingleItem({
+      collectionName: COLLECTION_NAME,
+      id,
+      auditUid,
+      data: {
+        rescueTotalAmountARS: rescueTotalAmountARS + rescueInARS,
+        rescueTotalAmountUSD: rescueTotalAmountUSD + rescueInUSD,
+      },
+    });
 
     return res.status(200).send({ ethAmount });
   } catch (err) {
