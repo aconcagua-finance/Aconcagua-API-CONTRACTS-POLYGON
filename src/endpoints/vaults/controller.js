@@ -791,7 +791,9 @@ exports.withdraw = async function (req, res) {
 };
 
 exports.rescue = async function (req, res) {
-  const { id } = req.params;
+  const { userId } = res.locals;
+  const auditUid = userId;
+  const { id, companyId, userId: targetUserId } = req.params;
 
   const { amount, token } = req.body;
 
@@ -806,6 +808,66 @@ exports.rescue = async function (req, res) {
     }
 
     const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
+
+    if (!smartContract.balances || !smartContract.balances.length) {
+      throw new CustomError.TechnicalError(
+        'ERROR_EMPTY_BALANCE',
+        null,
+        'El contrato no tiene balances',
+        null
+      );
+    }
+
+    const arsBalance = smartContract.balances.find((balance) => {
+      return balance.currency === CurrencyTypes.ARS;
+    });
+
+    if (!arsBalance || !arsBalance.balance) {
+      throw new CustomError.TechnicalError(
+        'ERROR_ZERO_BALANCE',
+        null,
+        'El tiene balance cero en ARS',
+        null
+      );
+    }
+
+    secureDataArgsValidation({
+      data: smartContract,
+      secureArgs: { userId: targetUserId, companyId },
+    });
+
+    const valuations = await getCurrenciesValuations();
+
+    const usdToARSValuation = valuations.find((item) => {
+      return item.currency === CurrencyTypes.USD && item.targetCurrency === CurrencyTypes.ARS;
+    });
+
+    const tokenToUSDValuation = valuations.find((item) => {
+      return item.currency === token && item.targetCurrency === CurrencyTypes.USD;
+    });
+
+    if (!usdToARSValuation || !tokenToUSDValuation) {
+      throw new CustomError.TechnicalError(
+        'ERROR_MISSING_VALUATION',
+        null,
+        'Missing valuations',
+        null
+      );
+    }
+
+    const rescueInUSD = amount * tokenToUSDValuation.value;
+    const rescueInARS = rescueInUSD * usdToARSValuation.value;
+
+    const deposits = arsBalance.balance;
+
+    if (rescueInARS > deposits - smartContract.amount) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_AMOUNT',
+        null,
+        'El monto es superior al monto del crédito',
+        null
+      );
+    }
 
     const contractJson = require('../../../artifacts/contracts/' +
       smartContract.contractName +
@@ -837,15 +899,15 @@ exports.rescue = async function (req, res) {
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
-    if (token === CurrencyTypes.LOCAL) {
-      const wd = await blockchainContract.rescue(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-      });
-      await wd.wait();
-    }
+    // if (token === CurrencyTypes.LOCAL) {
+    //   const wd = await blockchainContract.rescue(ethAmount, {
+    //     // gasLimit: Math.ceil(gasEstimated * 100),
+    //     // gasPrice: 2000000000,
+    //     maxFeePerGas,
+    //     maxPriorityFeePerGas,
+    //   });
+    //   await wd.wait();
+    // }
 
     if (token === CurrencyTypes.USDC) {
       const wd = await blockchainContract.rescueUSDC(ethAmount, {
@@ -855,9 +917,7 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    }
-
-    if (token === CurrencyTypes.USDT) {
+    } else if (token === CurrencyTypes.USDT) {
       const wd = await blockchainContract.rescueUSDT(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
@@ -865,6 +925,13 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
+    } else {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_TOKEN',
+        null,
+        'Invalid token: ' + token,
+        null
+      );
     }
 
     return res.status(200).send({ ethAmount });
