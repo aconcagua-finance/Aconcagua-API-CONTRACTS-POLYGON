@@ -760,6 +760,7 @@ exports.withdraw = async function (req, res) {
       data: {
         withdrawTotalAmountARS: withdrawTotalAmountARS + withdrawInARS,
         withdrawTotalAmountUSD: withdrawTotalAmountUSD + withdrawInUSD,
+        amount: smartContract.amount - withdrawInARS,
       },
     });
 
