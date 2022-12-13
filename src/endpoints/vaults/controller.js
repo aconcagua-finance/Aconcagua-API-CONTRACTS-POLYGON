@@ -16,7 +16,7 @@ const { Auth } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
-const { CurrencyTypes } = require('../../types/currencyTypes');
+
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
 const schemas = require('./schemas');
@@ -470,9 +470,12 @@ const fetchVaultBalances = async (vault) => {
 
   const balancesWithCurrencies = [
     // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
-    { currency: CurrencyTypes.USDC, balance: parseFloat(Utils.formatEther(contractBalances[1])) }, // 18 decimales
     {
-      currency: CurrencyTypes.USDT,
+      currency: Types.CurrencyTypes.USDC,
+      balance: parseFloat(Utils.formatEther(contractBalances[1])),
+    }, // 18 decimales
+    {
+      currency: Types.CurrencyTypes.USDT,
       balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
     },
   ];
@@ -552,20 +555,20 @@ exports.getVaultBalances = async function (req, res) {
 const getCurrenciesValuations = async () => {
   return [
     {
-      currency: CurrencyTypes.USDT,
-      targetCurrency: CurrencyTypes.USD,
+      currency: Types.CurrencyTypes.USDT,
+      targetCurrency: Types.CurrencyTypes.USD,
       value: 1,
       updatedAt: new Date(Date.now()),
     },
     {
-      currency: CurrencyTypes.USDC,
-      targetCurrency: CurrencyTypes.USD,
+      currency: Types.CurrencyTypes.USDC,
+      targetCurrency: Types.CurrencyTypes.USD,
       value: 1,
       updatedAt: new Date(Date.now()),
     },
     {
-      currency: CurrencyTypes.USD,
-      targetCurrency: CurrencyTypes.ARS,
+      currency: Types.CurrencyTypes.USD,
+      targetCurrency: Types.CurrencyTypes.ARS,
       value: 300,
       updatedAt: new Date(Date.now()),
     },
@@ -575,13 +578,16 @@ const getCurrenciesValuations = async () => {
 const balancesToValuations = (balancesWithToken, valuations) => {
   const newBalances = [];
   const usdToarsValuation = valuations.find((item) => {
-    return item.currency === CurrencyTypes.USD && item.targetCurrency === CurrencyTypes.ARS;
+    return (
+      item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+    );
   });
 
   balancesWithToken.forEach((balanceWithToken) => {
     const usdValuation = valuations.find((item) => {
       return (
-        item.currency === balanceWithToken.currency && item.targetCurrency === CurrencyTypes.USD
+        item.currency === balanceWithToken.currency &&
+        item.targetCurrency === Types.CurrencyTypes.USD
       );
     });
 
@@ -590,7 +596,7 @@ const balancesToValuations = (balancesWithToken, valuations) => {
         ...balanceWithToken,
         valuations: [
           {
-            currency: CurrencyTypes.USD,
+            currency: Types.CurrencyTypes.USD,
             value: usdValuation.value * balanceWithToken.balance,
           },
         ],
@@ -598,7 +604,7 @@ const balancesToValuations = (balancesWithToken, valuations) => {
 
       if (usdToarsValuation) {
         newBalance.valuations.push({
-          currency: CurrencyTypes.ARS,
+          currency: Types.CurrencyTypes.ARS,
           value: usdValuation.value * balanceWithToken.balance * usdToarsValuation.value,
         });
       }
@@ -662,11 +668,13 @@ exports.withdraw = async function (req, res) {
     const valuations = await getCurrenciesValuations();
 
     const usdToARSValuation = valuations.find((item) => {
-      return item.currency === CurrencyTypes.USD && item.targetCurrency === CurrencyTypes.ARS;
+      return (
+        item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+      );
     });
 
     const tokenToUSDValuation = valuations.find((item) => {
-      return item.currency === token && item.targetCurrency === CurrencyTypes.USD;
+      return item.currency === token && item.targetCurrency === Types.CurrencyTypes.USD;
     });
 
     if (!usdToARSValuation || !tokenToUSDValuation) {
@@ -716,7 +724,7 @@ exports.withdraw = async function (req, res) {
     );
 
     const ethAmount =
-      token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
@@ -728,7 +736,7 @@ exports.withdraw = async function (req, res) {
     //   // await wd.wait();
     // }
 
-    if (token === CurrencyTypes.USDC) {
+    if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
@@ -736,7 +744,7 @@ exports.withdraw = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === CurrencyTypes.USDT) {
+    } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
@@ -819,7 +827,7 @@ exports.rescue = async function (req, res) {
     }
 
     const arsBalance = smartContract.balances.find((balance) => {
-      return balance.currency === CurrencyTypes.ARS;
+      return balance.currency === Types.CurrencyTypes.ARS;
     });
 
     if (!arsBalance || !arsBalance.balance) {
@@ -839,11 +847,13 @@ exports.rescue = async function (req, res) {
     const valuations = await getCurrenciesValuations();
 
     const usdToARSValuation = valuations.find((item) => {
-      return item.currency === CurrencyTypes.USD && item.targetCurrency === CurrencyTypes.ARS;
+      return (
+        item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+      );
     });
 
     const tokenToUSDValuation = valuations.find((item) => {
-      return item.currency === token && item.targetCurrency === CurrencyTypes.USD;
+      return item.currency === token && item.targetCurrency === Types.CurrencyTypes.USD;
     });
 
     if (!usdToARSValuation || !tokenToUSDValuation) {
@@ -910,7 +920,7 @@ exports.rescue = async function (req, res) {
     );
 
     const ethAmount =
-      token === CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
@@ -924,7 +934,7 @@ exports.rescue = async function (req, res) {
     //   await wd.wait();
     // }
 
-    if (token === CurrencyTypes.USDC) {
+    if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.rescueUSDC(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
@@ -932,7 +942,7 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === CurrencyTypes.USDT) {
+    } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.rescueUSDT(ethAmount, {
         // gasLimit: Math.ceil(gasEstimated * 100),
         // gasPrice: 2000000000,
@@ -1109,8 +1119,8 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   console.log('before:', JSON.stringify(before), 'after:', JSON.stringify(after));
 
   if (before && after && before.balances && after.balances) {
-    const arsCurrency = CurrencyTypes.ARS;
-    const usdCurrency = CurrencyTypes.USD;
+    const arsCurrency = Types.CurrencyTypes.ARS;
+    const usdCurrency = Types.CurrencyTypes.USD;
 
     const beforeUSD = before.balances.find((balance) => {
       return balance.currency === usdCurrency;
