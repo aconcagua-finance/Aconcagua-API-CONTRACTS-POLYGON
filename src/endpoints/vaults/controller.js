@@ -44,6 +44,7 @@ const {
   listByPropInner,
   secureArgsValidation,
   secureDataArgsValidation,
+  fetchItems,
 } = require('../baseEndpoint');
 
 const {
@@ -59,6 +60,7 @@ const hre = require('hardhat');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
+const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
@@ -553,26 +555,7 @@ exports.getVaultBalances = async function (req, res) {
 };
 
 const getCurrenciesValuations = async () => {
-  return [
-    {
-      currency: Types.CurrencyTypes.USDT,
-      targetCurrency: Types.CurrencyTypes.USD,
-      value: 1,
-      updatedAt: new Date(Date.now()),
-    },
-    {
-      currency: Types.CurrencyTypes.USDC,
-      targetCurrency: Types.CurrencyTypes.USD,
-      value: 1,
-      updatedAt: new Date(Date.now()),
-    },
-    {
-      currency: Types.CurrencyTypes.USD,
-      targetCurrency: Types.CurrencyTypes.ARS,
-      value: 300,
-      updatedAt: new Date(Date.now()),
-    },
-  ];
+  return await fetchItems({ collectionName: COLLECTION_MARKET_CAP });
 };
 
 const balancesToValuations = (balancesWithToken, valuations) => {
