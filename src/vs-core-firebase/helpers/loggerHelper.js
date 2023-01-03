@@ -542,7 +542,7 @@ async function notifyError(eventName, code, message, docId) {
   const SUBJECT = HEADER_TITLE;
 
   await sendTemplateEmail(
-    'email/emailTemplates/welcome.html',
+    'src/vs-core-firebase/email/emailTemplates/welcome.html',
     HEADER_TITLE,
     HEADER_BODY,
     CONTENT_TITLE,

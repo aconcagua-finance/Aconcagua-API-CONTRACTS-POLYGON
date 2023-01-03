@@ -1169,6 +1169,7 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   }
 
   if (movementAmount === 0 && transactionType !== 'vault-create') {
+    console.log('movementAmount es cero, finaliza sin crear');
     return;
   }
 
