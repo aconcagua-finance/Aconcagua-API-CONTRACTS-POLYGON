@@ -1102,9 +1102,16 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   let movementType = 'plus';
   let movementAmount = 0;
 
-  console.log('before:', JSON.stringify(before), 'after:', JSON.stringify(after));
-
   if (before && after && before.balances && after.balances) {
+    console.log(
+      'transactionType:',
+      transactionType,
+      'before:',
+      JSON.stringify(before.balances),
+      'after:',
+      JSON.stringify(after.balances)
+    );
+
     const arsCurrency = Types.CurrencyTypes.ARS;
     const usdCurrency = Types.CurrencyTypes.USD;
 
@@ -1127,6 +1134,8 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
       typeof beforeUSD.balance === 'number'
     ) {
       let usdMovementAmount = afterUSD.balance - beforeUSD.balance;
+
+      console.log('usdMovementAmount: ', usdMovementAmount);
 
       if (usdMovementAmount < 0) usdMovementAmount = usdMovementAmount * -1; // saco el signo
 
