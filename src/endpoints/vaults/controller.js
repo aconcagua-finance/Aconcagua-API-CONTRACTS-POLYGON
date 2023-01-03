@@ -655,7 +655,7 @@ exports.withdraw = async function (req, res) {
 
     const usdToARSValuation = valuations.find((item) => {
       return (
-        item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+        item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
       );
     });
 
@@ -834,7 +834,7 @@ exports.rescue = async function (req, res) {
 
     const usdToARSValuation = valuations.find((item) => {
       return (
-        item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+        item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
       );
     });
 
