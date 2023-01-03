@@ -562,9 +562,12 @@ const balancesToValuations = (balancesWithToken, valuations) => {
   const newBalances = [];
   const usdToarsValuation = valuations.find((item) => {
     return (
-      item.currency === Types.CurrencyTypes.USD && item.targetCurrency === Types.CurrencyTypes.ARS
+      item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
     );
   });
+
+  // USDT 0
+  // USDC 0.1
 
   balancesWithToken.forEach((balanceWithToken) => {
     const usdValuation = valuations.find((item) => {
