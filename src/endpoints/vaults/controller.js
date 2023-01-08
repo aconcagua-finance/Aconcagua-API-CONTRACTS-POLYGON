@@ -484,7 +484,11 @@ const fetchVaultBalances = async (vault) => {
 
   const valuations = await getCurrenciesValuations();
 
+  console.log('Valuations response:' + JSON.stringify(valuations));
+
   const balancesWithValuations = balancesToValuations(balancesWithCurrencies, valuations);
+
+  console.log('Balances with valuations:' + JSON.stringify(balancesWithValuations));
 
   const sumarizedBalances = [];
   balancesWithValuations.forEach((balanceWithPrice) => {
