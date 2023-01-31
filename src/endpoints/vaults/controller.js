@@ -360,6 +360,7 @@ exports.create = async function (req, res) {
     body.contractStatus = 'pending-deployment-verification';
     body.contractNetwork = hre.network.name;
     body.contractVersion = '1.0.0';
+    body.rescueWalletAccount = '0x0000000000000000000000000000000000000000'; // TODO PATO - Hacer constante
 
     console.log('Create args (' + collectionName + '):', body);
 
