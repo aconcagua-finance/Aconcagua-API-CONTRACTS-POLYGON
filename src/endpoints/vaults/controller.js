@@ -409,6 +409,32 @@ exports.create = async function (req, res) {
   }
 };
 
+const getGasPrice = async () => {
+  // const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
+  // get max fees from gas station
+  let maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+  let maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+  try {
+    const { data } = await axios({
+      method: 'get',
+      url: GAS_STATION_URL,
+      // url: isProd
+      //   ? 'https://gasstation-mainnet.matic.network/v2'
+      //   : 'https://gasstation-mumbai.matic.today/v2',
+    });
+    maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
+    maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
+      Math.ceil(data.fast.maxPriorityFee) + '',
+      'gwei'
+    );
+  } catch (e) {
+    console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
+    // ignore
+  }
+
+  return { maxFeePerGas, maxPriorityFeePerGas };
+};
+
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const contractJson = require('../../../artifacts/contracts/' +
     vault.contractName +
@@ -430,7 +456,12 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
 
   // console.log('before: ' + (await blockchainContract.rescueWalletAccount()));
 
-  const setTx1 = await blockchainContract.setRescueWalletAccount(rescueWalletAccount);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
+
+  const setTx1 = await blockchainContract.setRescueWalletAccount(rescueWalletAccount, {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  });
   await setTx1.wait();
   console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
 };
@@ -604,32 +635,6 @@ const balancesToValuations = (balancesWithToken, valuations) => {
   });
 
   return newBalances;
-};
-
-const getGasPrice = async () => {
-  // const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
-  // get max fees from gas station
-  let maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
-  let maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
-  try {
-    const { data } = await axios({
-      method: 'get',
-      url: GAS_STATION_URL,
-      // url: isProd
-      //   ? 'https://gasstation-mainnet.matic.network/v2'
-      //   : 'https://gasstation-mumbai.matic.today/v2',
-    });
-    maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
-    maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
-      Math.ceil(data.fast.maxPriorityFee) + '',
-      'gwei'
-    );
-  } catch (e) {
-    console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
-    // ignore
-  }
-
-  return { maxFeePerGas, maxPriorityFeePerGas };
 };
 
 exports.withdraw = async function (req, res) {
