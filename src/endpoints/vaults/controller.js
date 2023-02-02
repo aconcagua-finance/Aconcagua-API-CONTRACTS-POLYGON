@@ -16,6 +16,7 @@ const { Auth } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
+const { ContractTypes } = require('../../types/contractTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -360,7 +361,7 @@ exports.create = async function (req, res) {
     body.contractStatus = 'pending-deployment-verification';
     body.contractNetwork = hre.network.name;
     body.contractVersion = '1.0.0';
-    body.rescueWalletAccount = '0x0000000000000000000000000000000000000000'; // TODO PATO - Hacer constante
+    body.rescueWalletAccount = ContractTypes.BASE_ADDRESS;
 
     console.log('Create args (' + collectionName + '):', body);
 
