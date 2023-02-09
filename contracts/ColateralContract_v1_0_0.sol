@@ -397,18 +397,21 @@ contract ColateralContract_v1_0_0 is Ownable {
 
   address public usdtTokenAddress;
   address public usdcTokenAddress;
+  address public wbtcTokenAddress;
+  address public wethTokenAddress;
   address public rescueWalletAccount;
   string public contractName;
 
-  // constructor(string memory _name) {
-  //   contractName = _name;
-  // }
-
-  constructor(address _usdcTokenAddress, address _usdtTokenAddress) {
+  constructor(address _usdcTokenAddress, address _usdtTokenAddress, address _wbtcTokenAddress, address _wethTokenAddress) {
     usdcTokenAddress = _usdcTokenAddress;
     usdtTokenAddress = _usdtTokenAddress;
+    wbtcTokenAddress = _wbtcTokenAddress;
+    wethTokenAddress = _wethTokenAddress;
+    // Mumbai addresses
     // usdcTokenAddress = 0xe11A86849d99F524cAC3E7A0Ec1241828e332C62;
     // usdtTokenAddress = 0xA02f6adc7926efeBBd59Fd43A84f4E0c0c91e832;
+    // wbtcTokenAddress = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889; // WMATIC 
+    // wethTokenAddress = 0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa;
   }
 
   function setRescueWalletAccount(address _rescueWalletAccount) public onlyOwner {
@@ -421,6 +424,14 @@ contract ColateralContract_v1_0_0 is Ownable {
 
   function setUSDTTokenAddress(address _usdtTokenAddress) public onlyOwner {
     usdtTokenAddress = _usdtTokenAddress;
+  }
+
+  function setWBTCTokenAddress(address _wbtcTokenAddress) public onlyOwner {
+    wbtcTokenAddress = _wbtcTokenAddress;
+  }
+
+  function setWETHTokenAddress(address _wethTokenAddress) public onlyOwner {
+    wethTokenAddress = _wethTokenAddress;
   }
 
   function withdrawBalance() public payable onlyOwner {
@@ -442,29 +453,57 @@ contract ColateralContract_v1_0_0 is Ownable {
   function withdrawUSDT(uint256 _amount) public onlyOwner {
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // transfers USDT that belong to your contract to the specified address
+    // transfers USDT that belong to your contract to the contract owner address
     usdt.transfer(address(owner()), _amount);
   }
 
   function withdrawUSDC(uint256 _amount) public onlyOwner {
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // transfers USDC that belong to your contract to the specified address
+    // transfers USDC that belong to your contract to the contract owner address
     usdc.transfer(address(owner()), _amount);
+  }
+
+  function withdrawWBTC(uint256 _amount) public onlyOwner {
+    IERC20 wbtc = IERC20(address(wbtcTokenAddress));
+
+    // transfers WBTC that belong to your contract to the contract owner address
+    wbtc.transfer(address(owner()), _amount);
+  }
+
+  function withdrawWETH(uint256 _amount) public onlyOwner {
+    IERC20 weth = IERC20(address(wethTokenAddress));
+
+    // transfers WETH that belong to your contract to the contract owner address
+    weth.transfer(address(owner()), _amount);
   }
 
   function balanceOfUSDC() public view virtual returns (uint256) {
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // transfers USDC that belong to your contract to the specified address
+    // returns balance of USDC token in contract.
     return usdc.balanceOf(address(this));
   }
 
   function balanceOfUSDT() public view virtual returns (uint256) {
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // transfers USDC that belong to your contract to the specified address
+    // returns balance of USDT token in contract.
     return usdt.balanceOf(address(this));
+  }
+
+  function balanceOfWBTC() public view virtual returns (uint256) {
+    IERC20 wbtc = IERC20(address(wbtcTokenAddress));
+
+    // returns balance of WBTC token in contract.
+    return wbtc.balanceOf(address(this));
+  }
+
+  function balanceOfWETH() public view virtual returns (uint256) {
+    IERC20 weth = IERC20(address(wethTokenAddress));
+
+    // returns balance of WETH token in contract.
+    return weth.balanceOf(address(this));
   }
 
   function rescueBalance() public payable onlyOwner {
@@ -488,7 +527,7 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // transfers USDT that belong to your contract to the specified address
+    // transfers USDT that belong to your contract to the rescueWalletAccount address
     usdt.transfer(address(rescueWalletAccount), _amount);
   }
 
@@ -497,8 +536,26 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // transfers USDC that belong to your contract to the specified address
+    // transfers USDC that belong to your contract to the rescueWalletAccount address
     usdc.transfer(address(rescueWalletAccount), _amount);
+  }
+
+  function rescueWBTC(uint256 _amount) public onlyOwner {
+    require(rescueWalletAccount != address(0), 'Rescue wallet is the zero address');
+
+    IERC20 wbtc = IERC20(address(wbtcTokenAddress));
+
+    // transfers WBTC that belong to your contract to the rescueWalletAccount address
+    wbtc.transfer(address(rescueWalletAccount), _amount);
+  }
+
+  function rescueWETH(uint256 _amount) public onlyOwner {
+    require(rescueWalletAccount != address(0), 'Rescue wallet is the zero address');
+
+    IERC20 weth = IERC20(address(wethTokenAddress));
+
+    // transfers WETH that belong to your contract to the rescueWalletAccount address
+    weth.transfer(address(rescueWalletAccount), _amount);
   }
 
   struct CustomBalance {
@@ -506,14 +563,16 @@ contract ColateralContract_v1_0_0 is Ownable {
     uint256 balance;
   }
 
-  function getBalances() public view virtual returns (uint256[3] memory) {
+  function getBalances() public view virtual returns (uint256[5] memory) {
     uint256 localBalance = address(this).balance;
     uint256 usdcBalance = balanceOfUSDC();
     uint256 usdtBalance = balanceOfUSDT();
+    uint256 wbtcBalance = balanceOfWBTC();
+    uint256 wethBalance = balanceOfWETH();
 
     // return balances;
-    uint256[3] memory asd = [localBalance, usdcBalance, usdtBalance];
+    uint256[5] memory balances = [localBalance, usdcBalance, usdtBalance, wbtcBalance, wethBalance];
 
-    return asd;
+    return balances;
   }
 }
