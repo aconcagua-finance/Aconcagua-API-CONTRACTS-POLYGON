@@ -54,6 +54,8 @@ const {
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  WBTC_TOKEN_ADDRESS,
+  WETH_TOKEN_ADDRESS,
   GAS_STATION_URL,
 } = require('../../config/appConfig');
 
@@ -319,14 +321,15 @@ exports.create = async function (req, res) {
 
     console.log('CURRENT NETWORK: ', hre.network.name);
 
-    // const contractName = 'Greeter';
     const contractName = 'ColateralContract_v1_0_0';
 
     const blockchainContract = await hre.ethers.getContractFactory(contractName);
 
     const deploymentResponse = await blockchainContract.deploy(
       USDC_TOKEN_ADDRESS,
-      USDT_TOKEN_ADDRESS
+      USDT_TOKEN_ADDRESS,
+      WBTC_TOKEN_ADDRESS,
+      WETH_TOKEN_ADDRESS
     );
 
     console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
@@ -336,7 +339,6 @@ exports.create = async function (req, res) {
     const contractAddress = contractDeployment.address;
     const signerAddress = contractDeployment.signerAddress;
 
-    // console.log('LOG RTA CONTRATO', deploymentResponse);
     if (!contractAddress) {
       throw new CustomError.TechnicalError(
         'ERROR_CREATE_CONTRACT',
