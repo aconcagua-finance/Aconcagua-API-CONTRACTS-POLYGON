@@ -481,39 +481,42 @@ const fetchVaultBalances = async (vault) => {
 
   console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
 
-  // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
 
   console.log('alchemmy config done');
 
-  // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
   const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
 
   console.log('wallet config done');
 
-  // // Get the deployed contract.
+  // Get the deployed contract.
   const blockchainContract = new hre.ethers.Contract(
-    // '0x14bd5806E43A541A871C3CB0E0Fc6142786BB406',
     smartContract.contractAddress,
     abi,
     userWallet
   );
 
   console.log('Get the deployed contract done');
-
   const contractBalances = await blockchainContract.getBalances();
 
   console.log('BALANCES FOR' + vault.id + ': ' + JSON.stringify(contractBalances));
 
   const balancesWithCurrencies = [
-    // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
     {
       currency: Types.CurrencyTypes.USDC,
-      balance: parseFloat(Utils.formatEther(contractBalances[1])),
-    }, // 18 decimales
+      balance: parseFloat(Utils.formatEther(contractBalances[1])), // 18 decimales
+    },
     {
       currency: Types.CurrencyTypes.USDT,
       balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
+    },
+    {
+      currency: Types.CurrencyTypes.WBTC,
+      balance: parseFloat(Utils.formatUnits(contractBalances[3]), 8), // 8 decimales (Mumbai -Catedral- usa WMATIC capeado a 8 decimales)
+    },
+    {
+      currency: Types.CurrencyTypes.WETH,
+      balance: parseFloat(Utils.formatEther(contractBalances[4])), // 18 decimales
     },
   ];
 
