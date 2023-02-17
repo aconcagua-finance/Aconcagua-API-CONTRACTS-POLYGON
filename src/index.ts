@@ -10,6 +10,7 @@ import * as admin from 'firebase-admin';
 import { FirebaseConfig } from './config/firebaseConfig';
 
 const { vaultsRoutesConfig } = require('./endpoints/vaults/routes-config');
+const { marketRoutesConfig } = require('./endpoints/market/routes-config');
 
 const {
   cronFetchVaultsBalances,
@@ -68,3 +69,15 @@ exports.vaultsPolygon = functions
 exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
 exports.onVaultUpdate = onVaultUpdate;
 exports.onVaultCreate = onVaultCreate;
+
+const marketApp = express();
+configureApp(marketApp);
+marketRoutesConfig(marketApp);
+exports.market = functions
+  .runWith({
+    // memory: "2GB",
+    // Keep 5 instances warm for this latency-critical function
+    // in production only. Default to 0 for test projects.
+    // minInstances: envProjectId === "my-production-project" ? 5 : 0,
+  })
+  .https.onRequest(marketApp);
