@@ -10,12 +10,11 @@ const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
 const {
   chainId,
-  tokens,
-  stableCoins,
   swapOptions,
   quoteAmounts,
+  tokens,
+  stableCoins,
 } = require('../../config/uniswapConfig');
-
 const {
   find,
   get,
@@ -41,7 +40,6 @@ const {
   secureDataArgsValidation,
   fetchItems,
 } = require('../baseEndpoint');
-
 const {
   WALLET_PRIVATE_KEY,
   WALLET_ADDRESS,
@@ -49,12 +47,61 @@ const {
   PROVIDER_NETWORK_NAME,
 } = require('../../config/appConfig');
 
+const getUniswapQuotes = async () => {
+  try {
+    const quotes = {};
+    debugger;
+
+    // Provider
+    const provider = new hre.ethers.providers.AlchemyProvider(
+      PROVIDER_NETWORK_NAME,
+      ALCHEMY_API_KEY
+    );
+
+    // Router Instance
+    const router = new AlphaRouter({
+      chainId,
+      provider,
+    });
+
+    // Setup data
+    const tokenOut = stableCoins.usdc;
+    const tokensSymbols = Object.keys(tokens);
+
+    for (const symbol of tokensSymbols) {
+      const tokenIn = tokens[symbol];
+      const quoteAmount = quoteAmounts[tokenIn.symbol];
+      const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
+      const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei)); // Ver si se puede sin la librería
+
+      // Get Quote
+      const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
+
+      // Usar logger?
+      console.log(
+        `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
+          route.quote.toFixed(2) / quoteAmount
+        ).toFixed(2)}`
+      );
+
+      quotes[symbol] = (route.quote.toFixed(2) / quoteAmount).toFixed(2);
+    }
+    return quotes;
+  } catch (err) {
+    return err;
+  }
+};
+
+// const getCentralizedQuotes = async () => {};
+
 exports.getTokensQuotes = async function (req, res) {
   try {
-    console.log('entraste?');
     const uniswapQuotes = await getUniswapQuotes();
+    debugger;
     console.log(uniswapQuotes);
+
     const quotes = { ...uniswapQuotes };
+
     return res.status(200).send({ quotes });
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
@@ -69,51 +116,5 @@ exports.getTokensQuotes = async function (req, res) {
       );
     }
     return ErrorHelper.handleError(req, res, err);
-  }
-};
-
-const getUniswapQuotes = async () => {
-  try {
-    const quotes = {};
-    // Debug
-    const tokenOut = stableCoins.usdc;
-    const tokensSymbols = Object.keys(tokens);
-
-    // Provider
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-
-    // Router Instance
-    const router = new AlphaRouter({
-      chainId: SupportedChainId.POLYGON,
-      provider: alchemy,
-    });
-
-    tokensSymbols.forEach(async (symbol) => {
-      const tokenIn = tokens[symbol];
-      const quoteAmount = quoteAmounts[tokenIn.symbol];
-
-      // Amount
-      const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
-      const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei)); // * Ver si se puede sin la librería
-
-      // Route
-      const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
-
-      // * Usar logger?
-      console.log(
-        `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
-          route.quote.toFixed(2) / tokens.amountIn
-        ).toFixed(2)}`
-      );
-
-      quotes[symbol] = (route.quote.toFixed(2) / quoteAmount).toFixed(2);
-    });
-
-    return quotes;
-  } catch (err) {
-    return err;
   }
 };
