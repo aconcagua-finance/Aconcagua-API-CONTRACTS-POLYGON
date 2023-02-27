@@ -11,6 +11,7 @@ const { ErrorHelper, LoggerHelper } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
 const { CoingeckoTypes } = require('../../types/coingeckoTypes');
+const { BinanceTypes } = require('../../types/binanceTypes');
 const {
   chainId,
   swapOptions,
@@ -49,6 +50,7 @@ const {
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
   COINGECKO_URL,
+  BINANCE_URL,
 } = require('../../config/appConfig');
 
 const getUniswapQuotes = async () => {
@@ -86,7 +88,7 @@ const getUniswapQuotes = async () => {
         ).toFixed(2)}`
       );
 
-      quotes[symbol] = (route.quote.toFixed(2) / quoteAmount).toFixed(2);
+      quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
     }
     return quotes;
   } catch (err) {
@@ -106,7 +108,7 @@ const getCoingeckoQuotes = async () => {
       });
       if (!apiResponse.data[type]) {
         throw new CustomError.TechnicalError(
-          'ERROR_COINGECKO_QUOTE_INVALID_RESPONSE',
+          'ERROR_COINGECKO_QUOTES_INVALID_RESPONSE',
           null,
           `Respuesta inválida del servicio de valuacion Coingecko para moneda ${type}`,
           null
@@ -122,19 +124,47 @@ const getCoingeckoQuotes = async () => {
   return quotes;
 };
 
-// const getBinanceQuotes = async () => {};
+const getBinanceQuotes = async () => {
+  const apiResponse = await invoke_get_api({
+    endpoint: `${BINANCE_URL}/ticker/price`,
+  });
+  if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
+    throw new CustomError.TechnicalError(
+      'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
+      null,
+      `Respuesta inválida del servicio de valuacion Binance`,
+      null
+    );
+  }
+
+  const quotes = {};
+  for (const token in BinanceTypes) {
+    if (Object.prototype.hasOwnProperty.call(BinanceTypes, token)) {
+      const symbol = token.toLowerCase();
+      const pair = BinanceTypes[token];
+      const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
+      quotes[symbol] = Number(quote.price);
+    }
+  }
+
+  return quotes;
+};
 
 exports.getTokensQuotes = async function (req, res) {
   try {
-    // Promise all or something?
-    // const uniswapQuotes = await getUniswapQuotes();
+    // Promise.allSettled
+    const uniswapQuotes = await getUniswapQuotes();
     const coingeckoQuotes = await getCoingeckoQuotes();
-    // const binanceQuotes = await getBinanceQuotes();
+    const binanceQuotes = await getBinanceQuotes();
 
     // Validar quotes: Aconcagua logic
 
-    // Return temporario
-    const quotes = { ...coingeckoQuotes };
+    // Return provisorio, se espera { wbtc: number, weth: number }
+    const quotes = {
+      uni: uniswapQuotes,
+      coingecko: coingeckoQuotes,
+      binance: binanceQuotes,
+    };
 
     return res.status(200).send({ quotes });
   } catch (err) {
