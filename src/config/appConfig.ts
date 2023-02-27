@@ -33,3 +33,4 @@ export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS');
 export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS');
 export const WETH_TOKEN_ADDRESS = Config.getEnvConfig('WETH_TOKEN_ADDRESS');
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
+export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
