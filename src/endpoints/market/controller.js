@@ -10,8 +10,7 @@ const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { ErrorHelper, LoggerHelper } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
-const { CoingeckoTypes } = require('../../types/coingeckoTypes');
-const { BinanceTypes } = require('../../types/binanceTypes');
+const { BinanceTypes, CoingeckoTypes, TokenTypes } = require('../../types/index');
 const {
   chainId,
   swapOptions,
@@ -77,7 +76,7 @@ const getUniswapQuotes = async () => {
       const tokenIn = tokens[symbol];
       const quoteAmount = quoteAmounts[tokenIn.symbol];
       const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
-      const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei)); // Ver si se puede sin la librería
+      const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei));
 
       // Get Quote
       const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
@@ -92,7 +91,9 @@ const getUniswapQuotes = async () => {
     }
     return quotes;
   } catch (err) {
-    return err;
+    const parsedErr = getParsedEthersError(err);
+    console.error('ERROR:', JSON.stringify(parsedErr));
+    // Checkear typeof parsedErr
   }
 };
 
@@ -157,28 +158,19 @@ exports.getTokensQuotes = async function (req, res) {
     const coingeckoQuotes = await getCoingeckoQuotes();
     const binanceQuotes = await getBinanceQuotes();
 
-    // Validar quotes: Aconcagua logic
+    // Validar quotes
 
-    // Return provisorio, se espera { wbtc: number, weth: number }
+    // return expected { wbtc: number, weth: number }
+
+    /*
     const quotes = {
       uni: uniswapQuotes,
       coingecko: coingeckoQuotes,
       binance: binanceQuotes,
     };
-
-    return res.status(200).send({ quotes });
+    */
+    return res.status(200).send(binanceQuotes);
   } catch (err) {
-    const parsedErr = getParsedEthersError(err);
-
-    console.error('ERROR:', JSON.stringify(parsedErr));
-
-    if (parsedErr && parsedErr.context) {
-      return ErrorHelper.handleError(
-        req,
-        res,
-        new Error(parsedErr.code + ' - ' + parsedErr.context)
-      );
-    }
     return ErrorHelper.handleError(req, res, err);
   }
 };
