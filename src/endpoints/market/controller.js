@@ -51,50 +51,42 @@ const {
   COINGECKO_URL,
   BINANCE_URL,
 } = require('../../config/appConfig');
+const { unix } = require('moment');
 
 const getUniswapQuotes = async () => {
-  try {
-    const quotes = {};
+  const quotes = {};
 
-    // Provider
-    const provider = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
+  // Provider
+  const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+
+  // Router Instance
+  const router = new AlphaRouter({
+    chainId,
+    provider,
+  });
+
+  // Setup data
+  const tokenOut = stableCoins.usd;
+  const tokensSymbols = Object.keys(tokens);
+
+  for (const symbol of tokensSymbols) {
+    const tokenIn = tokens[symbol];
+    const quoteAmount = quoteAmounts[tokenIn.symbol];
+    const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
+    const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei));
+
+    // Get Quote
+    const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
+
+    console.log(
+      `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
+        route.quote.toFixed(2) / quoteAmount
+      ).toFixed(2)}`
     );
 
-    // Router Instance
-    const router = new AlphaRouter({
-      chainId,
-      provider,
-    });
-
-    // Setup data
-    const tokenOut = stableCoins.usdc;
-    const tokensSymbols = Object.keys(tokens);
-
-    for (const symbol of tokensSymbols) {
-      const tokenIn = tokens[symbol];
-      const quoteAmount = quoteAmounts[tokenIn.symbol];
-      const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
-      const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei));
-
-      // Get Quote
-      const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
-
-      console.log(
-        `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
-          route.quote.toFixed(2) / quoteAmount
-        ).toFixed(2)}`
-      );
-
-      quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
-    }
-    return quotes;
-  } catch (err) {
-    const parsedErr = getParsedEthersError(err);
-    console.error('ERROR:', JSON.stringify(parsedErr));
-    // Checkear typeof parsedErr
+    quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
   }
+  return quotes;
 };
 
 const getCoingeckoQuotes = async () => {
@@ -153,23 +145,56 @@ const getBinanceQuotes = async () => {
 
 exports.getTokensQuotes = async function (req, res) {
   try {
-    // Promise.allSettled
-    const uniswapQuotes = await getUniswapQuotes();
-    const coingeckoQuotes = await getCoingeckoQuotes();
-    const binanceQuotes = await getBinanceQuotes();
+    const DIFF_THRESHOLD = -2; // Parametrizar?
 
-    // Validar quotes
+    // Call quotations and store them.
+    const providers = ['Uniswap', 'Coingecko', 'Binance'];
+    const quotations = [getUniswapQuotes(), getCoingeckoQuotes(), getBinanceQuotes()];
+    const [uniswapQuotes, coingeckoQuotes, binanceQuotes] = await Promise.allSettled(
+      quotations
+    ).then((results) => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const error = `Error fetching quotes from ${providers[index]} provider: `;
+          console.error(`${error}${result.reason.message}`);
+          if (index === 0) {
+            // If UniswapQuotes fails then stop execution and throw error.
+            result.reason.message = `${error}${result.reason.message}`;
+            throw result.reason;
+          }
+        }
+      });
+      return results.map((result) => result.value);
+    });
 
-    // return expected { wbtc: number, weth: number }
+    // Si la diferencia entre Uniswap y centralizados supera el umbral para algún token entonces notificar.
+    for (const token in TokenTypes) {
+      if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
+        const symbol = TokenTypes[token];
+        let uniXBinance;
+        let uniXCoingecko;
+        if (binanceQuotes) {
+          uniXBinance = uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100;
+        }
+        if (coingeckoQuotes) {
+          uniXCoingecko = uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100;
+        }
 
-    /*
-    const quotes = {
-      uni: uniswapQuotes,
-      coingecko: coingeckoQuotes,
-      binance: binanceQuotes,
-    };
-    */
-    return res.status(200).send(binanceQuotes);
+        if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
+          if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
+            console.log(
+              `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token ${token}.
+                \nUniswap: ${uniswapQuotes[symbol]}
+                \nBinance: ${binanceQuotes[symbol]} - ${uniXBinance}% diff
+                \nCoingecko: ${coingeckoQuotes[symbol]} - ${uniXCoingecko}% diff`
+            );
+            // Mandar mail
+          }
+        }
+      }
+    }
+
+    return res.status(200).send(uniswapQuotes);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
