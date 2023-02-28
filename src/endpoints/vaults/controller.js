@@ -11,6 +11,7 @@ const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit')
 const { ErrorHelper } = require('../../vs-core-firebase');
 const { LoggerHelper } = require('../../vs-core-firebase');
 const { Types } = require('../../vs-core');
+const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
 
 const { CustomError } = require('../../vs-core');
@@ -60,6 +61,7 @@ const {
 } = require('../../config/appConfig');
 
 const hre = require('hardhat');
+const { debug } = require('firebase-functions/logger');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
@@ -259,6 +261,50 @@ exports.patch = async function (req, res) {
   }
 
   await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
+  const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+  const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+  const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
+  // Guardo el monto de la boveda en pesos
+  const arsValue = req.body.balances[3].balance;
+  // Guardo que moneda se utiliza en esta boveda
+  let currency = 'USDC';
+  if (req.body.balances[1].balance > 0) {
+    currency = 'USDT';
+  }
+  let mailTemplate = 'mail-cripto';
+  if (req.body.amount === 0) {
+    mailTemplate = 'mail-liberate';
+  }
+  // Envio el email al empleado que creó la boveda
+  await EmailSender.send({
+    to: employee.email,
+    message: null,
+    template: {
+      name: mailTemplate,
+      data: {
+        username: employee.firstName + ' ' + employee.lastName,
+        vaultId: id,
+        lender: lender.name,
+        value: arsValue,
+        currency,
+      },
+    },
+  });
+  // Envio el email al borrower de esta boveda
+  await EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: mailTemplate,
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: id,
+        lender: lender.name,
+        value: arsValue,
+        currency,
+      },
+    },
+  });
 };
 
 exports.remove = async function (req, res) {
@@ -375,7 +421,37 @@ exports.create = async function (req, res) {
       auditUid,
       documentId: contractAddress,
     });
+    // Pido los datos del empleado, el banco y el borrower para utilizarlos en el email
+    const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+    const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
 
+    // Envio el email al empleado que creó la boveda
+    await EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-vault',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: contractAddress,
+          lender: lender.name,
+        },
+      },
+    });
+    // Envio el email al borrower de esta boveda
+    await EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-vault',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: contractAddress,
+          lender: lender.name,
+        },
+      },
+    });
     console.log('Create data: (' + collectionName + ')', dbItemData);
 
     try {
@@ -782,7 +858,42 @@ exports.withdraw = async function (req, res) {
         amount: smartContract.amount - withdrawInARS,
       },
     });
-
+    // Aca
+    const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+    const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
+    // Guardo el mismo valor que withdrawTotalAmountArs en firebase
+    const arsValue = withdrawTotalAmountARS + withdrawInARS;
+    // Envio un mail al empleado que liquido la boveda
+    await EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: arsValue,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
+    // Envio un mail al borrower de esta boveda
+    await EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: arsValue,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
     return res.status(200).send(null);
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
@@ -979,6 +1090,33 @@ exports.rescue = async function (req, res) {
       },
     });
 
+    const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+    const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
+    // Guardo el mismo monto que se guarda en rescueTotalAmountARS en firebase
+    const arsValue = rescueTotalAmountARS + rescueInARS;
+    // Guardo en que moneda estaba guardada en la boveda
+    let currency = '';
+    if (token === Types.CurrencyTypes.USDC) {
+      currency = 'USDC';
+    } else if (token === Types.CurrencyTypes.USDT) {
+      currency = 'USDT';
+    }
+    // Envio mail al borrower una vez que la boveda es rescatada
+    await EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-rescue',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: arsValue,
+          currency,
+        },
+      },
+    });
     return res.status(200).send({ ethAmount });
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
