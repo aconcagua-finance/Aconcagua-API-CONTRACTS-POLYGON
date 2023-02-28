@@ -263,9 +263,11 @@ exports.patch = async function (req, res) {
   const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
   const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
   const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
-  const arsValue = req.body.balances[3].value;
+  // Guardo el monto de la boveda en pesos
+  const arsValue = req.body.balances[3].balance;
+  // Guardo que moneda se utiliza en esta boveda
   let currency = 'USDC';
-  if (arsValue > 0) {
+  if (req.body.balances[1].balance > 0) {
     currency = 'USDT';
   }
   let mailTemplate = 'mail-cripto';
@@ -275,7 +277,6 @@ exports.patch = async function (req, res) {
   // Envio el email al empleado que creó la boveda
   await EmailSender.send({
     to: employee.email,
-    // message: { subject: 'Subject desde Sender' },
     message: null,
     template: {
       name: mailTemplate,
@@ -288,10 +289,9 @@ exports.patch = async function (req, res) {
       },
     },
   });
-
+  // Envio el email al borrower de esta boveda
   await EmailSender.send({
     to: borrower.email,
-    // message: { subject: 'Subject desde Sender' },
     message: null,
     template: {
       name: mailTemplate,
@@ -428,7 +428,6 @@ exports.create = async function (req, res) {
     // Envio el email al empleado que creó la boveda
     await EmailSender.send({
       to: employee.email,
-      // message: { subject: 'Subject desde Sender' },
       message: null,
       template: {
         name: 'mail-vault',
@@ -439,10 +438,9 @@ exports.create = async function (req, res) {
         },
       },
     });
-
+    // Envio el email al borrower de esta boveda
     await EmailSender.send({
       to: borrower.email,
-      // message: { subject: 'Subject desde Sender' },
       message: null,
       template: {
         name: 'mail-vault',
@@ -860,10 +858,26 @@ exports.withdraw = async function (req, res) {
     const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
+    // Guardo el mismo valor que withdrawTotalAmountArs en firebase
     const arsValue = withdrawTotalAmountARS + withdrawInARS;
+    // Envio un mail al empleado que liquido la boveda
+    await EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: arsValue,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
+    // Envio un mail al borrower de esta boveda
     await EmailSender.send({
       to: borrower.email,
-      // message: { subject: 'Subject desde Sender' },
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1075,16 +1089,18 @@ exports.rescue = async function (req, res) {
     const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
+    // Guardo el mismo monto que se guarda en rescueTotalAmountARS en firebase
     const arsValue = rescueTotalAmountARS + rescueInARS;
+    // Guardo en que moneda estaba guardada en la boveda
     let currency = '';
     if (token === Types.CurrencyTypes.USDC) {
       currency = 'USDC';
     } else if (token === Types.CurrencyTypes.USDT) {
       currency = 'USDT';
     }
+    // Envio mail al borrower una vez que la boveda es rescatada
     await EmailSender.send({
       to: borrower.email,
-      // message: { subject: 'Subject desde Sender' },
       message: null,
       template: {
         name: 'mail-rescue',
