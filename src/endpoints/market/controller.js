@@ -51,7 +51,6 @@ const {
   COINGECKO_URL,
   BINANCE_URL,
 } = require('../../config/appConfig');
-const { unix } = require('moment');
 
 const getUniswapQuotes = async () => {
   const quotes = {};
@@ -66,7 +65,7 @@ const getUniswapQuotes = async () => {
   });
 
   // Setup data
-  const tokenOut = stableCoins.usd;
+  const tokenOut = stableCoins.usdc;
   const tokensSymbols = Object.keys(tokens);
 
   for (const symbol of tokensSymbols) {
