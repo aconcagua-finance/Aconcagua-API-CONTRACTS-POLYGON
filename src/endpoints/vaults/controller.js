@@ -259,7 +259,6 @@ exports.patch = async function (req, res) {
   }
 
   await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
-  debugger;
   const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
   const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
   const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
