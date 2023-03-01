@@ -147,18 +147,19 @@ const getBinanceQuotes = async () => {
 
 exports.getTokensQuotes = async function (req, res) {
   try {
-    // Get quotes.
+    // Consulto las cotizaciones
     const providers = ['Uniswap', 'Coingecko', 'Binance'];
     const quotations = [getUniswapQuotes(), getCoingeckoQuotes(), getBinanceQuotes()];
     const [uniswapQuotes, coingeckoQuotes, binanceQuotes] = await Promise.allSettled(
       quotations
     ).then((results) => {
       results.forEach((result, index) => {
+        // Logueo consultas fallidas.
         if (result.status === 'rejected') {
           const error = `Error fetching quotes from ${providers[index]} provider: `;
           console.error(`${error}${result.reason.message}`);
+          // Si Uniswap falla entonces detengo la ejecución y tiro error (no se actualizará la cotización)
           if (index === 0) {
-            // If UniswapQuotes fails then stop execution and throw error.
             result.reason.message = `${error}${result.reason.message}`;
             throw result.reason;
           }
@@ -168,13 +169,14 @@ exports.getTokensQuotes = async function (req, res) {
     });
 
     const emailMsgs = [];
-    // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces notificar el caso.
+    // Si hay al menos una fuente centralizada se evalua.
     if (coingeckoQuotes || binanceQuotes) {
-      const DIFF_THRESHOLD = -2; // Parametrizar?
+      const DIFF_THRESHOLD = -2;
 
       for (const token in TokenTypes) {
         if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
           const symbol = TokenTypes[token];
+          // Calculo la diferencia entre Uniswap y las centralizadas.
           const uniXBinance = binanceQuotes
             ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100).toFixed(2)
             : null;
@@ -182,6 +184,7 @@ exports.getTokensQuotes = async function (req, res) {
             ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100).toFixed(2)
             : null;
 
+          // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces notifico.
           if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
             if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
               const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD}%\nUniswap: $${
@@ -203,6 +206,7 @@ exports.getTokensQuotes = async function (req, res) {
         }
       }
     } else {
+      // Si no se pudo evaluar porque fallaron las consultas centralizadas notifico.
       const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
       console.log(msg);
       emailMsgs.push({
@@ -213,11 +217,12 @@ exports.getTokensQuotes = async function (req, res) {
 
     // Si hay mails se mandan a todos los admins.
     if (emailMsgs.length > 0) {
+      // Preparo query y busco admins.
       const limit = 1000;
       const offset = '0';
       const filters = {
         appRols: {
-          $in: ['app-admin'], // 'app-admin'
+          $in: ['app-admin'],
         },
         state: {
           $contains: '1',
@@ -229,20 +234,21 @@ exports.getTokensQuotes = async function (req, res) {
         filters,
         indexedFilters: ['state'],
       });
-
       const admins = filterItems({ items, limit, offset, filters }).items;
+
       if (admins && admins.length > 0) {
+        // Armo string con mails de destinos y mando los mails.
+        const emails = admins.map((admin) => admin.email).join(', ');
+
         for (const email of emailMsgs) {
-          for (const admin of admins) {
-            EmailSender.send({
-              to: admin.email,
-              message: {
-                subject: email.subject,
-                html: null,
-                text: email.msg,
-              },
-            });
-          }
+          EmailSender.send({
+            to: emails,
+            message: {
+              subject: email.subject,
+              html: null,
+              text: email.msg,
+            },
+          });
         }
       }
     }
