@@ -1,3 +1,4 @@
+/* eslint-disable operator-linebreak */
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
@@ -7,10 +8,11 @@ const JSBI = require('jsbi');
 
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
-const { ErrorHelper, LoggerHelper } = require('../../vs-core-firebase');
+const { ErrorHelper, LoggerHelper, EmailSender } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
 const { BinanceTypes, CoingeckoTypes, TokenTypes } = require('../../types/index');
+const { Collections } = require('../../types/collectionsTypes');
 const {
   chainId,
   swapOptions,
@@ -42,6 +44,7 @@ const {
   secureArgsValidation,
   secureDataArgsValidation,
   fetchItems,
+  filterItems,
 } = require('../baseEndpoint');
 const {
   WALLET_PRIVATE_KEY,
@@ -144,9 +147,7 @@ const getBinanceQuotes = async () => {
 
 exports.getTokensQuotes = async function (req, res) {
   try {
-    const DIFF_THRESHOLD = -2; // Parametrizar?
-
-    // Call quotations and store them.
+    // Get quotes.
     const providers = ['Uniswap', 'Coingecko', 'Binance'];
     const quotations = [getUniswapQuotes(), getCoingeckoQuotes(), getBinanceQuotes()];
     const [uniswapQuotes, coingeckoQuotes, binanceQuotes] = await Promise.allSettled(
@@ -166,28 +167,81 @@ exports.getTokensQuotes = async function (req, res) {
       return results.map((result) => result.value);
     });
 
-    // Si la diferencia entre Uniswap y centralizados supera el umbral para algún token entonces notificar.
-    for (const token in TokenTypes) {
-      if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
-        const symbol = TokenTypes[token];
-        let uniXBinance;
-        let uniXCoingecko;
-        if (binanceQuotes) {
-          uniXBinance = uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100;
-        }
-        if (coingeckoQuotes) {
-          uniXCoingecko = uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100;
-        }
+    const emailMsgs = [];
+    // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces notificar el caso.
+    if (coingeckoQuotes || binanceQuotes) {
+      const DIFF_THRESHOLD = -2; // Parametrizar?
 
-        if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
-          if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
-            console.log(
-              `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token ${token}.
-                \nUniswap: ${uniswapQuotes[symbol]}
-                \nBinance: ${binanceQuotes[symbol]} - ${uniXBinance}% diff
-                \nCoingecko: ${coingeckoQuotes[symbol]} - ${uniXCoingecko}% diff`
-            );
-            // Mandar mail
+      for (const token in TokenTypes) {
+        if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
+          const symbol = TokenTypes[token];
+          const uniXBinance = binanceQuotes
+            ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100).toFixed(2)
+            : null;
+          const uniXCoingecko = coingeckoQuotes
+            ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100).toFixed(2)
+            : null;
+
+          if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
+            if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
+              const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD}%\nUniswap: $${
+                uniswapQuotes[symbol]
+              }\n${
+                uniXBinance ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinance}% diff` : null
+              }\n${
+                uniXCoingecko
+                  ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingecko}% diff`
+                  : null
+              }`;
+              console.log(msg);
+              emailMsgs.push({
+                subject: 'Alerta: Cotizaciones tokens - Diferencia entre Uniswap y Centralizadas',
+                msg,
+              });
+            }
+          }
+        }
+      }
+    } else {
+      const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
+      console.log(msg);
+      emailMsgs.push({
+        subject: 'Alerta: Cotizaciones tokens - Cotizaciones centralizadas faltantes',
+        msg,
+      });
+    }
+
+    // Si hay mails se mandan a todos los admins.
+    if (emailMsgs.length > 0) {
+      const limit = 1000;
+      const offset = '0';
+      const filters = {
+        appRols: {
+          $in: ['app-admin'], // 'app-admin'
+        },
+        state: {
+          $contains: '1',
+        },
+      };
+      const items = await fetchItems({
+        collectionName: Collections.USERS,
+        limit,
+        filters,
+        indexedFilters: ['state'],
+      });
+
+      const admins = filterItems({ items, limit, offset, filters }).items;
+      if (admins && admins.length > 0) {
+        for (const email of emailMsgs) {
+          for (const admin of admins) {
+            EmailSender.send({
+              to: admin.email,
+              message: {
+                subject: email.subject,
+                html: null,
+                text: email.msg,
+              },
+            });
           }
         }
       }
