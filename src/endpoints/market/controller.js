@@ -56,22 +56,23 @@ const {
 } = require('../../config/appConfig');
 
 const getUniswapQuotes = async () => {
+  // TODO: Refactor config file for market provider name
+  const provider = 'uniswap';
   const quotes = {};
 
   // Provider
-  const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
-
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
   // Router Instance
   const router = new AlphaRouter({
     chainId,
-    provider,
+    provider: alchemy,
   });
-
   // Setup data
   const tokenOut = stableCoins.usdc;
   const tokensSymbols = Object.keys(tokens);
 
   for (const symbol of tokensSymbols) {
+    // Setup token data
     const tokenIn = tokens[symbol];
     const quoteAmount = quoteAmounts[tokenIn.symbol];
     const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
@@ -88,10 +89,17 @@ const getUniswapQuotes = async () => {
 
     quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
   }
-  return quotes;
+
+  const result = {
+    provider,
+    quotes,
+  };
+  return result;
 };
 
 const getCoingeckoQuotes = async () => {
+  // TODO: Refactor config file
+  const provider = 'coingecko';
   const quotes = {};
 
   for (const token in CoingeckoTypes) {
@@ -116,7 +124,11 @@ const getCoingeckoQuotes = async () => {
     }
   }
 
-  return quotes;
+  const result = {
+    provider,
+    quotes,
+  };
+  return result;
 };
 
 const getBinanceQuotes = async () => {
@@ -132,6 +144,8 @@ const getBinanceQuotes = async () => {
     );
   }
 
+  // TODO: Refactor config file
+  const provider = 'binance';
   const quotes = {};
   for (const token in BinanceTypes) {
     if (Object.prototype.hasOwnProperty.call(BinanceTypes, token)) {
@@ -142,118 +156,154 @@ const getBinanceQuotes = async () => {
     }
   }
 
-  return quotes;
+  const result = {
+    provider,
+    quotes,
+  };
+  return result;
+};
+
+const parseQuotations = (quotes) => {
+  return quotes.reduce((result, quote) => {
+    result[quote.provider] = quote.quotes;
+    return result;
+  }, {});
+};
+
+const getQuotations = async () => {
+  // TODO: Refactor config file
+  const providers = [
+    { name: 'Uniswap', getQuotes: getUniswapQuotes },
+    { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
+    { name: 'Binance', getQuotes: getBinanceQuotes },
+  ];
+  const quoters = providers.map((provider) => provider.getQuotes());
+
+  const quotations = await Promise.allSettled(quoters).then((results) => {
+    results.forEach((result, index) => {
+      // Logueo consultas fallidas
+      if (result.status === 'rejected') {
+        const error = `Error fetching quotes from ${providers[index].name} provider: `;
+        console.error(`${error}${result.reason.message}`);
+
+        // Si Uniswap falla entonces detengo la ejecución y tiro error (no se actualizará la cotización)
+        if (index === 0) {
+          result.reason.message = `${error}${result.reason.message}`;
+          throw result.reason;
+        }
+      }
+    });
+    return results.map((result) => result.value);
+  });
+
+  return parseQuotations(quotations);
+};
+
+const sendNotificationsEmails = async (emailMsgs) => {
+  // Si hay mails se mandan a todos los admins
+  if (emailMsgs.length > 0) {
+    // Preparo query
+    const limit = 1000;
+    const offset = '0';
+    const filters = {
+      appRols: {
+        $in: ['app-admin'],
+      },
+      state: {
+        $contains: '1',
+      },
+    };
+
+    // Consulto usuarios y filtro admins
+    const items = await fetchItems({
+      collectionName: Collections.USERS,
+      limit,
+      filters,
+      indexedFilters: ['state'],
+    });
+    const admins = filterItems({ items, limit, offset, filters }).items;
+
+    if (admins && admins.length > 0) {
+      // Armo string con mails de destino y mando los mails.
+      const emails = admins.map((admin) => admin.email).join(', ');
+
+      for (const email of emailMsgs) {
+        EmailSender.send({
+          to: emails,
+          message: {
+            subject: email.subject,
+            html: null,
+            text: email.msg,
+          },
+        });
+      }
+    }
+  }
+};
+
+const evaluateQuotations = async (quotations) => {
+  const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
+  const emailMsgs = [];
+
+  // Si hay al menos una fuente centralizada se evalua
+  if (coingeckoQuotes || binanceQuotes) {
+    const DIFF_THRESHOLD = -2; // TODO: Refactor config file
+
+    for (const token in TokenTypes) {
+      if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
+        const symbol = TokenTypes[token];
+        // Calculo la diferencia entre Uniswap y las centralizadas.
+        const uniXBinance = binanceQuotes
+          ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100).toFixed(2)
+          : null;
+        const uniXCoingecko = coingeckoQuotes
+          ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100).toFixed(2)
+          : null;
+
+        // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces armo msg de mail.
+        if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
+          if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
+            const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD}%\nUniswap: $${
+              uniswapQuotes[symbol]
+            }\n${
+              uniXBinance ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinance}% diff` : null
+            }\n${
+              uniXCoingecko
+                ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingecko}% diff`
+                : null
+            }`;
+            console.log(msg);
+            emailMsgs.push({
+              subject: 'Alerta: Cotizaciones tokens - Diferencia entre Uniswap y Centralizadas',
+              msg,
+            });
+          }
+        }
+      }
+    }
+  } else {
+    // Si no se pudo evaluar porque fallaron las consultas centralizadas armo mensaje mail.
+    const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
+    console.log(msg);
+    emailMsgs.push({
+      subject: 'Alerta: Cotizaciones tokens - Cotizaciones centralizadas faltantes',
+      msg,
+    });
+  }
+
+  // Si hay mensajes para mandar mails entonces notifico.
+  if (emailMsgs && emailMsgs.length > 0) sendNotificationsEmails(emailMsgs);
 };
 
 exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
-    const providers = ['Uniswap', 'Coingecko', 'Binance'];
-    const quotations = [getUniswapQuotes(), getCoingeckoQuotes(), getBinanceQuotes()];
-    const [uniswapQuotes, coingeckoQuotes, binanceQuotes] = await Promise.allSettled(
-      quotations
-    ).then((results) => {
-      results.forEach((result, index) => {
-        // Logueo consultas fallidas.
-        if (result.status === 'rejected') {
-          const error = `Error fetching quotes from ${providers[index]} provider: `;
-          console.error(`${error}${result.reason.message}`);
-          // Si Uniswap falla entonces detengo la ejecución y tiro error (no se actualizará la cotización)
-          if (index === 0) {
-            result.reason.message = `${error}${result.reason.message}`;
-            throw result.reason;
-          }
-        }
-      });
-      return results.map((result) => result.value);
-    });
+    const quotations = await getQuotations();
 
-    const emailMsgs = [];
-    // Si hay al menos una fuente centralizada se evalua.
-    if (coingeckoQuotes || binanceQuotes) {
-      const DIFF_THRESHOLD = -2;
+    // Evaluo las cotizaciones y notifico.
+    await evaluateQuotations(quotations);
 
-      for (const token in TokenTypes) {
-        if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
-          const symbol = TokenTypes[token];
-          // Calculo la diferencia entre Uniswap y las centralizadas.
-          const uniXBinance = binanceQuotes
-            ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100).toFixed(2)
-            : null;
-          const uniXCoingecko = coingeckoQuotes
-            ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100).toFixed(2)
-            : null;
-
-          // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces notifico.
-          if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
-            if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
-              const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD}%\nUniswap: $${
-                uniswapQuotes[symbol]
-              }\n${
-                uniXBinance ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinance}% diff` : null
-              }\n${
-                uniXCoingecko
-                  ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingecko}% diff`
-                  : null
-              }`;
-              console.log(msg);
-              emailMsgs.push({
-                subject: 'Alerta: Cotizaciones tokens - Diferencia entre Uniswap y Centralizadas',
-                msg,
-              });
-            }
-          }
-        }
-      }
-    } else {
-      // Si no se pudo evaluar porque fallaron las consultas centralizadas notifico.
-      const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
-      console.log(msg);
-      emailMsgs.push({
-        subject: 'Alerta: Cotizaciones tokens - Cotizaciones centralizadas faltantes',
-        msg,
-      });
-    }
-
-    // Si hay mails se mandan a todos los admins.
-    if (emailMsgs.length > 0) {
-      // Preparo query y busco admins.
-      const limit = 1000;
-      const offset = '0';
-      const filters = {
-        appRols: {
-          $in: ['app-admin'],
-        },
-        state: {
-          $contains: '1',
-        },
-      };
-      const items = await fetchItems({
-        collectionName: Collections.USERS,
-        limit,
-        filters,
-        indexedFilters: ['state'],
-      });
-      const admins = filterItems({ items, limit, offset, filters }).items;
-
-      if (admins && admins.length > 0) {
-        // Armo string con mails de destinos y mando los mails.
-        const emails = admins.map((admin) => admin.email).join(', ');
-
-        for (const email of emailMsgs) {
-          EmailSender.send({
-            to: emails,
-            message: {
-              subject: email.subject,
-              html: null,
-              text: email.msg,
-            },
-          });
-        }
-      }
-    }
-
-    return res.status(200).send(uniswapQuotes);
+    return res.status(200).send(quotations.uniswap);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
