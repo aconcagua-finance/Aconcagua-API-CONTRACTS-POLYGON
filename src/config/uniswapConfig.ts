@@ -13,7 +13,7 @@ export const chainId =
   PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.POLYGON_MUMBAI;
 
 export const swapOptions = {
-  recipient: ContractTypes.BASE_ADDRESS,
+  recipient: ContractTypes.EMPTY_ADDRESS,
   slippageTolerance: new Percent(5, 1000), // 0.5% for polygon (ASK)
   deadline: Math.floor(Date.now() / 1000 + 1800),
   type: SwapType.SWAP_ROUTER_02, // Ver Universal Router

@@ -11,7 +11,9 @@ const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { ErrorHelper, LoggerHelper, EmailSender } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
-const { BinanceTypes, CoingeckoTypes, TokenTypes } = require('../../types/index');
+const { BinanceTypes } = require('../../types/binanceTypes');
+const { CoingeckoTypes } = require('../../types/coingeckoTypes');
+const { TokenTypes } = require('../../types/tokenTypes');
 const { Collections } = require('../../types/collectionsTypes');
 const {
   chainId,

@@ -409,7 +409,7 @@ exports.create = async function (req, res) {
     body.contractStatus = 'pending-deployment-verification';
     body.contractNetwork = hre.network.name;
     body.contractVersion = '1.0.0';
-    body.rescueWalletAccount = ContractTypes.BASE_ADDRESS;
+    body.rescueWalletAccount = ContractTypes.EMPTY_ADDRESS;
 
     console.log('Create args (' + collectionName + '):', body);
 
