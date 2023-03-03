@@ -244,32 +244,37 @@ const sendNotificationsEmails = async (emailMsgs) => {
 const evaluateQuotations = async (quotations) => {
   const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
   const emailMsgs = [];
-
   // Si hay al menos una fuente centralizada se evalua
   if (coingeckoQuotes || binanceQuotes) {
-    const DIFF_THRESHOLD = -2; // TODO: Refactor config file
+    const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
 
     for (const token in TokenTypes) {
       if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
         const symbol = TokenTypes[token];
-        // Calculo la diferencia entre Uniswap y las centralizadas.
-        const uniXBinance = binanceQuotes
-          ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1 * 100).toFixed(2)
+
+        // Calculo las diferencias entre Uniswap y las centralizadas.
+        const uniXBinanceDiffPercent = binanceQuotes
+          ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1).toFixed(3) * 100
           : null;
-        const uniXCoingecko = coingeckoQuotes
-          ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1 * 100).toFixed(2)
+        const uniXCoingeckoDiffPercent = coingeckoQuotes
+          ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1).toFixed(3) * 100
           : null;
 
         // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces armo msg de mail.
-        if (!uniXBinance || uniXBinance <= DIFF_THRESHOLD) {
-          if (!uniXCoingecko || uniXCoingecko <= DIFF_THRESHOLD) {
-            const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD}%\nUniswap: $${
+        if (uniXBinanceDiffPercent == null || uniXBinanceDiffPercent <= DIFF_THRESHOLD_PERCENT) {
+          if (
+            uniXCoingeckoDiffPercent == null ||
+            uniXCoingeckoDiffPercent <= DIFF_THRESHOLD_PERCENT
+          ) {
+            const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD_PERCENT}%\nUniswap: $${
               uniswapQuotes[symbol]
             }\n${
-              uniXBinance ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinance}% diff` : null
+              uniXBinanceDiffPercent
+                ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinanceDiffPercent}% diff`
+                : null
             }\n${
-              uniXCoingecko
-                ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingecko}% diff`
+              uniXCoingeckoDiffPercent
+                ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingeckoDiffPercent}% diff`
                 : null
             }`;
             console.log(msg);
@@ -299,6 +304,7 @@ exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
     const quotations = await getQuotations();
+    quotations.uniswap = { ...quotations.binance }; // Mock
 
     // Evaluo las cotizaciones y notifico.
     await evaluateQuotations(quotations);
