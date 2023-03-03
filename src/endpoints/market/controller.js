@@ -304,7 +304,11 @@ exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
     const quotations = await getQuotations();
-    quotations.uniswap = { ...quotations.binance }; // Mock
+
+    // Mock pre marketCap apuntando a prod
+    if (PROVIDER_NETWORK_NAME === 'maticmum') {
+      quotations.uniswap = { ...quotations.binance };
+    }
 
     // Evaluo las cotizaciones y notifico.
     await evaluateQuotations(quotations);
