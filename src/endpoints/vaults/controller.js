@@ -270,6 +270,10 @@ exports.patch = async function (req, res) {
   let currency = 'USDC';
   if (req.body.balances[1].balance > 0) {
     currency = 'USDT';
+  } else if (req.body.balances[2].balance > 0) {
+    currency = 'WBTC';
+  } else if (req.body.balances[3].balance > 0) {
+    currency = 'WETH';
   }
   let mailTemplate = 'mail-cripto';
   if (req.body.amount === 0) {
@@ -802,17 +806,13 @@ exports.withdraw = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT
+        ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.WBTC
+        ? Utils.parseUnits(amount, 8)
+        : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
-
-    // if (token === CurrencyTypes.LOCAL) {
-    //   // const wd = await blockchainContract.withdraw(ethAmount, {
-    //   //   maxFeePerGas,
-    //   //   maxPriorityFeePerGas,
-    //   // });
-    //   // await wd.wait();
-    // }
 
     if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
@@ -824,12 +824,21 @@ exports.withdraw = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.withdrawWBTC(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.withdrawWETH(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
       await wd.wait();
     } else {
       throw new CustomError.TechnicalError(
@@ -1033,7 +1042,11 @@ exports.rescue = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT
+        ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.WBTC
+        ? Utils.parseUnits(amount, 8)
+        : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
@@ -1057,8 +1070,6 @@ exports.rescue = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.rescueUSDT(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1101,6 +1112,10 @@ exports.rescue = async function (req, res) {
       currency = 'USDC';
     } else if (token === Types.CurrencyTypes.USDT) {
       currency = 'USDT';
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      currency = 'WBTC';
+    } else if (token === Types.CurrencyTypes.WETH) {
+      currency = 'WETH';
     }
     // Envio mail al borrower una vez que la boveda es rescatada
     await EmailSender.send({
