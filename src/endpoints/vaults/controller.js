@@ -18,6 +18,7 @@ const { CustomError } = require('../../vs-core');
 
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
+const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -47,6 +48,7 @@ const {
   secureArgsValidation,
   secureDataArgsValidation,
   fetchItems,
+  filterItems,
 } = require('../baseEndpoint');
 
 const {
@@ -66,6 +68,7 @@ const { debug } = require('firebase-functions/logger');
 
 const COLLECTION_NAME = Collections.VAULTS;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
+const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
@@ -629,6 +632,7 @@ const fetchVaultBalances = async (vault) => {
 };
 
 exports.getVaultBalances = async function (req, res) {
+  debugger;
   const { id } = req.params;
 
   const { userId } = res.locals;
@@ -767,7 +771,7 @@ exports.withdraw = async function (req, res) {
         null
       );
     }
-
+    debugger;
     const withdrawInUSD = amount * tokenToUSDValuation.value;
     const withdrawInARS = withdrawInUSD * usdToARSValuation.value;
 
@@ -1454,3 +1458,168 @@ exports.onVaultCreate = functions.firestore
       return null;
     }
   });
+
+const getVaultLimits = (vault, ratios) => {
+  debugger;
+  // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
+  const notificationLimit = vault.balances.reduce((limit, bal) => {
+    if (!bal.isValuation) {
+      const ratio = ratios.find(
+        (ratio) => ratio.currency === bal.currency && ratio.actionType === ActionTypes.NOTIFICATION
+      ).ratio;
+      const tokenValuation = bal.valuations.find(
+        (val) => val.currency === Types.CurrencyTypes.ARS
+      ).value;
+      return limit + tokenValuation * ratio;
+    }
+  }, 0);
+
+  const actionLimit = vault.balances.reduce((limit, bal) => {
+    if (!bal.isValuation) {
+      const ratio = ratios.find(
+        (ratio) => ratio.currency === bal.currency && ratio.actionType === ActionTypes.SWAP
+      ).ratio;
+      const tokenValuation = bal.valuations.find(
+        (val) => val.currency === Types.CurrencyTypes.ARS
+      ).value;
+      return limit + tokenValuation * ratio;
+    }
+  }, 0);
+
+  return { notificationLimit, actionLimit };
+};
+
+const evaluateVaultTokenBalance = async (vault, ratios) => {
+  debugger;
+  // Calculo los límites de la bóveda
+  const arsLimits = getVaultLimits(vault, ratios);
+
+  // Balance de la bóveda
+  // const balances = await fetchVaultBalances(vault);
+  const arsBalance = vault.balances.find(
+    (bal) => bal.isValuation && bal.currency === Types.CurrencyTypes.ARS
+  ).balance;
+
+  // Comparo el balance vault con los límites y clasifico la bóveda.
+  let evaluation = {
+    arsBalance,
+    limits: arsLimits,
+  };
+  if (arsBalance > arsLimits.notificationLimit) {
+    return;
+  } else if (arsBalance <= arsLimits.actionLimit) {
+    evaluation = {
+      ...evaluation,
+      vault,
+      actionType: ActionTypes.SWAP,
+    };
+  } else {
+    evaluation = {
+      ...evaluation,
+      vault,
+      actionType: ActionTypes.NOTIFICATION,
+    };
+  }
+
+  return evaluation;
+};
+
+const fetchTokenVaultsAndRatios = async () => {
+  debugger;
+  // Busca las bóvedas activas.
+  const limit = 1000;
+  const offset = '0';
+  const vaultsFilters = {
+    state: { $equal: Types.StateTypes.STATE_ACTIVE },
+    loanStatus: { $contains: 'active' },
+  };
+  const vaultsItems = await fetchItems({
+    collectionName: COLLECTION_NAME,
+    limit,
+    offset,
+    vaultsFilters,
+  });
+  // Filtrar las vaults con balance de tokens.
+  const vaults = vaultsItems.filter((vault) => {
+    return vault.balances.some((bal) => {
+      const tokens = Object.values(TokenTypes).map((token) => token.toString());
+      return tokens.includes(bal.currency) && bal.balance > 0;
+    });
+  });
+
+  // Busca todos los tokenRatios.
+  const tokenRatios = await fetchItems({
+    collectionName: COLLECTION_TOKEN_RATIOS,
+    limit,
+    offset,
+  });
+
+  return { vaults, tokenRatios };
+};
+
+const sendNotificationEmail = async (evalVault) => {
+  // TODO
+};
+
+const swapVaultBalance = async (evalVault) => {
+  // TODO
+};
+
+exports.evaluate = async function (req, res) {
+  try {
+    // Cargo las vaults que poseen tokens volátiles y cargo sus ratios.
+    const { vaults: tokenVaults, tokenRatios } = await fetchTokenVaultsAndRatios();
+
+    // Si hay vaults que poseen tokens volátiles entonces las evalúo.
+    let evaluatedVaults = [];
+    if (tokenVaults.length > 0) {
+      evaluatedVaults = tokenVaults.map(async (vault) => {
+        return await evaluateVaultTokenBalance(vault, tokenRatios);
+      });
+    }
+
+    // Ejecuto la acción de las vaults evaluadas.
+    if (evaluatedVaults.length > 0) {
+      evaluatedVaults.forEach((evalVault) => {
+        if (evalVault.actionType === ActionTypes.NOTIFICATION) sendNotificationEmail(evalVault);
+        else if (evalVault.actionType === ActionTypes.SWAP) swapVaultBalance(evalVault);
+      });
+    }
+
+    return res.status(200).send('ok');
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+/*
+    const db = admin.firestore();
+    const ref = db.collection(COLLECTION_NAME);
+
+    console.log('Consultando vaults para evalular balances');
+    const querySnapshot = await ref
+      .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+      .where('loanStatus', 'in', [
+        Types.LoanStatusTypes.LOAN_STATUS_TYPE_ACTIVE,
+        Types.LoanStatusTypes.LOAN_STATUS_TYPE_DEFAULTER,
+      ])
+      .where('balances', 'array-contains', {
+        currency: TokenTypes.WBTC,
+        balance: '> 0',
+        valuations: [
+          currency: "usd",
+
+        ]
+      })
+      .where('balances', 'array-contains', {
+        currency: TokenTypes.WETH,
+        // balance: '> 0',
+      })
+      .where('balances', 'array-contains-any', [
+        { currency: TokenTypes.WBTC },
+        { currency: TokenTypes.WETH },
+      ])
+      .where('balances.currency', 'in', [TokenTypes.WBTC, TokenTypes.WETH])
+      .where('balances.balance', '>', 0)
+      .get();
+    */
