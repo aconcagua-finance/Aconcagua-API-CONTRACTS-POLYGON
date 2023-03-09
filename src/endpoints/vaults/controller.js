@@ -55,6 +55,8 @@ const {
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  WBTC_TOKEN_ADDRESS,
+  WETH_TOKEN_ADDRESS,
   GAS_STATION_URL,
 } = require('../../config/appConfig');
 
@@ -268,6 +270,10 @@ exports.patch = async function (req, res) {
   let currency = 'USDC';
   if (req.body.balances[1].balance > 0) {
     currency = 'USDT';
+  } else if (req.body.balances[2].balance > 0) {
+    currency = 'WBTC';
+  } else if (req.body.balances[3].balance > 0) {
+    currency = 'WETH';
   }
   let mailTemplate = 'mail-cripto';
   if (req.body.amount === 0) {
@@ -365,14 +371,15 @@ exports.create = async function (req, res) {
 
     console.log('CURRENT NETWORK: ', hre.network.name);
 
-    // const contractName = 'Greeter';
     const contractName = 'ColateralContract_v1_0_0';
 
     const blockchainContract = await hre.ethers.getContractFactory(contractName);
 
     const deploymentResponse = await blockchainContract.deploy(
       USDC_TOKEN_ADDRESS,
-      USDT_TOKEN_ADDRESS
+      USDT_TOKEN_ADDRESS,
+      WBTC_TOKEN_ADDRESS,
+      WETH_TOKEN_ADDRESS
     );
 
     console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
@@ -382,7 +389,6 @@ exports.create = async function (req, res) {
     const contractAddress = contractDeployment.address;
     const signerAddress = contractDeployment.signerAddress;
 
-    // console.log('LOG RTA CONTRATO', deploymentResponse);
     if (!contractAddress) {
       throw new CustomError.TechnicalError(
         'ERROR_CREATE_CONTRACT',
@@ -407,7 +413,7 @@ exports.create = async function (req, res) {
     body.contractStatus = 'pending-deployment-verification';
     body.contractNetwork = hre.network.name;
     body.contractVersion = '1.0.0';
-    body.rescueWalletAccount = ContractTypes.BASE_ADDRESS;
+    body.rescueWalletAccount = ContractTypes.EMPTY_ADDRESS;
 
     console.log('Create args (' + collectionName + '):', body);
 
@@ -555,39 +561,42 @@ const fetchVaultBalances = async (vault) => {
 
   console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
 
-  // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
 
   console.log('alchemmy config done');
 
-  // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
   const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
 
   console.log('wallet config done');
 
-  // // Get the deployed contract.
+  // Get the deployed contract.
   const blockchainContract = new hre.ethers.Contract(
-    // '0x14bd5806E43A541A871C3CB0E0Fc6142786BB406',
     smartContract.contractAddress,
     abi,
     userWallet
   );
 
   console.log('Get the deployed contract done');
-
   const contractBalances = await blockchainContract.getBalances();
 
   console.log('BALANCES FOR' + vault.id + ': ' + JSON.stringify(contractBalances));
 
   const balancesWithCurrencies = [
-    // { currency: CurrencyTypes.LOCAL, balance: Utils.formatEther(contractBalances[0]) },
     {
       currency: Types.CurrencyTypes.USDC,
-      balance: parseFloat(Utils.formatEther(contractBalances[1])),
-    }, // 18 decimales
+      balance: parseFloat(Utils.formatEther(contractBalances[1])), // 18 decimales
+    },
     {
       currency: Types.CurrencyTypes.USDT,
       balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
+    },
+    {
+      currency: Types.CurrencyTypes.WBTC,
+      balance: parseFloat(Utils.formatUnits(contractBalances[3]), 8), // 8 decimales (Mumbai -Catedral- usa WMATIC capeado a 8 decimales)
+    },
+    {
+      currency: Types.CurrencyTypes.WETH,
+      balance: parseFloat(Utils.formatEther(contractBalances[4])), // 18 decimales
     },
   ];
 
@@ -797,17 +806,13 @@ exports.withdraw = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT
+        ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.WBTC
+        ? Utils.parseUnits(amount, 8)
+        : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
-
-    // if (token === CurrencyTypes.LOCAL) {
-    //   // const wd = await blockchainContract.withdraw(ethAmount, {
-    //   //   maxFeePerGas,
-    //   //   maxPriorityFeePerGas,
-    //   // });
-    //   // await wd.wait();
-    // }
 
     if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
@@ -819,12 +824,21 @@ exports.withdraw = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.withdrawUSDT(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
-
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.withdrawWBTC(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.withdrawWETH(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
       await wd.wait();
     } else {
       throw new CustomError.TechnicalError(
@@ -1028,7 +1042,11 @@ exports.rescue = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT ? Utils.parseUnits(amount, 6) : Utils.parseEther(amount);
+      token === Types.CurrencyTypes.USDT
+        ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.WBTC
+        ? Utils.parseUnits(amount, 8)
+        : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
@@ -1052,8 +1070,6 @@ exports.rescue = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
       const wd = await blockchainContract.rescueUSDT(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1096,6 +1112,10 @@ exports.rescue = async function (req, res) {
       currency = 'USDC';
     } else if (token === Types.CurrencyTypes.USDT) {
       currency = 'USDT';
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      currency = 'WBTC';
+    } else if (token === Types.CurrencyTypes.WETH) {
+      currency = 'WETH';
     }
     // Envio mail al borrower una vez que la boveda es rescatada
     await EmailSender.send({

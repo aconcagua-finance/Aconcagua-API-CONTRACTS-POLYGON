@@ -35,7 +35,11 @@ env:
   ETHERSCAN_API_KEY: ${{secrets.ETHERSCAN_API_KEY_PROD}}
   USDC_TOKEN_ADDRESS: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174'
   USDT_TOKEN_ADDRESS: '0xc2132d05d31c914a87c6611c10748aeb04b58e8f'
+  WBTC_TOKEN_ADDRESS: '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6'
+  WETH_TOKEN_ADDRESS: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619'
   GAS_STATION_URL: 'https://gasstation-mainnet.matic.network/v2'
+  COINGECKO_URL: 'https://api.coingecko.com/api/v3'
+  BINANCE_URL: 'https://data.binance.com/api/v3'
 
 jobs:
   build-and-publish:

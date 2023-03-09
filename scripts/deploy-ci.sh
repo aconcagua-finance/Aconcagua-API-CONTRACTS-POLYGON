@@ -42,7 +42,11 @@ echo "POLYGONSCAN_API_KEY="${POLYGONSCAN_API_KEY} >> .env
 echo "ETHERSCAN_API_KEY="${ETHERSCAN_API_KEY} >> .env
 echo "USDC_TOKEN_ADDRESS="${USDC_TOKEN_ADDRESS} >> .env
 echo "USDT_TOKEN_ADDRESS="${USDT_TOKEN_ADDRESS} >> .env
+echo "WBTC_TOKEN_ADDRESS="${WBTC_TOKEN_ADDRESS} >> .env
+echo "WETH_TOKEN_ADDRESS="${WETH_TOKEN_ADDRESS} >> .env
 echo "GAS_STATION_URL="${GAS_STATION_URL} >> .env
+echo "COINGECKO_URL="${COINGECKO_URL} >> .env
+echo "BINANCE_URL="${BINANCE_URL} >> .env
 
 firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate
 #firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
