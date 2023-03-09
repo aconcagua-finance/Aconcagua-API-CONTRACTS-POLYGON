@@ -61,6 +61,7 @@ const getUniswapQuotes = async () => {
   // TODO: Refactor config file for market provider name
   const provider = 'uniswap';
   const quotes = {};
+  console.log('Preparo llamadas quotes Uniswap');
 
   // Provider
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
@@ -81,6 +82,7 @@ const getUniswapQuotes = async () => {
     const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei));
 
     // Get Quote
+    console.log(`Llamada quotes Uniswap para token ${tokenIn}`);
     const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
 
     console.log(
@@ -103,6 +105,7 @@ const getCoingeckoQuotes = async () => {
   // TODO: Refactor config file
   const provider = 'coingecko';
   const quotes = {};
+  console.log('Preparo llamadas quotes Coingecko');
 
   for (const token in CoingeckoTypes) {
     if (Object.prototype.hasOwnProperty.call(CoingeckoTypes, token)) {
@@ -123,6 +126,7 @@ const getCoingeckoQuotes = async () => {
       const valuation = apiResponse.data[type].usd;
       const symbol = token.toLowerCase();
       quotes[symbol] = valuation;
+      console.log(`Quote Coingecko para token ${token}: ${valuation}`);
     }
   }
 
@@ -134,6 +138,7 @@ const getCoingeckoQuotes = async () => {
 };
 
 const getBinanceQuotes = async () => {
+  console.log(`LLamada quotes Binances`);
   const apiResponse = await invoke_get_api({
     endpoint: `${BINANCE_URL}/ticker/price`,
   });
@@ -155,6 +160,7 @@ const getBinanceQuotes = async () => {
       const pair = BinanceTypes[token];
       const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
       quotes[symbol] = Number(quote.price);
+      console.log(`Quote Binance para token ${token}: ${quote.price}`);
     }
   }
 
@@ -181,6 +187,7 @@ const getQuotations = async () => {
   ];
   const quoters = providers.map((provider) => provider.getQuotes());
 
+  console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters).then((results) => {
     results.forEach((result, index) => {
       // Logueo consultas fallidas
@@ -198,6 +205,7 @@ const getQuotations = async () => {
     return results.map((result) => result.value);
   });
 
+  console.log('Cotizaciones solicitadas exitosamente');
   return parseQuotations(quotations);
 };
 
@@ -205,6 +213,7 @@ const sendNotificationsEmails = async (emailMsgs) => {
   // Si hay mails se mandan a todos los admins
   if (emailMsgs.length > 0) {
     // Preparo query
+    console.log(`Consulto usuarios admins para notificación de valuaciones`);
     const limit = 1000;
     const offset = '0';
     const filters = {
@@ -227,6 +236,7 @@ const sendNotificationsEmails = async (emailMsgs) => {
 
     if (admins && admins.length > 0) {
       // Armo string con mails de destino y mando los mails.
+      console.log(`Envio mail a admins de valuaciones`);
       const emails = admins.map((admin) => admin.email).join(', ');
 
       for (const email of emailMsgs) {
@@ -246,6 +256,8 @@ const sendNotificationsEmails = async (emailMsgs) => {
 const evaluateQuotations = async (quotations) => {
   const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
   const emailMsgs = [];
+  console.log(`Evalúo cotizaciones solicitadas`);
+
   // Si hay al menos una fuente centralizada se evalua
   if (coingeckoQuotes || binanceQuotes) {
     const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
@@ -306,11 +318,6 @@ exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
     const quotations = await getQuotations();
-
-    // Mock pre marketCap apuntando a prod
-    if (PROVIDER_NETWORK_NAME === 'maticmum') {
-      quotations.uniswap = { ...quotations.binance };
-    }
 
     // Evaluo las cotizaciones y notifico.
     await evaluateQuotations(quotations);
