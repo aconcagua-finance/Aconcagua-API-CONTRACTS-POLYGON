@@ -632,7 +632,6 @@ const fetchVaultBalances = async (vault) => {
 };
 
 exports.getVaultBalances = async function (req, res) {
-  debugger;
   const { id } = req.params;
 
   const { userId } = res.locals;
@@ -771,7 +770,6 @@ exports.withdraw = async function (req, res) {
         null
       );
     }
-    debugger;
     const withdrawInUSD = amount * tokenToUSDValuation.value;
     const withdrawInARS = withdrawInUSD * usdToARSValuation.value;
 
@@ -1461,6 +1459,7 @@ exports.onVaultCreate = functions.firestore
 
 const getVaultLimits = (vault, ratios) => {
   debugger;
+  console.log(`Obtengo límites para vault ${vault.id}`);
   // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
   const notificationLimit = vault.balances.reduce((limit, bal) => {
     if (!bal.isValuation) {
@@ -1472,7 +1471,9 @@ const getVaultLimits = (vault, ratios) => {
       ).value;
       return limit + tokenValuation * ratio;
     }
+    return limit;
   }, 0);
+  console.log(`Notification limit: ${Number(notificationLimit).toFixed(2)}`);
 
   const actionLimit = vault.balances.reduce((limit, bal) => {
     if (!bal.isValuation) {
@@ -1484,41 +1485,38 @@ const getVaultLimits = (vault, ratios) => {
       ).value;
       return limit + tokenValuation * ratio;
     }
+    return limit;
   }, 0);
+  console.log(`Action limit: ${Number(actionLimit).toFixed(2)}`);
 
-  return { notificationLimit, actionLimit };
+  return {
+    notificationLimit: Number(notificationLimit).toFixed(2),
+    actionLimit: Number(actionLimit).toFixed(2),
+  };
 };
 
 const evaluateVaultTokenBalance = async (vault, ratios) => {
   debugger;
+  console.log(`Evaluando vault ${vault.id}`);
   // Calculo los límites de la bóveda
   const arsLimits = getVaultLimits(vault, ratios);
+  const arsCredit = vault.amount;
 
-  // Balance de la bóveda
-  // const balances = await fetchVaultBalances(vault);
-  const arsBalance = vault.balances.find(
-    (bal) => bal.isValuation && bal.currency === Types.CurrencyTypes.ARS
-  ).balance;
-
-  // Comparo el balance vault con los límites y clasifico la bóveda.
-  let evaluation = {
-    arsBalance,
-    limits: arsLimits,
+  const evaluation = {
+    arsLimits,
+    vault,
   };
-  if (arsBalance > arsLimits.notificationLimit) {
+
+  // Comparo el crédito con los límites y clasifico la bóveda.
+  if (arsCredit > arsLimits.notificationLimit) {
+    console.log(`Vault ${vault.id} evaluada sin acción`);
     return;
-  } else if (arsBalance <= arsLimits.actionLimit) {
-    evaluation = {
-      ...evaluation,
-      vault,
-      actionType: ActionTypes.SWAP,
-    };
+  } else if (arsCredit <= arsLimits.actionLimit) {
+    console.log(`Vault ${vault.id} evaluada con acción SWAP`);
+    evaluation.actionType = ActionTypes.SWAP;
   } else {
-    evaluation = {
-      ...evaluation,
-      vault,
-      actionType: ActionTypes.NOTIFICATION,
-    };
+    console.log(`Vault ${vault.id} evaluada con acción NOTIFICATION`);
+    evaluation.actionType = ActionTypes.NOTIFICATION;
   }
 
   return evaluation;
@@ -1527,6 +1525,7 @@ const evaluateVaultTokenBalance = async (vault, ratios) => {
 const fetchTokenVaultsAndRatios = async () => {
   debugger;
   // Busca las bóvedas activas.
+  console.log('Solicita vaults activas y filtra vaults con tokens volátiles');
   const limit = 1000;
   const offset = '0';
   const vaultsFilters = {
@@ -1539,6 +1538,7 @@ const fetchTokenVaultsAndRatios = async () => {
     offset,
     vaultsFilters,
   });
+
   // Filtrar las vaults con balance de tokens.
   const vaults = vaultsItems.filter((vault) => {
     return vault.balances.some((bal) => {
@@ -1546,44 +1546,106 @@ const fetchTokenVaultsAndRatios = async () => {
       return tokens.includes(bal.currency) && bal.balance > 0;
     });
   });
+  console.log(`Vaults con tokens volátiles: ${vaults.length}`);
 
   // Busca todos los tokenRatios.
-  const tokenRatios = await fetchItems({
-    collectionName: COLLECTION_TOKEN_RATIOS,
-    limit,
-    offset,
-  });
+  if (vaults && vaults.length > 0) {
+    console.log('Solicita tokenRatios');
+    const tokenRatios = await fetchItems({
+      collectionName: COLLECTION_TOKEN_RATIOS,
+      limit,
+      offset,
+    });
 
-  return { vaults, tokenRatios };
+    return { vaults, tokenRatios };
+  }
 };
 
-const sendNotificationEmail = async (evalVault) => {
-  // TODO
+const sendActionTypeEmail = async (evalVault) => {
+  debugger;
+  console.log('Obtengo lender y borrower para enviar mail de acción');
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: evalVault.vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: evalVault.vault.userId,
+  });
+
+  if (evalVault.actionType === ActionTypes.NOTIFICATION) {
+    console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
+    await EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-mc2',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: evalVault.vault.id,
+          lender: lender.name,
+          requiredIdx: evalVault.arsLimits.notificationLimit,
+          idx: evalVault.amount,
+          liquidateIdx: evalVault.arsLimits.actionLimit,
+        },
+      },
+    });
+  } else if (evalVault.actionType === ActionTypes.SWAP) {
+    console.log(`Enviando mail de acción SWAP para vault ${evalVault.vault.id}`);
+    await EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-swap',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: evalVault.vault.id,
+          lender: lender.name,
+          value: 0, // TODO Total de monto a obtener en USDC
+        },
+      },
+    });
+  }
 };
 
 const swapVaultBalance = async (evalVault) => {
-  // TODO
+  // TODO! :D
 };
 
 exports.evaluate = async function (req, res) {
   try {
+    debugger;
     // Cargo las vaults que poseen tokens volátiles y cargo sus ratios.
     const { vaults: tokenVaults, tokenRatios } = await fetchTokenVaultsAndRatios();
 
-    // Si hay vaults que poseen tokens volátiles entonces las evalúo.
+    // Si hay vaults que poseen tokens volátiles entonces las evalúo
     let evaluatedVaults = [];
-    if (tokenVaults.length > 0) {
+    if (tokenVaults && tokenVaults.length > 0) {
+      console.log(`Vaults a evaluar: ${tokenVaults.length} vaults`);
+
       evaluatedVaults = tokenVaults.map(async (vault) => {
+        // Actualizo balance vault en memoria para evalular.
+        vault.balances = await fetchVaultBalances(vault);
         return await evaluateVaultTokenBalance(vault, tokenRatios);
       });
+      console.log('Vaults evaluadas y accionadas con éxito');
+    } else {
+      console.log('No hay vaults con tokens a evaluar');
     }
 
-    // Ejecuto la acción de las vaults evaluadas.
-    if (evaluatedVaults.length > 0) {
+    // Ejecuto la acción de las vaults evaluadas según actionType.
+    if (evaluatedVaults && evaluatedVaults.length > 0) {
+      console.log(`Vaults a accionar: ${evaluatedVaults.length} evaluadas`);
       evaluatedVaults.forEach((evalVault) => {
-        if (evalVault.actionType === ActionTypes.NOTIFICATION) sendNotificationEmail(evalVault);
-        else if (evalVault.actionType === ActionTypes.SWAP) swapVaultBalance(evalVault);
+        if (evalVault.actionType === ActionTypes.NOTIFICATION) {
+          sendActionTypeEmail(evalVault);
+        } else if (evalVault.actionType === ActionTypes.SWAP) {
+          sendActionTypeEmail(evalVault);
+          swapVaultBalance(evalVault);
+        }
       });
+    } else {
+      console.log('No hay vaults evaluadas para accionar');
     }
 
     return res.status(200).send('ok');
@@ -1591,35 +1653,3 @@ exports.evaluate = async function (req, res) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
-
-/*
-    const db = admin.firestore();
-    const ref = db.collection(COLLECTION_NAME);
-
-    console.log('Consultando vaults para evalular balances');
-    const querySnapshot = await ref
-      .where('state', '==', Types.StateTypes.STATE_ACTIVE)
-      .where('loanStatus', 'in', [
-        Types.LoanStatusTypes.LOAN_STATUS_TYPE_ACTIVE,
-        Types.LoanStatusTypes.LOAN_STATUS_TYPE_DEFAULTER,
-      ])
-      .where('balances', 'array-contains', {
-        currency: TokenTypes.WBTC,
-        balance: '> 0',
-        valuations: [
-          currency: "usd",
-
-        ]
-      })
-      .where('balances', 'array-contains', {
-        currency: TokenTypes.WETH,
-        // balance: '> 0',
-      })
-      .where('balances', 'array-contains-any', [
-        { currency: TokenTypes.WBTC },
-        { currency: TokenTypes.WETH },
-      ])
-      .where('balances.currency', 'in', [TokenTypes.WBTC, TokenTypes.WETH])
-      .where('balances.balance', '>', 0)
-      .get();
-    */
