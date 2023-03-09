@@ -30,6 +30,6 @@ export const tokens = {
 };
 
 export const stableCoins = {
-  usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 18, 'usdc', 'USD Coin'), // Era 6 decimals antes
+  usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
 };
