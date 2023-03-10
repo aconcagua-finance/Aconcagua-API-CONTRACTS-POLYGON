@@ -60,6 +60,7 @@ vaultsRoutesConfig(vaultsApp);
 exports.vaultsPolygon = functions
   .runWith({
     memory: '2GB',
+    timeoutSeconds: 120,
     // Keep 5 instances warm for this latency-critical function
     // in production only. Default to 0 for test projects.
     // minInstances: envProjectId === "my-production-project" ? 5 : 0,
