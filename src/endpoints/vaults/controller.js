@@ -1458,7 +1458,6 @@ exports.onVaultCreate = functions.firestore
   });
 
 const getVaultLimits = (vault, ratios) => {
-  debugger;
   console.log(`Obtengo límites para vault ${vault.id}`);
   // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
   const notificationLimit = vault.balances.reduce((limit, bal) => {
@@ -1496,7 +1495,6 @@ const getVaultLimits = (vault, ratios) => {
 };
 
 const evaluateVaultTokenBalance = async (vault, ratios) => {
-  debugger;
   console.log(`Evaluando vault ${vault.id}`);
   // Calculo los límites de la bóveda
   const arsLimits = getVaultLimits(vault, ratios);
@@ -1523,7 +1521,6 @@ const evaluateVaultTokenBalance = async (vault, ratios) => {
 };
 
 const fetchTokenVaultsAndRatios = async () => {
-  debugger;
   // Busca las bóvedas activas.
   console.log('Solicita vaults activas y filtra vaults con tokens volátiles');
   const limit = 1000;
@@ -1562,7 +1559,6 @@ const fetchTokenVaultsAndRatios = async () => {
 };
 
 const sendActionTypeEmail = async (evalVault) => {
-  debugger;
   console.log('Obtengo lender y borrower para enviar mail de acción');
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
@@ -1609,15 +1605,12 @@ const sendActionTypeEmail = async (evalVault) => {
 };
 
 const swapVaultTokenBalance = async (evalVault) => {
-  debugger;
-
   evalVault.swap.amountTokenOut = 1000; // TODO Total de monto a obtener en USDC
   sendActionTypeEmail(evalVault);
 };
 
 exports.evaluate = async function (req, res) {
   try {
-    debugger;
     // Cargo las vaults que poseen tokens volátiles y cargo sus ratios.
     const { vaults: tokenVaults, tokenRatios } = await fetchTokenVaultsAndRatios();
 
