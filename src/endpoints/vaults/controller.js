@@ -64,7 +64,6 @@ const {
 
 const hre = require('hardhat');
 const { debug } = require('firebase-functions/logger');
-const { TokenTypes } = require('../../types/tokenTypes');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
