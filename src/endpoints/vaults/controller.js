@@ -64,6 +64,7 @@ const {
 
 const hre = require('hardhat');
 const { debug } = require('firebase-functions/logger');
+const { TokenTypes } = require('../../types/tokenTypes');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
@@ -1283,44 +1284,20 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
       JSON.stringify(after.balances)
     );
 
-    const arsCurrency = Types.CurrencyTypes.ARS;
-    const usdCurrency = Types.CurrencyTypes.USD;
-
-    const beforeUSD = before.balances.find((balance) => {
-      return balance.currency === usdCurrency;
-    });
-
-    const afterUSD = after.balances.find((balance) => {
-      return balance.currency === usdCurrency;
-    });
-
     // quien invoca a esta fn entiende de un cambio de balance por la comparacion de los strings del obj balances, entonces invoca con 'balances-update'
     // aca evaluamos el importe en USD, dado que por ahora solo se usan monedas en valor igual al USD, si vario el balance en USD quiere decir que hubo un movimiento de un token (crypto)
     // en ese caso cambio el transaction type
-    if (
-      transactionType === 'balances-update' &&
-      beforeUSD &&
-      afterUSD &&
-      typeof afterUSD.balance === 'number' &&
-      typeof beforeUSD.balance === 'number'
-    ) {
-      let usdMovementAmount = afterUSD.balance - beforeUSD.balance;
 
-      console.log('usdMovementAmount: ', usdMovementAmount);
+    // Monedas volátiles: ahora todas las bóvedas con tokens volátiles van a tener una variación en el balance total en USD (y por consiguiente en ARS), por lo que el cálculo usd por sí no sirve.
+    // Si hay cambios en la cantidad de criptos entonces es 'crypto-update' (deposit/withdraw) o 'crypto-swap' (muestra monto del swap)
+    // Si no, el cambio se debe a la diferencia de valuaciones y no se registra por el momento ('balance-update')
 
-      if (usdMovementAmount < 0) usdMovementAmount = usdMovementAmount * -1; // saco el signo
-
-      if (usdMovementAmount > 0) {
-        transactionType = 'crypto-update';
-      }
-    }
-
+    // ARS: calculo cambio del balance y signo.
     const beforeARS = before.balances.find((balance) => {
-      return balance.currency === arsCurrency;
+      return balance.currency === Types.CurrencyTypes.ARS;
     });
-
     const afterARS = after.balances.find((balance) => {
-      return balance.currency === arsCurrency;
+      return balance.currency === Types.CurrencyTypes.ARS;
     });
 
     if (
@@ -1339,7 +1316,28 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
     }
   }
 
-  if (movementAmount === 0 && transactionType !== 'vault-create') {
+  // crypto-update: si hay cambio en el balance de algún token.
+  const isCryptoUpdate = before.balances.some((bBalance) => {
+    if (!bBalance.isValuation) {
+      const afterBalance = after.find((aBalance) => aBalance.currency === bBalance.currency);
+      return bBalance.balance !== afterBalance.balance;
+    }
+  });
+  if (isCryptoUpdate) {
+    transactionType = 'crypto-update';
+    // Chequear si es swap => 'crypto-swap'
+    // - tokens, + usdc
+  }
+
+  // Valido: si el cambio se debe a update de valuaciones desestimar
+  if (transactionType === 'balance-update') {
+    return;
+  }
+  // Valido: si no hay cambio de monto.
+  if (
+    movementAmount === 0 &&
+    (transactionType !== 'vault-create' || transactionType !== 'crypto-swap')
+  ) {
     console.log('movementAmount es cero, finaliza sin crear');
     return;
   }

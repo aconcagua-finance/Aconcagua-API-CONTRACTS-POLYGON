@@ -48,7 +48,7 @@ echo "GAS_STATION_URL="${GAS_STATION_URL} >> .env
 echo "COINGECKO_URL="${COINGECKO_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
 
-firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate
+firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
 #firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
 
 echo "deploy complete!"
