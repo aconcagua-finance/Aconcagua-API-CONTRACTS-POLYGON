@@ -1585,7 +1585,7 @@ const sendActionTypeEmail = async (evalVault) => {
           vaultId: evalVault.vault.id,
           lender: lender.name,
           requiredIdx: evalVault.arsLimits.notificationLimit,
-          idx: evalVault.amount,
+          idx: evalVault.vault.amount,
           liquidateIdx: evalVault.arsLimits.actionLimit,
         },
       },
@@ -1601,15 +1601,18 @@ const sendActionTypeEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          value: 0, // TODO Total de monto a obtener en USDC
+          value: evalVault.swap.amountTokenOut,
         },
       },
     });
   }
 };
 
-const swapVaultBalance = async (evalVault) => {
-  // TODO! :D
+const swapVaultTokenBalance = async (evalVault) => {
+  debugger;
+
+  evalVault.swap.amountTokenOut = 1000; // TODO Total de monto a obtener en USDC
+  sendActionTypeEmail(evalVault);
 };
 
 exports.evaluate = async function (req, res) {
@@ -1624,7 +1627,7 @@ exports.evaluate = async function (req, res) {
       console.log(`Vaults a evaluar: ${tokenVaults.length} vaults`);
 
       evaluatedVaults = tokenVaults.map(async (vault) => {
-        // Actualizo balance vault en memoria para evalular.
+        // Actualizo balance vault en memoria para evaluar.
         vault.balances = await fetchVaultBalances(vault);
         return await evaluateVaultTokenBalance(vault, tokenRatios);
       });
@@ -1640,8 +1643,7 @@ exports.evaluate = async function (req, res) {
         if (evalVault.actionType === ActionTypes.NOTIFICATION) {
           sendActionTypeEmail(evalVault);
         } else if (evalVault.actionType === ActionTypes.SWAP) {
-          sendActionTypeEmail(evalVault);
-          swapVaultBalance(evalVault);
+          swapVaultTokenBalance(evalVault);
         }
       });
     } else {
