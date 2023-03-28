@@ -34,4 +34,5 @@ export enum Collections {
   VAULT_TRANSACTIONS = 'vaultTransactions',
   TRANSACTION_REQUESTS = 'transactionRequests',
   MARKET_CAP = 'marketCap',
+  TOKEN_RATIOS = 'tokenRatios',
 }

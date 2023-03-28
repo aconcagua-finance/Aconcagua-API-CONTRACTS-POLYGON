@@ -6,7 +6,7 @@ const {
   remove,
   findByUser,
   findByCompany,
-
+  evaluate,
   getVaultBalances,
   withdraw,
   rescue,
@@ -62,6 +62,20 @@ exports.vaultsRoutesConfig = function (app) {
       allowStaffRelationship: true,
     }),
     findByUser,
+  ]);
+
+  // evalúa los balances de tokens volátiles de las vaults
+  app.get('/evaluate', [
+    Audit.logger,
+    /*
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+      allowSameUser: true,
+      allowStaffRelationship: true,
+    }),
+    */
+    evaluate,
   ]);
 
   // consulta los saldos
