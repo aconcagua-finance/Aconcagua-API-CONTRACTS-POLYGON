@@ -1508,10 +1508,10 @@ const evaluateVaultTokenBalance = async (vault, ratios) => {
   };
 
   // Comparo el crédito con los límites y clasifico la bóveda.
-  if (arsCredit > arsLimits.notificationLimit) {
+  if (arsCredit < arsLimits.notificationLimit) {
     console.log(`Vault ${vault.id} evaluada sin acción`);
     return;
-  } else if (arsCredit <= arsLimits.actionLimit) {
+  } else if (arsCredit >= arsLimits.actionLimit) {
     console.log(`Vault ${vault.id} evaluada con acción SWAP`);
     evaluation.actionType = ActionTypes.SWAP;
   } else {
