@@ -57,21 +57,30 @@ const {
   BINANCE_URL,
 } = require('../../config/appConfig');
 
-const getUniswapQuotes = async () => {
+const getUniswapQuotes = async (tokens) => {
   // TODO: Refactor config file for market provider name
   const provider = 'uniswap';
-  const quotes = {};
-  console.log('Preparo llamadas quotes Uniswap');
 
+  const result = {
+    provider,
+    quotes: await getUniSmartRouterQuotes(tokens, stableCoins.usdc, quoteAmounts),
+  };
+  return result;
+};
+
+const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
   // Provider
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  console.log('Preparo llamada quotes Uniswap desde smart router');
+
   // Router Instance
   const router = new AlphaRouter({
     chainId,
     provider: alchemy,
   });
+
   // Setup data
-  const tokenOut = stableCoins.usdc;
+  const quotes = {};
   const tokensSymbols = Object.keys(tokens);
 
   for (const symbol of tokensSymbols) {
@@ -82,7 +91,7 @@ const getUniswapQuotes = async () => {
     const inputAmount = CurrencyAmount.fromRawAmount(tokenIn, JSBI.BigInt(wei));
 
     // Get Quote
-    console.log(`Llamada quotes Uniswap para token ${tokenIn}`);
+    console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
     const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
 
     console.log(
@@ -93,23 +102,21 @@ const getUniswapQuotes = async () => {
 
     quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
   }
-
-  const result = {
-    provider,
-    quotes,
-  };
-  return result;
+  return quotes;
 };
 
-const getCoingeckoQuotes = async () => {
+const getCoingeckoQuotes = async (tokens) => {
   // TODO: Refactor config file
   const provider = 'coingecko';
   const quotes = {};
   console.log('Preparo llamadas quotes Coingecko');
 
-  for (const token in CoingeckoTypes) {
-    if (Object.prototype.hasOwnProperty.call(CoingeckoTypes, token)) {
-      const type = CoingeckoTypes[token];
+  const tokensSymbols = Object.keys(tokens);
+
+  for (const token of tokensSymbols) {
+    const symbol = token.toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(CoingeckoTypes, symbol)) {
+      const type = CoingeckoTypes[symbol];
 
       const apiResponse = await invoke_get_api({
         endpoint: `${COINGECKO_URL}/simple/price?ids=${type}&vs_currencies=usd`,
@@ -118,15 +125,16 @@ const getCoingeckoQuotes = async () => {
         throw new CustomError.TechnicalError(
           'ERROR_COINGECKO_QUOTES_INVALID_RESPONSE',
           null,
-          `Respuesta inválida del servicio de valuacion Coingecko para moneda ${type}`,
+          `Respuesta inválida del servicio de valuacion Coingecko para moneda ${symbol} - ${type}`,
           null
         );
       }
 
       const valuation = apiResponse.data[type].usd;
-      const symbol = token.toLowerCase();
-      quotes[symbol] = valuation;
-      console.log(`Quote Coingecko para token ${token}: ${valuation}`);
+      quotes[token] = valuation;
+      console.log(`Quote Coingecko para token ${symbol}: ${valuation}`);
+    } else {
+      console.log(`Token ${symbol} no posee configuración Coingecko para quotear.`);
     }
   }
 
@@ -137,7 +145,7 @@ const getCoingeckoQuotes = async () => {
   return result;
 };
 
-const getBinanceQuotes = async () => {
+const getBinanceQuotes = async (tokens) => {
   console.log(`LLamada quotes Binances`);
   const apiResponse = await invoke_get_api({
     endpoint: `${BINANCE_URL}/ticker/price`,
@@ -154,13 +162,17 @@ const getBinanceQuotes = async () => {
   // TODO: Refactor config file
   const provider = 'binance';
   const quotes = {};
-  for (const token in BinanceTypes) {
-    if (Object.prototype.hasOwnProperty.call(BinanceTypes, token)) {
-      const symbol = token.toLowerCase();
-      const pair = BinanceTypes[token];
+
+  const tokensSymbols = Object.keys(tokens);
+  for (const token of tokensSymbols) {
+    const symbol = token.toUpperCase();
+    if (Object.prototype.hasOwnProperty.call(BinanceTypes, symbol)) {
+      const pair = BinanceTypes[symbol];
       const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
-      quotes[symbol] = Number(quote.price);
-      console.log(`Quote Binance para token ${token}: ${quote.price}`);
+      quotes[token] = Number(quote.price);
+      console.log(`Quote Binance para token ${symbol}: ${quote.price}`);
+    } else {
+      console.log(`Token ${symbol} no posee configuración Binance para quotear.`);
     }
   }
 
@@ -178,14 +190,14 @@ const parseQuotations = (quotes) => {
   }, {});
 };
 
-const getQuotations = async () => {
+const getQuotations = async (quoteTokens) => {
   // TODO: Refactor config file
   const providers = [
     { name: 'Uniswap', getQuotes: getUniswapQuotes },
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
     { name: 'Binance', getQuotes: getBinanceQuotes },
   ];
-  const quoters = providers.map((provider) => provider.getQuotes());
+  const quoters = providers.map((provider) => provider.getQuotes(quoteTokens));
 
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters).then((results) => {
@@ -317,7 +329,7 @@ const evaluateQuotations = async (quotations) => {
 exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
-    const quotations = await getQuotations();
+    const quotations = await getQuotations(tokens);
 
     // Evaluo las cotizaciones y notifico.
     await evaluateQuotations(quotations);

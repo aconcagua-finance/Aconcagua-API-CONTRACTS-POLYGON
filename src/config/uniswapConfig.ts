@@ -21,7 +21,7 @@ export const swapOptions = {
 
 export const quoteAmounts = {
   weth: 20,
-  wbtc: 5,
+  wbtc: 2,
 };
 
 export const tokens = {
