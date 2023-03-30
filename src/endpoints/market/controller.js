@@ -2,12 +2,16 @@
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
+const {
+  abi: Quoter2ABI,
+} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json');
 const hre = require('hardhat');
 const axios = require('axios');
 const JSBI = require('jsbi');
 
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
+const { encodePath } = require('../../helpers/uniswapHelper');
 const { ErrorHelper, LoggerHelper, EmailSender } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
@@ -21,6 +25,7 @@ const {
   quoteAmounts,
   tokens,
   stableCoins,
+  staticPaths,
 } = require('../../config/uniswapConfig');
 const {
   find,
@@ -53,6 +58,7 @@ const {
   WALLET_ADDRESS,
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
+  QUOTER2_CONTRACT_ADDRESS,
   COINGECKO_URL,
   BINANCE_URL,
 } = require('../../config/appConfig');
@@ -60,12 +66,13 @@ const {
 const getUniswapQuotes = async (tokens) => {
   // TODO: Refactor config file for market provider name
   const provider = 'uniswap';
+  const tokenOut = stableCoins.usdc;
 
-  const result = {
+  const quotes = await getUniPathQuotes(tokens, tokenOut, quoteAmounts);
+  return {
     provider,
-    quotes: await getUniSmartRouterQuotes(tokens, stableCoins.usdc, quoteAmounts),
+    quotes,
   };
-  return result;
 };
 
 const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
@@ -93,6 +100,7 @@ const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
     // Get Quote
     console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
     const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
+    const quotation = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
 
     console.log(
       `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
@@ -100,8 +108,40 @@ const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
       ).toFixed(2)}`
     );
 
-    quotes[symbol] = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
+    quotes[symbol] = quotation;
   }
+  return quotes;
+};
+
+const getUniPathQuotes = async (tokens, tokenOut, quoteAmounts) => {
+  // Provider
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  console.log('Preparo llamada quotes Uniswap desde quoter');
+
+  // Router contract
+  const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+
+  // Quote data
+  const quotes = {};
+  const tokensSymbols = Object.keys(tokens);
+
+  for (const symbol of tokensSymbols) {
+    const tokenIn = tokens[symbol];
+    const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
+    const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
+
+    console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
+    const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
+    const quotation = Number(
+      (
+        Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
+      ).toFixed(2)
+    );
+    console.log(`Uniswap Quote for pair ${symbol}/${tokenOut.symbol}: ${quotation.toFixed(2)}`);
+
+    quotes[symbol] = quotation;
+  }
+
   return quotes;
 };
 
@@ -269,7 +309,6 @@ const evaluateQuotations = async (quotations) => {
   const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
   const emailMsgs = [];
   console.log(`Evalúo cotizaciones solicitadas`);
-
   // Si hay al menos una fuente centralizada se evalua
   if (coingeckoQuotes || binanceQuotes) {
     const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
