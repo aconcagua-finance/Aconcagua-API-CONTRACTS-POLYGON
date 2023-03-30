@@ -33,3 +33,14 @@ export const stableCoins = {
   usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
 };
+
+export const staticPaths = {
+  weth: {
+    tokens: [tokens.weth.address, stableCoins.usdc.address],
+    fees: [500],
+  },
+  wbtc: {
+    tokens: [tokens.wbtc.address, tokens.weth.address, stableCoins.usdc.address],
+    fees: [500, 500],
+  },
+};
