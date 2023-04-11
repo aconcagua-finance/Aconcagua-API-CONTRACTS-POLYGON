@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 
 // File: @openzeppelin/contracts/utils/Strings.sol
 
@@ -387,6 +388,7 @@ interface IERC20 {
 
   function balanceOf(address account) external view returns (uint256);
 
+  function approve(address _spender, uint256 _value) external returns (bool);
   // don't need to define other functions, only using `transfer()` in this case
 }
 
@@ -400,18 +402,36 @@ contract ColateralContract_v1_0_0 is Ownable {
   address public wbtcTokenAddress;
   address public wethTokenAddress;
   address public rescueWalletAccount;
+  mapping(address => bool) public supportedTokens;
+  ISwapRouter public immutable swapRouter;
   string public contractName;
 
-  constructor(address _usdcTokenAddress, address _usdtTokenAddress, address _wbtcTokenAddress, address _wethTokenAddress) {
+  constructor(address _usdcTokenAddress, address _usdtTokenAddress, address _wbtcTokenAddress, address _wethTokenAddress, address _swapRouterAddress) {
     usdcTokenAddress = _usdcTokenAddress;
     usdtTokenAddress = _usdtTokenAddress;
     wbtcTokenAddress = _wbtcTokenAddress;
     wethTokenAddress = _wethTokenAddress;
-    // Mumbai addresses
-    // usdcTokenAddress = 0xe11A86849d99F524cAC3E7A0Ec1241828e332C62;
-    // usdtTokenAddress = 0xA02f6adc7926efeBBd59Fd43A84f4E0c0c91e832;
-    // wbtcTokenAddress = 0x9c3C9283D3e44854697Cd22D3Faa240Cfb032889; // WMATIC 
-    // wethTokenAddress = 0xA6FA4fB5f76172d178d61B04b0ecd319C5d1C0aa;
+    swapRouter = ISwapRouter(_swapRouterAddress);
+
+    supportedTokens[_usdcTokenAddress] = true;
+    supportedTokens[_usdtTokenAddress] = true;
+    supportedTokens[_wbtcTokenAddress] = true;
+    supportedTokens[_wethTokenAddress] = true;
+  }
+
+  event Swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
+
+  event SwapError(string msg);
+
+  struct CustomBalance {
+    string token;
+    uint256 balance;
+  }
+
+  struct SwapParams {
+    ISwapRouter.ExactInputParams params;
+    address tokenIn;
+    address tokenOut;
   }
 
   function setRescueWalletAccount(address _rescueWalletAccount) public onlyOwner {
@@ -453,56 +473,48 @@ contract ColateralContract_v1_0_0 is Ownable {
   function withdrawUSDT(uint256 _amount) public onlyOwner {
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // transfers USDT that belong to your contract to the contract owner address
     usdt.transfer(address(owner()), _amount);
   }
 
   function withdrawUSDC(uint256 _amount) public onlyOwner {
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // transfers USDC that belong to your contract to the contract owner address
     usdc.transfer(address(owner()), _amount);
   }
 
   function withdrawWBTC(uint256 _amount) public onlyOwner {
     IERC20 wbtc = IERC20(address(wbtcTokenAddress));
 
-    // transfers WBTC that belong to your contract to the contract owner address
     wbtc.transfer(address(owner()), _amount);
   }
 
   function withdrawWETH(uint256 _amount) public onlyOwner {
     IERC20 weth = IERC20(address(wethTokenAddress));
 
-    // transfers WETH that belong to your contract to the contract owner address
     weth.transfer(address(owner()), _amount);
   }
 
   function balanceOfUSDC() public view virtual returns (uint256) {
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // returns balance of USDC token in contract.
     return usdc.balanceOf(address(this));
   }
 
   function balanceOfUSDT() public view virtual returns (uint256) {
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // returns balance of USDT token in contract.
     return usdt.balanceOf(address(this));
   }
 
   function balanceOfWBTC() public view virtual returns (uint256) {
     IERC20 wbtc = IERC20(address(wbtcTokenAddress));
 
-    // returns balance of WBTC token in contract.
     return wbtc.balanceOf(address(this));
   }
 
   function balanceOfWETH() public view virtual returns (uint256) {
     IERC20 weth = IERC20(address(wethTokenAddress));
 
-    // returns balance of WETH token in contract.
     return weth.balanceOf(address(this));
   }
 
@@ -527,7 +539,6 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 usdt = IERC20(address(usdtTokenAddress));
 
-    // transfers USDT that belong to your contract to the rescueWalletAccount address
     usdt.transfer(address(rescueWalletAccount), _amount);
   }
 
@@ -536,7 +547,6 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 usdc = IERC20(address(usdcTokenAddress));
 
-    // transfers USDC that belong to your contract to the rescueWalletAccount address
     usdc.transfer(address(rescueWalletAccount), _amount);
   }
 
@@ -545,7 +555,6 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 wbtc = IERC20(address(wbtcTokenAddress));
 
-    // transfers WBTC that belong to your contract to the rescueWalletAccount address
     wbtc.transfer(address(rescueWalletAccount), _amount);
   }
 
@@ -554,13 +563,7 @@ contract ColateralContract_v1_0_0 is Ownable {
 
     IERC20 weth = IERC20(address(wethTokenAddress));
 
-    // transfers WETH that belong to your contract to the rescueWalletAccount address
     weth.transfer(address(rescueWalletAccount), _amount);
-  }
-
-  struct CustomBalance {
-    string token;
-    uint256 balance;
   }
 
   function getBalances() public view virtual returns (uint256[5] memory) {
@@ -574,5 +577,34 @@ contract ColateralContract_v1_0_0 is Ownable {
     uint256[5] memory balances = [localBalance, usdcBalance, usdtBalance, wbtcBalance, wethBalance];
 
     return balances;
+  }
+
+  // V1
+  function swapExactInputs(SwapParams[] calldata swapsParams) public onlyOwner {
+    require(swapsParams.length > 0, "Empty input array");  
+    for (uint256 i = 0; i < swapsParams.length; i++) {
+      SwapParams calldata swapParams = swapsParams[i];
+
+      // Input validations
+      require(supportedTokens[swapParams.tokenIn], "TokenIn not supported");
+      require(supportedTokens[swapParams.tokenOut], "TokenOut not supported");
+      require(swapParams.params.recipient == address(this), "Swap recipient is not the Vault address");
+      require(swapParams.params.amountOutMinimum > 0, "AmountOutMinimum should be positive");
+
+      // Get token and approve amount
+      IERC20 token = IERC20(address(swapParams.tokenIn));
+      require(swapParams.params.amountIn > 0 && swapParams.params.amountIn <= token.balanceOf(address(this)), "Amounts should be positive and within balance");
+      require(token.approve(address(swapRouter), swapParams.params.amountIn), "Approval failed");
+
+      // Execute swap and remove allowance.
+      try swapRouter.exactInput(swapParams.params) returns (uint256 amountOut) {
+        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, amountOut);
+        require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
+      } catch Error(string memory errorMsg) {
+        emit SwapError(errorMsg);
+        require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
+        revert("Swap failed");
+      }
+    }
   }
 }
