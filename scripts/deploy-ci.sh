@@ -48,6 +48,7 @@ echo "QUOTER2_CONTRACT_ADDRESS="${QUOTER2_CONTRACT_ADDRESS} >> .env
 echo "GAS_STATION_URL="${GAS_STATION_URL} >> .env
 echo "COINGECKO_URL="${COINGECKO_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
+echo "API_PATH_QUOTES="${API_PATH_QUOTES} >> .env
 
 firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
 #firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions

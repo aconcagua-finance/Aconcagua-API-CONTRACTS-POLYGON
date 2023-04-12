@@ -13,12 +13,13 @@ export const chainId =
   PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.POLYGON_MUMBAI;
 
 export const swapOptions = {
-  recipient: ContractTypes.EMPTY_ADDRESS,
+  recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
   slippageTolerance: new Percent(5, 1000), // 0.5% for polygon (ASK)
-  deadline: Math.floor(Date.now() / 1000 + 1800),
+  deadline: Math.floor(Date.now() / 1000 + 60 * 10), // 10 min
   type: SwapType.SWAP_ROUTER_02, // Ver Universal Router
 };
 
+// Default quotes
 export const quoteAmounts = {
   weth: 20,
   wbtc: 2,
@@ -32,15 +33,16 @@ export const tokens = {
 export const stableCoins = {
   usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
+  swap: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'), // TokenOut: quotations and swaps depending on paths relies on.
 };
 
 export const staticPaths = {
   weth: {
-    tokens: [tokens.weth.address, stableCoins.usdc.address],
+    tokens: [tokens.weth.address, stableCoins.swap.address],
     fees: [500],
   },
   wbtc: {
-    tokens: [tokens.wbtc.address, tokens.weth.address, stableCoins.usdc.address],
+    tokens: [tokens.wbtc.address, tokens.weth.address, stableCoins.swap.address],
     fees: [500, 500],
   },
 };

@@ -66,16 +66,16 @@ const {
 const getUniswapQuotes = async (tokens) => {
   // TODO: Refactor config file for market provider name
   const provider = 'uniswap';
-  const tokenOut = stableCoins.usdc;
 
-  const quotes = await getUniPathQuotes(tokens, tokenOut, quoteAmounts);
+  // const quotes = await getUniSmartRouterQuotes(tokens);
+  const quotes = await getUniPathQuotes(tokens);
   return {
     provider,
     quotes,
   };
 };
 
-const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
+const getUniSmartRouterQuotes = async (quoteAmounts) => {
   // Provider
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
   console.log('Preparo llamada quotes Uniswap desde smart router');
@@ -88,7 +88,7 @@ const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
 
   // Setup data
   const quotes = {};
-  const tokensSymbols = Object.keys(tokens);
+  const tokensSymbols = Object.keys(quoteAmounts);
 
   for (const symbol of tokensSymbols) {
     // Setup token data
@@ -99,11 +99,16 @@ const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
 
     // Get Quote
     console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
-    const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
+    const route = await router.route(
+      inputAmount,
+      stableCoins.swap,
+      TradeType.EXACT_INPUT,
+      swapOptions
+    );
     const quotation = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
 
     console.log(
-      `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
+      `Uniswap Quote for pair ${tokenIn.symbol}/${stableCoins.swap.symbol}: ${(
         route.quote.toFixed(2) / quoteAmount
       ).toFixed(2)}`
     );
@@ -113,7 +118,7 @@ const getUniSmartRouterQuotes = async (tokens, tokenOut, quoteAmounts) => {
   return quotes;
 };
 
-const getUniPathQuotes = async (tokens, tokenOut, quoteAmounts) => {
+const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
   console.log('Preparo llamada quotes Uniswap desde quoter');
@@ -123,7 +128,7 @@ const getUniPathQuotes = async (tokens, tokenOut, quoteAmounts) => {
 
   // Quote data
   const quotes = {};
-  const tokensSymbols = Object.keys(tokens);
+  const tokensSymbols = Object.keys(quoteAmounts);
 
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
@@ -134,15 +139,28 @@ const getUniPathQuotes = async (tokens, tokenOut, quoteAmounts) => {
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
     const quotation = Number(
       (
-        Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
+        Utils.formatUnits(quoter2Result.amountOut, stableCoins.swap.decimals) / quoteAmounts[symbol]
       ).toFixed(2)
     );
-    console.log(`Uniswap Quote for pair ${symbol}/${tokenOut.symbol}: ${quotation.toFixed(2)}`);
+    console.log(
+      `Uniswap Quote for pair ${symbol}/${stableCoins.swap.symbol}: ${quotation.toFixed(2)}`
+    );
 
     quotes[symbol] = quotation;
   }
-
   return quotes;
+};
+
+exports.getPathQuotes = async function (req, res) {
+  try {
+    // TODO validations
+    const quoteAmounts = JSON.parse(req.query.data);
+
+    const quotes = await getUniPathQuotes(quoteAmounts);
+    res.status(200).send(quotes);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
 };
 
 const getCoingeckoQuotes = async (tokens) => {
@@ -230,14 +248,14 @@ const parseQuotations = (quotes) => {
   }, {});
 };
 
-const getQuotations = async (quoteTokens) => {
+const getQuotations = async (quoteAmounts) => {
   // TODO: Refactor config file
   const providers = [
     { name: 'Uniswap', getQuotes: getUniswapQuotes },
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
     { name: 'Binance', getQuotes: getBinanceQuotes },
   ];
-  const quoters = providers.map((provider) => provider.getQuotes(quoteTokens));
+  const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters).then((results) => {
@@ -368,7 +386,7 @@ const evaluateQuotations = async (quotations) => {
 exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
-    const quotations = await getQuotations(tokens);
+    const quotations = await getQuotations(quoteAmounts);
 
     // Evaluo las cotizaciones y notifico.
     await evaluateQuotations(quotations);

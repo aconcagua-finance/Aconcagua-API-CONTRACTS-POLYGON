@@ -36,3 +36,4 @@ export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_AD
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
 export const BINANCE_URL = Config.getEnvConfig('BINANCE_URL');
+export const API_PATH_QUOTES = Config.getEnvConfig('API_PATH_QUOTES');
