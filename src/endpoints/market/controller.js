@@ -24,6 +24,7 @@ const {
   swapOptions,
   quoteAmounts,
   tokens,
+  tokenOut,
   stableCoins,
   staticPaths,
 } = require('../../config/uniswapConfig');
@@ -99,16 +100,11 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
     // Get Quote
     console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
-    const route = await router.route(
-      inputAmount,
-      stableCoins.swap,
-      TradeType.EXACT_INPUT,
-      swapOptions
-    );
+    const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
     const quotation = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
 
     console.log(
-      `Uniswap Quote for pair ${tokenIn.symbol}/${stableCoins.swap.symbol}: ${(
+      `Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${(
         route.quote.toFixed(2) / quoteAmount
       ).toFixed(2)}`
     );
@@ -139,12 +135,10 @@ const getUniPathQuotes = async (quoteAmounts) => {
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
     const quotation = Number(
       (
-        Utils.formatUnits(quoter2Result.amountOut, stableCoins.swap.decimals) / quoteAmounts[symbol]
+        Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
       ).toFixed(2)
     );
-    console.log(
-      `Uniswap Quote for pair ${symbol}/${stableCoins.swap.symbol}: ${quotation.toFixed(2)}`
-    );
+    console.log(`Uniswap Quote for pair ${symbol}/${tokenOut.symbol}: ${quotation.toFixed(2)}`);
 
     quotes[symbol] = quotation;
   }
@@ -153,10 +147,20 @@ const getUniPathQuotes = async (quoteAmounts) => {
 
 exports.getPathQuotes = async function (req, res) {
   try {
-    // TODO validations
-    const quoteAmounts = JSON.parse(req.query.data);
+    // Input validations
+    const input = JSON.parse(req.query.data);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return res.status(400).send('Invalid input format: expected an object');
+    }
+    const suppTokens = tokens;
+    const quoteAmounts = {};
+    Object.entries(input).forEach(([token, amount]) => {
+      if (suppTokens[token] && amount > 0) quoteAmounts[token] = amount;
+    });
+    if (!quoteAmounts) return res.status(400).send('No supported token has been provided');
 
     const quotes = await getUniPathQuotes(quoteAmounts);
+
     res.status(200).send(quotes);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);

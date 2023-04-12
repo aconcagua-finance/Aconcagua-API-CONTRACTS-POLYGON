@@ -25,6 +25,7 @@ export const quoteAmounts = {
   wbtc: 2,
 };
 
+// Supported tokens
 export const tokens = {
   weth: new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ethereum'),
   wbtc: new Token(chainId, WBTC_TOKEN_ADDRESS, 8, 'wbtc', 'Wrapped Bitcoin'),
@@ -33,16 +34,18 @@ export const tokens = {
 export const stableCoins = {
   usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
-  swap: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'), // TokenOut: quotations and swaps depending on paths relies on.
 };
+
+// TokenOut: quotations and swaps depending on paths relies on.
+export const tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
 
 export const staticPaths = {
   weth: {
-    tokens: [tokens.weth.address, stableCoins.swap.address],
+    tokens: [tokens.weth.address, tokenOut.address],
     fees: [500],
   },
   wbtc: {
-    tokens: [tokens.wbtc.address, tokens.weth.address, stableCoins.swap.address],
+    tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
     fees: [500, 500],
   },
 };
