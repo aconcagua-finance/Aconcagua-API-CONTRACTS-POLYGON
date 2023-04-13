@@ -13,7 +13,7 @@ exports.marketRoutesConfig = function (app) {
     getTokensQuotes,
   ]);
 
-  app.get('/pathQuotes', [
+  app.get('/pathQuotes/:quoteAmounts', [
     Audit.logger,
     // Auth.isAuthenticated(),  // TODO: not public.
     // Auth.isAuthorized({}),

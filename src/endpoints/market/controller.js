@@ -148,7 +148,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
 exports.getPathQuotes = async function (req, res) {
   try {
     // Input validations
-    const input = JSON.parse(req.query.data);
+    const input = JSON.parse(req.params.quoteAmounts);
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
       return res.status(400).send('Invalid input format: expected an object');
     }
