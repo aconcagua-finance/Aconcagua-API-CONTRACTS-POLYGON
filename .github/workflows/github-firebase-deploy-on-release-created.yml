@@ -40,6 +40,7 @@ env:
   GAS_STATION_URL: 'https://gasstation-mainnet.matic.network/v2'
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
   BINANCE_URL: 'https://data.binance.com/api/v3'
+  QUOTER2_CONTRACT_ADDRESS: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e'
   API_PATH_QUOTES: 'http://us-central1-aconcagua-365314.cloudfunctions.net/market/pathQuotes'
 
 jobs:
