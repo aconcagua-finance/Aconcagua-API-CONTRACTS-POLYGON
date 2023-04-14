@@ -1339,14 +1339,35 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
   // crypto-update: si hay cambio en el balance de algún token.
   const isCryptoUpdate = before.balances.some((bBalance) => {
     if (!bBalance.isValuation) {
-      const afterBalance = after.find((aBalance) => aBalance.currency === bBalance.currency);
+      const afterBalance = after.balances.find(
+        (aBalance) => aBalance.currency === bBalance.currency
+      );
       return bBalance.balance !== afterBalance.balance;
     }
   });
+
   if (isCryptoUpdate) {
     transactionType = 'crypto-update';
-    // Chequear si es swap => 'crypto-swap'
-    // - tokens, + usdc
+
+    const tokens = Object.values(TokenTypes).map((token) => token.toString());
+    const isAnyTokenLess = before.balances.some((bBalance) => {
+      if (!bBalance.isValuation && tokens.includes(bBalance.currency)) {
+        const afterBalance = after.balances.find(
+          (aBalance) => aBalance.currency === bBalance.currency
+        );
+        return bBalance.balance < afterBalance.balance;
+      }
+    });
+    const isTokenOutMore = before.balances.some((bBalance) => {
+      if (!bBalance.isValuation && bBalance.currency === tokenOut.symbol) {
+        const afterBalance = after.balances.find(
+          (aBalance) => aBalance.currency === bBalance.currency
+        );
+        return bBalance.balance < afterBalance.balance;
+      }
+    });
+
+    if (isAnyTokenLess && isTokenOutMore) transactionType = 'crypto-swap';
   }
 
   // Valido: si el cambio se debe a update de valuaciones desestimar
@@ -1669,7 +1690,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
   const { maxFeePerGas, maxPriorityFeePerGas } = getGasPrice();
 
-  debugger;
   // Execute swaps.
   const swap = await blockchainContract.swapExactInputs(swapsParams, {
     gasLimit,
@@ -1678,16 +1698,13 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
   });
   const tx = await swap.wait();
   console.log(tx);
-  debugger;
 
   // Returns swaps results
   const swapEvents = tx.events.filter((event) => event.event === 'Swap');
   const errEvents = tx.events.filter((event) => event.event === 'SwapError');
   // TODO errEvents logic
 
-  debugger;
   const swapsResults = swapEvents.map((event) => {
-    debugger;
     const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
     const token = Object.values(tokens).find((token) => token.address === tokenIn);
     const amountInDec = Number(Utils.formatUnits(amountIn.toString(), token.decimals));
@@ -1795,7 +1812,7 @@ const swapVaultTokenBalances = async (vault) => {
 
   // Ejecuto swaps
   const swapsResults = await swapVaultExactInputs(vault, swapsParams);
-  debugger;
+
   // Sumar los montos resultantes y devolverlos pal mail sender.
   const tokenOutAmount = swapsResults.reduce(
     (tokenOutAmount, swapResult) => tokenOutAmount + swapResult.amountOutDec,
@@ -1833,7 +1850,6 @@ exports.evaluate = async function (req, res) {
       console.log('No hay vaults con tokens a evaluar');
     }
 
-    debugger;
     // Ejecuto la acción de las vaults evaluadas según actionType.
     if (evaluatedVaults && evaluatedVaults.length > 0) {
       console.log(`Vaults a accionar: ${evaluatedVaults.length} evaluadas`);
@@ -1841,9 +1857,8 @@ exports.evaluate = async function (req, res) {
         if (evalVault.actionType === ActionTypes.NOTIFICATION) {
           await sendVaultEvaluationEmail(evalVault);
         } else if (evalVault.actionType === ActionTypes.SWAP) {
-          debugger;
           const tokenSwapsResult = await swapVaultTokenBalances(evalVault.vault);
-          debugger;
+
           evalVault.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
           await sendVaultEvaluationEmail(evalVault);
         }
