@@ -602,7 +602,6 @@ contract ColateralContract_v1_0_0 is Ownable {
         require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
       } catch Error(string memory errorMsg) {
         emit SwapError(errorMsg);
-        require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
         revert("Swap failed");
       }
     }
