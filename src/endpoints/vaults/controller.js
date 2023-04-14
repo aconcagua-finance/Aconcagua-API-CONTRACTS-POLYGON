@@ -3,6 +3,7 @@
 /* eslint-disable no-unused-vars */
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
+const JSBI = require('jsbi');
 
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
@@ -23,6 +24,22 @@ const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
 const schemas = require('./schemas');
+
+// eslint-disable-next-line camelcase
+const { invoke_get_api } = require('../../helpers/httpInvoker');
+const { encodePath } = require('../../helpers/uniswapHelper');
+
+const {
+  abi: Quoter2ABI,
+} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json');
+
+const {
+  tokens,
+  stableCoins,
+  tokenOut,
+  staticPaths,
+  swapOptions,
+} = require('../../config/uniswapConfig');
 
 const {
   find,
@@ -61,6 +78,8 @@ const {
   WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
+  QUOTER2_CONTRACT_ADDRESS,
+  API_PATH_QUOTES,
 } = require('../../config/appConfig');
 
 const hre = require('hardhat');
@@ -1488,12 +1507,12 @@ const getVaultLimits = (vault, ratios) => {
   console.log(`Action limit: ${Number(actionLimit).toFixed(2)}`);
 
   return {
-    notificationLimit: Number(notificationLimit).toFixed(2),
-    actionLimit: Number(actionLimit).toFixed(2),
+    notificationLimit: Number(notificationLimit.toFixed(2)),
+    actionLimit: Number(actionLimit.toFixed(2)),
   };
 };
 
-const evaluateVaultTokenBalance = async (vault, ratios) => {
+const evaluateVaultTokenBalance = (vault, ratios) => {
   console.log(`Evaluando vault ${vault.id}`);
   // Calculo los límites de la bóveda
   const arsLimits = getVaultLimits(vault, ratios);
@@ -1502,41 +1521,56 @@ const evaluateVaultTokenBalance = async (vault, ratios) => {
   const evaluation = {
     arsLimits,
     vault,
+    swap: {
+      tokenOutAmount: 0,
+    },
   };
 
   // Comparo el crédito con los límites y clasifico la bóveda.
   if (arsCredit < arsLimits.notificationLimit) {
     console.log(`Vault ${vault.id} evaluada sin acción`);
-    return;
   } else if (arsCredit >= arsLimits.actionLimit) {
     console.log(`Vault ${vault.id} evaluada con acción SWAP`);
     evaluation.actionType = ActionTypes.SWAP;
+    return evaluation;
   } else {
     console.log(`Vault ${vault.id} evaluada con acción NOTIFICATION`);
     evaluation.actionType = ActionTypes.NOTIFICATION;
+    return evaluation;
   }
-
-  return evaluation;
 };
 
 const fetchTokenVaultsAndRatios = async () => {
   // Busca las bóvedas activas.
-  console.log('Solicita vaults activas y filtra vaults con tokens volátiles');
+  console.log('Solicita vaults activas con user y company asociados');
   const limit = 1000;
   const offset = '0';
-  const vaultsFilters = {
+  const filters = {
     state: { $equal: Types.StateTypes.STATE_ACTIVE },
     loanStatus: { $contains: 'active' },
   };
-  const vaultsItems = await fetchItems({
-    collectionName: COLLECTION_NAME,
+
+  const result = await listByPropInner({
     limit,
     offset,
-    vaultsFilters,
+    filters,
+    listByCollectionName: COLLECTION_NAME,
+    relationships: [
+      { collectionName: Collections.USERS, propertyName: USER_ENTITY_PROPERTY_NAME },
+      { collectionName: Collections.COMPANIES, propertyName: COMPANY_ENTITY_PROPERTY_NAME },
+    ],
+    postProcessor: async (items) => {
+      const allItems = items.items.map((item) => {
+        if (item.dueDate) item.dueDate = item.dueDate.toDate();
+        return item;
+      });
+      items.items = allItems;
+      return items;
+    },
   });
 
   // Filtrar las vaults con balance de tokens.
-  const vaults = vaultsItems.filter((vault) => {
+  const vaults = result.items.filter((vault) => {
     return vault.balances.some((bal) => {
       const tokens = Object.values(TokenTypes).map((token) => token.toString());
       return tokens.includes(bal.currency) && bal.balance > 0;
@@ -1545,28 +1579,22 @@ const fetchTokenVaultsAndRatios = async () => {
   console.log(`Vaults con tokens volátiles: ${vaults.length}`);
 
   // Busca todos los tokenRatios.
+  let tokenRatios;
   if (vaults && vaults.length > 0) {
     console.log('Solicita tokenRatios');
-    const tokenRatios = await fetchItems({
+    tokenRatios = await fetchItems({
       collectionName: COLLECTION_TOKEN_RATIOS,
       limit,
       offset,
     });
-
-    return { vaults, tokenRatios };
   }
+
+  return { vaults, tokenRatios };
 };
 
-const sendActionTypeEmail = async (evalVault) => {
-  console.log('Obtengo lender y borrower para enviar mail de acción');
-  const lender = await fetchSingleItem({
-    collectionName: Collections.COMPANIES,
-    id: evalVault.vault.companyId,
-  });
-  const borrower = await fetchSingleItem({
-    collectionName: Collections.USERS,
-    id: evalVault.vault.userId,
-  });
+const sendVaultEvaluationEmail = async (evalVault) => {
+  const lender = evalVault.vault.companyId_SOURCE_ENTITIES[0];
+  const borrower = evalVault.vault.userId_SOURCE_ENTITIES[0];
 
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
@@ -1596,16 +1624,184 @@ const sendActionTypeEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          value: evalVault.swap.amountTokenOut,
+          value: evalVault.swap.tokenOutAmount,
         },
       },
     });
   }
 };
 
-const swapVaultTokenBalance = async (evalVault) => {
-  evalVault.swap.amountTokenOut = 1000; // TODO Total de monto a obtener en USDC
-  sendActionTypeEmail(evalVault);
+const swapVaultExactInputs = async (vault, swapsParams) => {
+  // V1 internal swap function.
+
+  // Preparo contrato vault.
+  const contractJson = require('../../../artifacts/contracts/' +
+    vault.contractName +
+    '.sol/' +
+    vault.contractName +
+    '.json');
+  const abi = contractJson.abi;
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const signer = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
+  const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, signer);
+
+  // Gas estimation
+  const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+  let swapsGasEstimation = hre.ethers.BigNumber.from('0');
+  for (const swap of swapsParams) {
+    const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
+      swap.params.path,
+      swap.params.amountIn
+    );
+    swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
+  }
+
+  let gasLimit;
+  await blockchainContract.estimateGas
+    .swapExactInputs(swapsParams)
+    .then((estimateGasAmount) => {
+      gasLimit = estimateGasAmount;
+      // gasLimit = estimateGasAmount.add(swapsGasEstimation);
+    })
+    .catch((err) => {
+      gasLimit = Math.ceil(swapsGasEstimation * 1.5);
+    }); // Prueba y error
+
+  const { maxFeePerGas, maxPriorityFeePerGas } = getGasPrice();
+
+  debugger;
+  // Execute swaps.
+  const swap = await blockchainContract.swapExactInputs(swapsParams, {
+    gasLimit,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  });
+  const tx = await swap.wait();
+  console.log(tx);
+  debugger;
+
+  // Returns swaps results
+  const swapEvents = tx.events.filter((event) => event.event === 'Swap');
+  const errEvents = tx.events.filter((event) => event.event === 'SwapError');
+  // TODO errEvents logic
+
+  debugger;
+  const swapsResults = swapEvents.map((event) => {
+    debugger;
+    const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
+    const token = Object.values(tokens).find((token) => token.address === tokenIn);
+    const amountInDec = Number(Utils.formatUnits(amountIn.toString(), token.decimals));
+    const amountOutDec = Number(Utils.formatUnits(amountOut.toString(), tokenOut.decimals));
+    console.log(
+      `Vault ${vault.id} swapped ${amountInDec} of ${token.symbol} for ${amountOutDec} of ${tokenOut.symbol}`
+    );
+
+    return {
+      token,
+      amountInDec,
+      amountOutDec,
+      tokenOut,
+    };
+  });
+  return swapsResults;
+};
+
+const buildSwapsParams = async (swapsData) => {
+  // V1 interal swap function builder. SwapsData: [ { recipient, tokenIn, tokenOut, amountIn }, ... ]
+  // Quoteo tokenIn x amountIn de cada swap para amountOutMinimum.
+  const quoteAmounts = JSON.stringify(
+    swapsData.reduce((prev, curr) => {
+      prev[curr.tokenIn.symbol] = curr.amountIn;
+      return prev;
+    }, {})
+  );
+
+  const apiResponse = await invoke_get_api({
+    endpoint: `${API_PATH_QUOTES}/${quoteAmounts}`,
+  });
+
+  if (!apiResponse || !apiResponse.data || apiResponse.errors.length > 0) {
+    throw new CustomError.TechnicalError(
+      'ERROR_UNISWAP_PATH_QUOTES_INVALID_RESPONSE',
+      null,
+      `Respuesta inválida del servicio de cotizaciones Uniswap Path para quoteAmounts ${quoteAmounts}`,
+      null
+    );
+  }
+  const quotes = apiResponse.data;
+
+  // Armo objetos swap.
+  return swapsData
+    .map((swapData) => {
+      const tokenIn = swapData.tokenIn;
+      const path = encodePath(staticPaths[tokenIn.symbol].tokens, staticPaths[tokenIn.symbol].fees);
+      const amountIn = Utils.parseUnits(swapData.amountIn.toString(), tokenIn.decimals);
+
+      // Aplico slippage.
+      const quote = quotes[tokenIn.symbol];
+
+      if (quote <= 0) {
+        console.log(
+          `Cotización para swapeo de token ${tokenIn.symbol} con monto ${swapData.amountIn} es 0. Se desestima el swap.`
+        );
+        return;
+      }
+
+      const amountOutMinimumRaw =
+        quote * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
+      const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
+
+      return {
+        params: {
+          path,
+          recipient: swapData.recipient,
+          deadline: swapOptions.deadline,
+          amountIn,
+          amountOutMinimum,
+        },
+        tokenIn: tokenIn.address,
+        tokenOut: tokenOut.address,
+      };
+    })
+    .filter((swapParams) => {
+      return swapParams !== undefined;
+    });
+};
+
+const swapVaultTokenBalances = async (vault) => {
+  // Swapea todos los balances de tokens volátiles por TokenOut (USDC)
+
+  // Obtengo balances de tokens volátiles
+  const tokenTypes = Object.values(TokenTypes).map((token) => token.toString());
+  const tokenBalances = vault.balances.filter(
+    (bal) => !bal.isValuation && tokenTypes.includes(bal.currency) && bal.balance > 0
+  );
+
+  // Preparo swaps para el monto total de cada balance
+  const swapsData = tokenBalances.map((bal) => {
+    return {
+      recipient: vault.contractAddress,
+      tokenIn: tokens[bal.currency],
+      tokenOut,
+      amountIn: bal.balance,
+    };
+  });
+  const swapsParams = await buildSwapsParams(swapsData);
+
+  if (!swapsParams || swapsParams.length == 0) {
+    console.log('No se logro construir ningún swap');
+    return { tokenOutAmount: 0 };
+  }
+
+  // Ejecuto swaps
+  const swapsResults = await swapVaultExactInputs(vault, swapsParams);
+  debugger;
+  // Sumar los montos resultantes y devolverlos pal mail sender.
+  const tokenOutAmount = swapsResults.reduce(
+    (tokenOutAmount, swapResult) => tokenOutAmount + swapResult.amountOutDec,
+    0
+  );
+  return { tokenOutAmount };
 };
 
 exports.evaluate = async function (req, res) {
@@ -1618,26 +1814,40 @@ exports.evaluate = async function (req, res) {
     if (tokenVaults && tokenVaults.length > 0) {
       console.log(`Vaults a evaluar: ${tokenVaults.length} vaults`);
 
-      evaluatedVaults = tokenVaults.map(async (vault) => {
-        // Actualizo balance vault en memoria para evaluar.
-        vault.balances = await fetchVaultBalances(vault);
-        return await evaluateVaultTokenBalance(vault, tokenRatios);
-      });
-      console.log('Vaults evaluadas y accionadas con éxito');
+      // Actualizo balance en memoria de las vaults para evaluar.
+      for (const vault of tokenVaults) {
+        await fetchVaultBalances(vault);
+      }
+
+      // Evaluo
+      evaluatedVaults = tokenVaults.reduce((evalVaults, vault) => {
+        const evaluatedVault = evaluateVaultTokenBalance(vault, tokenRatios);
+        if (evaluatedVault) {
+          evalVaults.push(evaluatedVault);
+        }
+        return evalVaults;
+      }, []);
+
+      console.log(`${evaluatedVaults.length} Vaults evaluadas para accionar`);
     } else {
       console.log('No hay vaults con tokens a evaluar');
     }
 
+    debugger;
     // Ejecuto la acción de las vaults evaluadas según actionType.
     if (evaluatedVaults && evaluatedVaults.length > 0) {
       console.log(`Vaults a accionar: ${evaluatedVaults.length} evaluadas`);
-      evaluatedVaults.forEach((evalVault) => {
+      for (const evalVault of evaluatedVaults) {
         if (evalVault.actionType === ActionTypes.NOTIFICATION) {
-          sendActionTypeEmail(evalVault);
+          await sendVaultEvaluationEmail(evalVault);
         } else if (evalVault.actionType === ActionTypes.SWAP) {
-          swapVaultTokenBalance(evalVault);
+          debugger;
+          const tokenSwapsResult = await swapVaultTokenBalances(evalVault.vault);
+          debugger;
+          evalVault.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
+          await sendVaultEvaluationEmail(evalVault);
         }
-      });
+      }
     } else {
       console.log('No hay vaults evaluadas para accionar');
     }
