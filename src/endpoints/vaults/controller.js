@@ -59,6 +59,7 @@ const {
   USDT_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
   WETH_TOKEN_ADDRESS,
+  SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
 } = require('../../config/appConfig');
 
@@ -382,7 +383,8 @@ exports.create = async function (req, res) {
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS
+      WETH_TOKEN_ADDRESS,
+      SWAP_ROUTER_V3_ADDRESS
     );
 
     console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
