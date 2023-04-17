@@ -1,4 +1,4 @@
-const { getTokensQuotes } = require('./controller');
+const { getTokensQuotes, getPathQuotes } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
 // const { Auth } = require('../../vs-core-firebase');
@@ -11,5 +11,12 @@ exports.marketRoutesConfig = function (app) {
     // Auth.isAuthenticated(),  // TODO: not public.
     // Auth.isAuthorized({}),
     getTokensQuotes,
+  ]);
+
+  app.get('/pathQuotes/:quoteAmounts', [
+    Audit.logger,
+    // Auth.isAuthenticated(),  // TODO: not public.
+    // Auth.isAuthorized({}),
+    getPathQuotes,
   ]);
 };

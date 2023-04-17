@@ -36,6 +36,9 @@ env:
   GAS_STATION_URL: 'https://gasstation-mumbai.matic.today/v2'
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
   BINANCE_URL: 'https://data.binance.com/api/v3'
+  QUOTER2_CONTRACT_ADDRESS: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e'
+  SWAP_ROUTER_V3_ADDRESS: '0xE592427A0AEce92De3Edee1F18E0157C05861564'
+  API_PATH_QUOTES: 'http://us-central1-catedral-fb.cloudfunctions.net/market/pathQuotes'
 
 jobs:
   build-and-publish:

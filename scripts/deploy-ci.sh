@@ -44,9 +44,12 @@ echo "USDC_TOKEN_ADDRESS="${USDC_TOKEN_ADDRESS} >> .env
 echo "USDT_TOKEN_ADDRESS="${USDT_TOKEN_ADDRESS} >> .env
 echo "WBTC_TOKEN_ADDRESS="${WBTC_TOKEN_ADDRESS} >> .env
 echo "WETH_TOKEN_ADDRESS="${WETH_TOKEN_ADDRESS} >> .env
+echo "QUOTER2_CONTRACT_ADDRESS="${QUOTER2_CONTRACT_ADDRESS} >> .env
+echo "SWAP_ROUTER_V3_ADDRESS="${SWAP_ROUTER_V3_ADDRESS} >> .env
 echo "GAS_STATION_URL="${GAS_STATION_URL} >> .env
 echo "COINGECKO_URL="${COINGECKO_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
+echo "API_PATH_QUOTES="${API_PATH_QUOTES} >> .env
 
 firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
 #firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
