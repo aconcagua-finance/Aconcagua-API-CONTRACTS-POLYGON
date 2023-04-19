@@ -608,7 +608,7 @@ const fetchVaultBalances = async (vault) => {
   const balancesWithCurrencies = [
     {
       currency: Types.CurrencyTypes.USDC,
-      balance: parseFloat(Utils.formatEther(contractBalances[1])), // 18 decimales
+      balance: parseFloat(Utils.formatEther(contractBalances[1], 6)), // 6 decimales
     },
     {
       currency: Types.CurrencyTypes.USDT,
