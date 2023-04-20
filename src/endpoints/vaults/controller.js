@@ -616,7 +616,7 @@ const fetchVaultBalances = async (vault) => {
     },
     {
       currency: Types.CurrencyTypes.WBTC,
-      balance: parseFloat(Utils.formatUnits(contractBalances[3]), 8), // 8 decimales (Mumbai -Catedral- usa WMATIC capeado a 8 decimales)
+      balance: parseFloat(Utils.formatUnits(contractBalances[3], 8)), // 8 decimales (Mumbai -Catedral- usa WMATIC capeado a 8 decimales)
     },
     {
       currency: Types.CurrencyTypes.WETH,
@@ -829,7 +829,7 @@ exports.withdraw = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT || Types.CurrencyTypes.USDC
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
@@ -1065,7 +1065,7 @@ exports.rescue = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT || Types.CurrencyTypes.USDC
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
