@@ -1097,6 +1097,18 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.rescueWBTC(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.rescueWETH(ethAmount, {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
     } else {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_TOKEN',
