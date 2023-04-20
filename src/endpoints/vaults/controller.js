@@ -765,7 +765,7 @@ exports.withdraw = async function (req, res) {
     }
 
     const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
-
+    debugger;
     secureDataArgsValidation({
       data: smartContract,
       secureArgs: { userId: targetUserId, companyId },
@@ -829,7 +829,7 @@ exports.withdraw = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT || Types.CurrencyTypes.USDC
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
@@ -1065,7 +1065,7 @@ exports.rescue = async function (req, res) {
     );
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT || Types.CurrencyTypes.USDC
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
