@@ -160,7 +160,6 @@ exports.getPathQuotes = async function (req, res) {
     if (!quoteAmounts) return res.status(400).send('No supported token has been provided');
 
     const quotes = await getUniPathQuotes(quoteAmounts);
-
     res.status(200).send(quotes);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
