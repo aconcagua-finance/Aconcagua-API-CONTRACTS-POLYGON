@@ -1,4 +1,6 @@
+/* eslint-disable operator-linebreak */
 const { Token, SupportedChainId, Percent } = require('@uniswap/sdk-core');
+const { FeeAmount } = require('@uniswap/v3-sdk');
 const { SwapType } = require('@uniswap/smart-order-router');
 const { ContractTypes } = require('../types/contractTypes');
 const {
@@ -39,13 +41,27 @@ export const stableCoins = {
 // TokenOut: quotations and swaps depending on paths relies on.
 export const tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
 
-export const staticPaths = {
-  weth: {
-    tokens: [tokens.weth.address, tokenOut.address],
-    fees: [500],
-  },
-  wbtc: {
-    tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
-    fees: [500, 500],
-  },
-};
+export const staticPaths =
+  PROVIDER_NETWORK_NAME === 'matic'
+    ? {
+        // Prod
+        weth: {
+          tokens: [tokens.weth.address, tokenOut.address],
+          fees: [FeeAmount.LOW],
+        },
+        wbtc: {
+          tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
+          fees: [FeeAmount.LOW, FeeAmount.LOW],
+        },
+      }
+    : {
+        // Catedral
+        weth: {
+          tokens: [tokens.weth.address, tokenOut.address],
+          fees: [FeeAmount.HIGH],
+        },
+        wbtc: {
+          tokens: [tokens.wbtc.address, tokenOut.address],
+          fees: [FeeAmount.HIGH],
+        },
+      };
