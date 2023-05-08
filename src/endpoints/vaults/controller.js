@@ -1406,8 +1406,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
   }
   if (
     movementAmount === 0 &&
-    (transactionType !== VaultTransactionTypes.VAULT_CREATE ||
-      transactionType !== VaultTransactionTypes.CRYPTO_SWAP)
+    transactionType !== VaultTransactionTypes.VAULT_CREATE &&
+    transactionType !== VaultTransactionTypes.CRYPTO_SWAP
   ) {
     console.log('movementAmount es cero, finaliza sin crear');
     return;
