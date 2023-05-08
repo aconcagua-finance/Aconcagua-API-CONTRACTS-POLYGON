@@ -20,6 +20,7 @@ const { CustomError } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
+const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -84,6 +85,7 @@ const {
 
 const hre = require('hardhat');
 const { debug } = require('firebase-functions/logger');
+const { TechnicalError } = require('../../vs-core/error');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
@@ -1296,33 +1298,43 @@ const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
 
     const db = admin.firestore();
     const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+
+    // after.balances = allBalances;
   } catch (e) {
     console.error('Error actualizando los balances del contrato ' + docId + '. ' + e.message);
     throw e;
   }
 };
 
-const createVaultBalanceChangeTransaction = async ({ docId, before, after, transactionType }) => {
+const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
 
-  if (before && after && before.balances && after.balances) {
-    console.log(
-      'transactionType:',
-      transactionType,
-      'before:',
-      JSON.stringify(before.balances),
-      'after:',
-      JSON.stringify(after.balances)
-    );
-
-    // quien invoca a esta fn entiende de un cambio de balance por la comparacion de los strings del obj balances, entonces invoca con 'balances-update'
-    // aca evaluamos el importe en USD, dado que por ahora solo se usan monedas en valor igual al USD, si vario el balance en USD quiere decir que hubo un movimiento de un token (crypto)
-    // en ese caso cambio el transaction type
-
-    // Monedas volátiles: ahora todas las bóvedas con tokens volátiles van a tener una variación en el balance total en USD (y por consiguiente en ARS), por lo que el cálculo usd por sí no sirve.
-    // Si hay cambios en la cantidad de criptos entonces es 'crypto-update' (deposit/withdraw) o 'crypto-swap' (muestra monto del swap)
-    // Si no, el cambio se debe a la diferencia de valuaciones y no se registra por el momento ('balance-update')
+  if (transactionType === VaultTransactionTypes.VAULT_CREATE) {
+    if (!before && after) {
+      console.log(
+        'transactionType:',
+        transactionType,
+        'contractAddress:',
+        JSON.stringify(after.contractAddress),
+        'after:',
+        JSON.stringify(after)
+      );
+      // movementType = null;
+    }
+  } else {
+    if (before && after && before.balances && after.balances) {
+      console.log(
+        'transactionType:',
+        transactionType,
+        'before:',
+        JSON.stringify(before.balances),
+        'after:',
+        JSON.stringify(after.balances)
+      );
+    } else {
+      throw new Error('Datos de balances faltantes para proceso de VaultTransactions en update');
+    }
 
     // ARS: calculo cambio del balance y signo.
     const beforeARS = before.balances.find((balance) => {
@@ -1346,55 +1358,62 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
         movementType = 'minus';
       }
     }
-  }
 
-  // crypto-update: si hay cambio en el balance de algún token.
-  const isCryptoUpdate = before.balances.some((bBalance) => {
-    if (!bBalance.isValuation) {
-      const afterBalance = after.balances.find(
-        (aBalance) => aBalance.currency === bBalance.currency
-      );
-      return bBalance.balance !== afterBalance.balance;
+    // crypto-update: si hay cambio en el balance de algún token.
+    const isCryptoUpdate = before.balances.some((bBalance) => {
+      if (!bBalance.isValuation) {
+        const aBalance = after.balances.find((aBalance) => aBalance.currency === bBalance.currency);
+        return bBalance.balance !== aBalance.balance;
+      }
+      return false;
+    });
+
+    if (isCryptoUpdate) {
+      transactionType = VaultTransactionTypes.CRYPTO_UPDATE;
+
+      const tokens = Object.values(TokenTypes).map((token) => token.toString());
+
+      const hasAnyLowerTokenBalance = before.balances.some((bBalance) => {
+        if (!bBalance.isValuation && tokens.includes(bBalance.currency)) {
+          const afterBalance = after.balances.find(
+            (aBalance) => aBalance.currency === bBalance.currency
+          );
+          return bBalance.balance < afterBalance.balance;
+        }
+        return false;
+      });
+
+      const hasMoreTokenOutBalance = before.balances.some((bBalance) => {
+        if (!bBalance.isValuation && bBalance.currency === tokenOut.symbol) {
+          const afterBalance = after.balances.find(
+            (aBalance) => aBalance.currency === bBalance.currency
+          );
+          return bBalance.balance < afterBalance.balance;
+        }
+      });
+
+      if (hasAnyLowerTokenBalance && hasMoreTokenOutBalance) {
+        transactionType = VaultTransactionTypes.CRYPTO_SWAP;
+        // movementType = 'swap'
+        movementAmount = 0; // movementAmount = aTokenOut - bTokenOut
+      }
     }
-  });
-
-  if (isCryptoUpdate) {
-    transactionType = 'crypto-update';
-
-    const tokens = Object.values(TokenTypes).map((token) => token.toString());
-    const isAnyTokenLess = before.balances.some((bBalance) => {
-      if (!bBalance.isValuation && tokens.includes(bBalance.currency)) {
-        const afterBalance = after.balances.find(
-          (aBalance) => aBalance.currency === bBalance.currency
-        );
-        return bBalance.balance < afterBalance.balance;
-      }
-    });
-    const isTokenOutMore = before.balances.some((bBalance) => {
-      if (!bBalance.isValuation && bBalance.currency === tokenOut.symbol) {
-        const afterBalance = after.balances.find(
-          (aBalance) => aBalance.currency === bBalance.currency
-        );
-        return bBalance.balance < afterBalance.balance;
-      }
-    });
-
-    if (isAnyTokenLess && isTokenOutMore) transactionType = 'crypto-swap';
   }
 
-  // Valido: si el cambio se debe a update de valuaciones desestimar
-  if (transactionType === 'balance-update') {
+  // Validaciones
+  if (transactionType === VaultTransactionTypes.BALANCE_UPDATE) {
     return;
   }
-  // Valido: si no hay cambio de monto.
   if (
     movementAmount === 0 &&
-    (transactionType !== 'vault-create' || transactionType !== 'crypto-swap')
+    (transactionType !== VaultTransactionTypes.VAULT_CREATE ||
+      transactionType !== VaultTransactionTypes.CRYPTO_SWAP)
   ) {
     console.log('movementAmount es cero, finaliza sin crear');
     return;
   }
 
+  // Creacion VaultTransaction
   const createData = {
     ...after,
     vaultId: docId,
@@ -1420,25 +1439,17 @@ const createVaultBalanceChangeTransaction = async ({ docId, before, after, trans
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
   try {
+    // if (!before.amount && !after.amount) return;
+    // if (before.amount !== after.amount) await createVaultTransaction({ docId, before, after, transactionType: 'credit-update' })
     if (!before.balances && !after.balances) return;
-
-    if (!before.balances && after.balances) {
-      await createVaultBalanceChangeTransaction({
-        docId,
-        before,
-        after,
-        transactionType: 'balances-update',
-      });
-      return;
-    }
 
     if (before.balances.length !== after.balances.length) {
       console.log('Son distintos por cantidad ' + docId);
-      await createVaultBalanceChangeTransaction({
+      await createVaultTransaction({
         docId,
         before,
         after,
-        transactionType: 'balances-update',
+        transactionType: VaultTransactionTypes.BALANCE_UPDATE,
       });
       return;
     }
@@ -1446,11 +1457,21 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
       console.log('Son distintos por comparacion ' + docId);
 
-      await createVaultBalanceChangeTransaction({
+      await createVaultTransaction({
         docId,
         before,
         after,
-        transactionType: 'balances-update',
+        transactionType: VaultTransactionTypes.BALANCE_UPDATE,
+      });
+      return;
+    }
+
+    if (!before.balances && after.balances) {
+      await createVaultTransaction({
+        docId,
+        before,
+        after,
+        transactionType: VaultTransactionTypes.BALANCE_UPDATE,
       });
       return;
     }
@@ -1493,11 +1514,11 @@ exports.onVaultCreate = functions.firestore
 
       console.log('onVaultCreate ' + documentPath);
 
-      await createVaultBalanceChangeTransaction({
+      await createVaultTransaction({
         docId,
         before,
         after,
-        transactionType: 'vault-create',
+        transactionType: VaultTransactionTypes.VAULT_CREATE,
       });
 
       console.log('onVaultCreate success ' + documentPath);
