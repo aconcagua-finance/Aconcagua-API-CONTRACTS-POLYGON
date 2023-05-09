@@ -1379,11 +1379,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
           const afterBalance = after.balances.find(
             (aBalance) => aBalance.currency === bBalance.currency
           );
-          console.log(
-            `hasAnyLowerTokenBalance for ${bBalance.currency}:\nbBalance: ${bBalance.balance}\naBalance: ${afterBalance.balance}`
-          );
-          console.log(`return bBalance < aBalance: ${bBalance.balance < afterBalance.balance}`);
-          return bBalance.balance < afterBalance.balance;
+          return bBalance.balance > afterBalance.balance;
         }
         return false;
       });
