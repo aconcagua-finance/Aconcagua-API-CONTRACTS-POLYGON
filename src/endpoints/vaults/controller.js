@@ -1372,12 +1372,17 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       transactionType = VaultTransactionTypes.CRYPTO_UPDATE;
 
       const tokens = Object.values(TokenTypes).map((token) => token.toString());
+      console.log('Tokens volátiles: ', tokens);
 
       const hasAnyLowerTokenBalance = before.balances.some((bBalance) => {
         if (!bBalance.isValuation && tokens.includes(bBalance.currency)) {
           const afterBalance = after.balances.find(
             (aBalance) => aBalance.currency === bBalance.currency
           );
+          console.log(
+            `hasAnyLowerTokenBalance for ${bBalance.currency}:\nbBalance: ${bBalance.balance}\naBalance: ${afterBalance.balance}`
+          );
+          console.log(`return bBalance < aBalance: ${bBalance.balance < afterBalance.balance}`);
           return bBalance.balance < afterBalance.balance;
         }
         return false;
