@@ -1289,9 +1289,10 @@ const markVaultsToEvaluate = async function () {
       );
     }
 
-    console.log(`Contract ${vault.id} marked for evaluation.`);
+    console.log(`Contract ${vault.id} marked for evaluation and balance update.`);
     const assistanceUpdateData = {
       mustEvaluate: true,
+      mustUpdate: true,
       evaluationRetries: evaluateRetries,
     };
 
@@ -1911,7 +1912,7 @@ exports.evaluate = async function (req, res) {
   try {
     console.log('Pedido de evaluación de vaults entrante.');
     await markVaultsToEvaluate();
-    return res.status(200).send('ok');
+    return res.status(200).send('Ok: vaults marcadas para evaluar');
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
