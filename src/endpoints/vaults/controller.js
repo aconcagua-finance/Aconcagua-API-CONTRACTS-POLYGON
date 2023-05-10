@@ -1222,7 +1222,8 @@ const getVaultsToEvaluate = async function () {
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
 
   // Duplicar código de getVaultsToUpdate adaptado?
-  const vaults = await getVaultsToUpdate().filter((vault) =>
+  const vaultsToUpdate = await getVaultsToUpdate();
+  const vaults = vaultsToUpdate.filter((vault) =>
     vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)
   );
   console.log(`Vaults con tokens volátiles a evaluar: ${vaults.length}`);
