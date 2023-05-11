@@ -1771,23 +1771,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       gasLimit = Math.ceil(swapsGasEstimation * 2);
     }); // Prueba y error
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = getGasPrice();
-  const nonce = await signer.getTransactionCount();
-  console.log(`Nonce: ${nonce}`);
-
-  console.log(
-    `maxFeePerGas: ${maxFeePerGas}, maxPriorityFeePerGas: ${maxPriorityFeePerGas}, gasLimit: ${gasLimit}`
-  );
-
-  console.log(
-    `swapsGasEstimation: ${swapsGasEstimation}, gasLimit aumentado: ${gasLimit.add(
-      swapsGasEstimation
-    )}, gasLimit aumentado con división: ${gasLimit.add(swapsGasEstimation / 2)},  gasLimitCatch: ${
-      swapsGasEstimation * 2
-    }`
-  );
-
-  console.log(`SwapParams: ${swapsParams}`);
+  const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
   // Execute swaps.
   const swap = await blockchainContract.swapExactInputs(swapsParams, {
