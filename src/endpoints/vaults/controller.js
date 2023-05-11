@@ -1292,7 +1292,6 @@ const markVaultsToEvaluate = async function () {
     console.log(`Contract ${vault.id} marked for evaluation and balance update.`);
     const assistanceUpdateData = {
       mustEvaluate: true,
-      mustUpdate: true,
       evaluationRetries: evaluateRetries,
     };
 
@@ -1766,13 +1765,29 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     .swapExactInputs(swapsParams)
     .then((estimateGasAmount) => {
       gasLimit = estimateGasAmount;
-      // gasLimit = estimateGasAmount.add(swapsGasEstimation); // Probar para transaction underpriced
+      // gasLimit = estimateGasAmount.add(swapsGasEstimation);
     })
     .catch((err) => {
       gasLimit = Math.ceil(swapsGasEstimation * 2);
     }); // Prueba y error
 
   const { maxFeePerGas, maxPriorityFeePerGas } = getGasPrice();
+  const nonce = await signer.getTransactionCount();
+  console.log(`Nonce: ${nonce}`);
+
+  console.log(
+    `maxFeePerGas: ${maxFeePerGas}, maxPriorityFeePerGas: ${maxPriorityFeePerGas}, gasLimit: ${gasLimit}`
+  );
+
+  console.log(
+    `swapsGasEstimation: ${swapsGasEstimation}, gasLimit aumentado: ${gasLimit.add(
+      swapsGasEstimation
+    )}, gasLimit aumentado con división: ${gasLimit.add(swapsGasEstimation / 2)},  gasLimitCatch: ${
+      swapsGasEstimation * 2
+    }`
+  );
+
+  console.log(`SwapParams: ${swapsParams}`);
 
   // Execute swaps.
   const swap = await blockchainContract.swapExactInputs(swapsParams, {
@@ -1781,7 +1796,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     maxPriorityFeePerGas,
   });
   const tx = await swap.wait();
-  console.log(tx);
+  console.log(JSON.stringify(tx));
 
   // Returns swaps results
   const swapEvents = tx.events.filter((event) => event.event === 'Swap');
