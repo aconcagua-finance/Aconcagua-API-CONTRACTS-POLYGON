@@ -282,7 +282,6 @@ exports.patch = async function (req, res) {
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
-  console.log('ARRANCAN LOS MAILS')
   const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
   await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
   const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
