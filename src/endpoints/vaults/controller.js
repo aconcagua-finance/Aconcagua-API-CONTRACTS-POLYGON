@@ -284,21 +284,21 @@ exports.patch = async function (req, res) {
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
-
+  const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
   await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
   const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
   const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
   const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
   // Guardo el monto de la boveda en pesos
-  const arsValue = req.body.balances[3].balance;
+  let arsValue = '';
   // Guardo que moneda se utiliza en esta boveda
-  let currency = 'USDC';
-  if (req.body.balances[1].balance > 0) {
-    currency = 'USDT';
-  } else if (req.body.balances[2].balance > 0) {
-    currency = 'WBTC';
-  } else if (req.body.balances[3].balance > 0) {
-    currency = 'WETH';
+  let currency = '';
+  for (let i = 0; i < req.body.balances.length; i++) {
+    const balance = req.body.balances[i]
+    if (balance.balance !== existentDoc.balances[i].balance) {
+      currency = balance.currency.toUpperCase();
+      arsValue = balance.valuations[1].value;
+    }
   }
   let mailTemplate = 'mail-cripto';
   if (req.body.amount === 0) {
@@ -897,7 +897,6 @@ exports.withdraw = async function (req, res) {
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
     // Guardo el mismo valor que withdrawTotalAmountArs en firebase
-    const arsValue = withdrawTotalAmountARS + withdrawInARS;
     // Envio un mail al empleado que liquido la boveda
     await EmailSender.send({
       to: employee.email,
@@ -908,7 +907,7 @@ exports.withdraw = async function (req, res) {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: id,
           lender: lender.name,
-          value: arsValue,
+          value: withdrawInARS,
           creditType: smartContract.creditType,
         },
       },
@@ -923,7 +922,7 @@ exports.withdraw = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: arsValue,
+          value: withdrawInARS,
           creditType: smartContract.creditType,
         },
       },
@@ -1142,7 +1141,6 @@ exports.rescue = async function (req, res) {
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
     // Guardo el mismo monto que se guarda en rescueTotalAmountARS en firebase
-    const arsValue = rescueTotalAmountARS + rescueInARS;
     // Guardo en que moneda estaba guardada en la boveda
     let currency = '';
     if (token === Types.CurrencyTypes.USDC) {
@@ -1164,7 +1162,7 @@ exports.rescue = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: arsValue,
+          value: rescueInARS,
           currency,
         },
       },
