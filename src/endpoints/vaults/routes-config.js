@@ -10,6 +10,8 @@ const {
   getVaultBalances,
   withdraw,
   rescue,
+  findVaultsLimitsByCompany,
+  findVaultsLimitsByUser,
 } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
@@ -96,6 +98,33 @@ exports.vaultsRoutesConfig = function (app) {
     Auth.isAuthenticated,
     Auth.isAuthorized({ hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER] }),
     find,
+  ]);
+
+  // busca los límites de las bóvedas asociadas a una company
+  app.get('/vaultsLimits/by-company/:companyId', [
+    Audit.logger,
+    /*
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+      isEnterpriseEmployee: true,
+    }),
+    */
+    findVaultsLimitsByCompany,
+  ]);
+
+  // busca los límites de las bóvedas asociadas a un usuario
+  app.get('/vaultsLimits/by-user/:userId', [
+    Audit.logger,
+    /*
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+      allowSameUser: true,
+      allowStaffRelationship: true,
+    }),
+    */
+    findVaultsLimitsByUser,
   ]);
 
   app.post('/:companyId/:userId/:id/withdraw', [
