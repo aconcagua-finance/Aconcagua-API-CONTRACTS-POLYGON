@@ -294,7 +294,7 @@ exports.patch = async function (req, res) {
   // Guardo que moneda se utiliza en esta boveda
   let currency = '';
   for (let i = 0; i < req.body.balances.length; i++) {
-    const balance = req.body.balances[i]
+    const balance = req.body.balances[i];
     if (balance.balance !== existentDoc.balances[i].balance) {
       currency = balance.currency.toUpperCase();
       arsValue = balance.valuations[1].value;
@@ -1644,6 +1644,109 @@ const getVaultLimits = (vault, ratios) => {
     notificationLimit: Number(notificationLimit.toFixed(2)),
     actionLimit: Number(actionLimit.toFixed(2)),
   };
+};
+
+exports.findVaultsLimitsByUser = async (req, res) => {
+  const { userId } = req.params;
+  const { limit, offset } = req.query;
+
+  let { filters } = req.query;
+  if (!filters) filters = {};
+  if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
+
+  const tokens = Object.values(TokenTypes).map((token) => token.toString());
+
+  try {
+    const result = await listByPropInner({
+      limit,
+      offset,
+      filters,
+
+      primaryEntityPropName: USER_ENTITY_PROPERTY_NAME,
+      primaryEntityValue: userId,
+      primaryEntityCollectionName: Collections.USERS,
+      listByCollectionName: COLLECTION_NAME,
+      indexedFilters: INDEXED_FILTERS,
+
+      postProcessor: async (items) => {
+        const allItems = items.items
+          .map((vault) => {
+            if (vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)) {
+              if (vault.dueDate) vault.dueDate = vault.dueDate.toDate();
+              return vault;
+            }
+            return null;
+          })
+          .filter((item) => (item ? true : false));
+
+        items.items = allItems;
+        return items;
+      },
+    });
+    const tokenRatios = await fetchTokenRatios();
+    const vaultsLimits = [];
+
+    for (const vault of result.items) {
+      const arsLimits = getVaultLimits(vault, tokenRatios);
+      vaultsLimits.push({ vaultId: vault.id, limits: arsLimits });
+    }
+
+    return res.send({ items: vaultsLimits });
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+exports.findVaultsLimitsByCompany = async (req, res) => {
+  const { companyId } = req.params;
+  const { limit, offset } = req.query;
+
+  let { filters } = req.query;
+  if (!filters) filters = {};
+  if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
+
+  const tokens = Object.values(TokenTypes).map((token) => token.toString());
+
+  try {
+    const result = await listByPropInner({
+      limit,
+      offset,
+      filters,
+
+      primaryEntityPropName: COMPANY_ENTITY_PROPERTY_NAME,
+      primaryEntityValue: companyId,
+      primaryEntityCollectionName: Collections.COMPANIES,
+      listByCollectionName: COLLECTION_NAME,
+      indexedFilters: INDEXED_FILTERS,
+
+      postProcessor: async (items) => {
+        const allItems = items.items
+          .map((vault) => {
+            if (vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)) {
+              if (vault.dueDate) vault.dueDate = vault.dueDate.toDate();
+              return vault;
+            }
+            return null;
+          })
+          .filter((item) => (item ? true : false));
+
+        items.items = allItems;
+        return items;
+      },
+    });
+
+    const tokenRatios = await fetchTokenRatios();
+    const vaultsLimits = [];
+
+    for (const vault of result.items) {
+      const arsLimits = getVaultLimits(vault, tokenRatios);
+      vaultsLimits.push({ vaultId: vault.id, limits: arsLimits });
+    }
+
+    return res.send({ items: vaultsLimits });
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
 };
 
 const evaluateVaultTokenBalance = async (vault) => {
