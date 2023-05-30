@@ -258,7 +258,6 @@ exports.get = async function (req, res) {
   });
 };
 
-// Fix Joaco: ver / trycatch
 exports.patch = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
@@ -275,66 +274,75 @@ exports.patch = async function (req, res) {
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
     const { rescueWalletAccount } = req.body;
-
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
-      await setSmartContractRescueAcount({ vault: existentDoc, rescueWalletAccount });
-
-      console.log('RescueWalletAccount in blockchain set OK');
+      // await setSmartContractRescueAcount({ vault: existentDoc, rescueWalletAccount });
+      // console.log('RescueWalletAccount in blockchain set OK');
     }
+
+    console.log('Patch args (' + COLLECTION_NAME + '):', JSON.stringify(req.body));
+
+    const itemData = await sanitizeData({ data: req.body, validationSchema: schemas.update });
+
+    const doc = await updateSingleItem({
+      collectionName: COLLECTION_NAME,
+      id,
+      auditUid,
+      data: itemData,
+    });
+    console.log('Patch data: (' + COLLECTION_NAME + ')', JSON.stringify(itemData));
+
+    // Envio mail si libera la bóveda
+    if (req.body.amount == 0) {
+      const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+      const lender = await fetchSingleItem({
+        collectionName: Collections.COMPANIES,
+        id: companyId,
+      });
+      const borrower = await fetchSingleItem({
+        collectionName: Collections.USERS,
+        id: targetUserId,
+      });
+
+      const arsBalance = req.body.balances.find((bal) => bal.isValuation && bal.currency === 'ars');
+
+      // Envio el email al empleado que creó la boveda
+      EmailSender.send({
+        to: employee.email,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: employee.firstName + ' ' + employee.lastName,
+            vaultId: id,
+            lender: lender.name,
+            value: arsBalance.value,
+            currency: 'ars',
+          },
+        },
+      });
+
+      // Envio el email al borrower de esta boveda
+      EmailSender.send({
+        to: borrower.email,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: borrower.firstName + ' ' + borrower.lastName,
+            vaultId: id,
+            lender: lender.name,
+            value: arsBalance.value,
+            currency: 'ars',
+          },
+        },
+      });
+    }
+
+    return res.status(204).send(doc);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
-  const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
-  await patch(req, res, auditUid, COLLECTION_NAME, schemas.update);
-  const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
-  const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-  const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
-  // Guardo el monto de la boveda en pesos
-  let arsValue = '';
-  // Guardo que moneda se utiliza en esta boveda
-  let currency = '';
-  for (let i = 0; i < req.body.balances.length; i++) {
-    const balance = req.body.balances[i];
-    if (balance.balance !== existentDoc.balances[i].balance) {
-      currency = balance.currency.toUpperCase();
-      arsValue = balance.valuations[1].value;
-    }
-  }
-  let mailTemplate = 'mail-cripto';
-  if (req.body.amount === 0) {
-    mailTemplate = 'mail-liberate';
-  }
-  // Envio el email al empleado que creó la boveda
-  await EmailSender.send({
-    to: employee.email,
-    message: null,
-    template: {
-      name: mailTemplate,
-      data: {
-        username: employee.firstName + ' ' + employee.lastName,
-        vaultId: id,
-        lender: lender.name,
-        value: arsValue,
-        currency,
-      },
-    },
-  });
-  // Envio el email al borrower de esta boveda
-  await EmailSender.send({
-    to: borrower.email,
-    message: null,
-    template: {
-      name: mailTemplate,
-      data: {
-        username: borrower.firstName + ' ' + borrower.lastName,
-        vaultId: id,
-        lender: lender.name,
-        value: arsValue,
-        currency,
-      },
-    },
-  });
 };
 
 exports.remove = async function (req, res) {
@@ -1475,6 +1483,54 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       console.log('movementAmount es cero, finaliza sin crear');
       return;
     }
+  }
+
+  // Mail ingreso crypto
+  if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
+    const lender = await fetchSingleItem({
+      collectionName: Collections.COMPANIES,
+      id: after.companyId,
+    });
+    const borrower = await fetchSingleItem({
+      collectionName: Collections.USERS,
+      id: after.userId,
+    });
+
+    // Ver
+    const employee = { email: 'pato@koigroup.io', firstName: 'Pato', lastName: 'Raschetti' };
+    const arsBalance = after.balances.find((bal) => bal.isValuation && bal.currency === 'ars');
+
+    // Envio el email al empleado que creó la boveda
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-cripto',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: after.id,
+          lender: lender.name,
+          value: movementAmount,
+          currency: 'ARS',
+        },
+      },
+    });
+
+    // Envio el email al borrower de esta boveda
+    EmailSender.send({
+      to: borrower.email,
+      message: null,
+      template: {
+        name: 'mail-cripto',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: after.id,
+          lender: lender.name,
+          value: movementAmount,
+          currency: 'ARS',
+        },
+      },
+    });
   }
 
   // Creacion VaultTransaction
