@@ -1374,6 +1374,18 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         after.amount
       );
     } else {
+      console.log(
+        'transactionType:',
+        transactionType,
+        'before balances:',
+        JSON.stringify(before.balances),
+        'after balances:',
+        JSON.stringify(after.balances),
+        'before credit:',
+        before.amount,
+        'after credit:',
+        after.amount
+      );
       throw new Error('Datos de balances faltantes para proceso de VaultTransactions en update');
     }
 
@@ -1615,8 +1627,10 @@ exports.onVaultUpdate = functions.firestore
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
       console.log('updateData: ', JSON.stringify(updateData));
 
-      const db = admin.firestore();
-      const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+      if (updateData) {
+        const db = admin.firestore();
+        const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+      }
 
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
