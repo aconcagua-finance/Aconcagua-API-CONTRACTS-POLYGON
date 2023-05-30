@@ -1627,7 +1627,7 @@ exports.onVaultUpdate = functions.firestore
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
       console.log('updateData: ', JSON.stringify(updateData));
 
-      if (updateData) {
+      if (Object.keys(updateData).length > 0) {
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
       }
