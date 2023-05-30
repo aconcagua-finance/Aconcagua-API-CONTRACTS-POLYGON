@@ -258,6 +258,7 @@ exports.get = async function (req, res) {
   });
 };
 
+// Fix Joaco: ver / trycatch
 exports.patch = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
@@ -424,7 +425,7 @@ exports.create = async function (req, res) {
       );
     }
 
-    console.log('Contract deployment:', contractDeployment);
+    console.log('Contract deployment:', JSON.stringify(contractDeployment));
 
     const collectionName = COLLECTION_NAME;
     const validationSchema = schemas.create;
@@ -451,6 +452,7 @@ exports.create = async function (req, res) {
       auditUid,
       documentId: contractAddress,
     });
+
     // Pido los datos del empleado, el banco y el borrower para utilizarlos en el email
     const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
@@ -841,8 +843,6 @@ exports.withdraw = async function (req, res) {
 
     if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.withdrawUSDC(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1018,7 +1018,7 @@ exports.rescue = async function (req, res) {
 
     if (rescueInARS > deposits - smartContract.amount) {
       console.error(
-        'El monto es superior al monto del crédito (' +
+        'Los depósitos no pueden ser menores a los créditos (' +
           rescueInARS +
           ' > ' +
           deposits +
@@ -1029,7 +1029,7 @@ exports.rescue = async function (req, res) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_AMOUNT',
         null,
-        'El monto es superior al monto del crédito (' +
+        'Los depósitos no pueden ser menores a los créditos (' +
           rescueInARS +
           ' > ' +
           deposits +
@@ -1074,20 +1074,8 @@ exports.rescue = async function (req, res) {
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
-    // if (token === CurrencyTypes.LOCAL) {
-    //   const wd = await blockchainContract.rescue(ethAmount, {
-    //     // gasLimit: Math.ceil(gasEstimated * 100),
-    //     // gasPrice: 2000000000,
-    //     maxFeePerGas,
-    //     maxPriorityFeePerGas,
-    //   });
-    //   await wd.wait();
-    // }
-
     if (token === Types.CurrencyTypes.USDC) {
       const wd = await blockchainContract.rescueUSDC(ethAmount, {
-        // gasLimit: Math.ceil(gasEstimated * 100),
-        // gasPrice: 2000000000,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1342,10 +1330,10 @@ const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
       balances: allBalances,
     };
 
-    const db = admin.firestore();
-    const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
-
-    // after.balances = allBalances;
+    // const db = admin.firestore();
+    // const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+    after.balances = allBalances;
+    return updateData;
   } catch (e) {
     console.error('Error actualizando los balances del contrato ' + docId + '. ' + e.message);
     throw e;
@@ -1372,14 +1360,18 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       // movementType = null;
     }
   } else {
-    if (before && after && before.balances && after.balances) {
+    if (before && after && before.balances && after.balances && before.amount && after.amount) {
       console.log(
         'transactionType:',
         transactionType,
-        'before:',
+        'before balances:',
         JSON.stringify(before.balances),
-        'after:',
-        JSON.stringify(after.balances)
+        'after balances:',
+        JSON.stringify(after.balances),
+        'before credit:',
+        before.amount,
+        'after credit:',
+        after.amount
       );
     } else {
       throw new Error('Datos de balances faltantes para proceso de VaultTransactions en update');
@@ -1387,7 +1379,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
     if (
       transactionType !== VaultTransactionTypes.BALANCE_NOTIFICATION &&
-      transactionType !== VaultTransactionTypes.VAULT_CREATE
+      transactionType !== VaultTransactionTypes.VAULT_CREATE &&
+      transactionType !== VaultTransactionTypes.CREDIT_UPDATE
     ) {
       // ARS: calculo cambio del balance y signo.
       const beforeARS = before.balances.find((balance) => {
@@ -1456,6 +1449,17 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       }
     }
 
+    if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
+      if (typeof after.amount === 'number' && typeof before.amount === 'number') {
+        movementAmount = after.amount - before.amount;
+
+        if (movementAmount < 0) movementAmount = movementAmount * -1;
+        if (before.amount > after.amount) {
+          movementType = 'minus';
+        }
+      }
+    }
+
     // Validaciones
     if (transactionType === VaultTransactionTypes.BALANCE_UPDATE) {
       return;
@@ -1492,8 +1496,6 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
   try {
-    // if (!before.amount && !after.amount) return;
-    // if (before.amount !== after.amount) await createVaultTransaction({ docId, before, after, transactionType: 'credit-update' })
     if (!before.balances && !after.balances) return;
 
     if (before.balances.length !== after.balances.length) {
@@ -1527,6 +1529,15 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
         transactionType: VaultTransactionTypes.BALANCE_UPDATE,
       });
       return;
+    }
+
+    if (before.amount !== after.amount) {
+      await createVaultTransaction({
+        docId,
+        before,
+        after,
+        transactionType: VaultTransactionTypes.CREDIT_UPDATE,
+      });
     }
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
@@ -1565,8 +1576,11 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
       evaluationRetries: 0,
     };
 
-    const db = admin.firestore();
-    const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+    // after.mustEvaluate = false;  // ? Ver
+
+    // const db = admin.firestore();
+    // const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+    return updateData;
   } catch (e) {
     console.error('Error evaluando los balances del contrato ' + docId + '. ' + e.message);
     throw e;
@@ -1581,14 +1595,22 @@ exports.onVaultUpdate = functions.firestore
     const before = change.before.data();
     const after = change.after.data();
 
+    // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
       console.log('onVaultUpdate ' + documentPath);
-      await onVaultUpdate_ThenUpdateBalances({ after, docId });
-      await onVaultUpdate_ThenEvaluateBalances({ after, docId });
+      const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
+      const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
+
+      const db = admin.firestore();
+      const doc = await db
+        .collection(COLLECTION_NAME)
+        .doc(docId)
+        .update({ ...balanceUpdateData, ...evaluateUpdateData });
+
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
-      console.error('error onUpdate document', documentPath, err);
+      console.error('error onVaultUpdate document', documentPath, err);
 
       return null;
     }
@@ -1886,19 +1908,24 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
+  console.log(`gasLimit: ${gasLimit}`);
+  console.log(
+    `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
+  );
+  console.log(JSON.stringify(swapsParams));
+
   // Execute swaps.
   const swap = await blockchainContract.swapExactInputs(swapsParams, {
     gasLimit,
     maxFeePerGas,
     maxPriorityFeePerGas,
   });
-  const tx = await swap.wait();
+  const tx = await swap.wait().catch((err) => console.error(JSON.stringify(err)));
   console.log(JSON.stringify(tx));
 
   // Returns swaps results
   const swapEvents = tx.events.filter((event) => event.event === 'Swap');
-  const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-  // TODO errEvents logic?
+  // const errEvents = tx.events.filter((event) => event.event === 'SwapError');
 
   const swapsResults = swapEvents.map((event) => {
     const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;

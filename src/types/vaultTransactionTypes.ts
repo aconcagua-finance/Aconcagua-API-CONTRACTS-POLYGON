@@ -4,4 +4,5 @@ export enum VaultTransactionTypes {
   CRYPTO_UPDATE = 'crypto-update',
   CRYPTO_SWAP = 'crypto-swap',
   BALANCE_NOTIFICATION = 'balances-notification',
+  CREDIT_UPDATE = 'credit-update',
 }

@@ -16,7 +16,8 @@ export const chainId =
 
 export const swapOptions = {
   recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
-  slippageTolerance: new Percent(5, 1000), // 0.5% for polygon (ASK)
+  slippageTolerance:
+    PROVIDER_NETWORK_NAME === 'matic' ? new Percent(5, 1000) : new Percent(10, 100), // 0.5% for polygon (ASK)
   deadline: Math.floor(Date.now() / 1000 + 60 * 10), // 10 min
   type: SwapType.SWAP_ROUTER_02, // Ver Universal Router
 };
