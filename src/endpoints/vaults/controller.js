@@ -1381,18 +1381,6 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         after.amount
       );
     } else {
-      console.log(
-        'transactionType:',
-        transactionType,
-        'before balances:',
-        JSON.stringify(before.balances),
-        'after balances:',
-        JSON.stringify(after.balances),
-        'before credit:',
-        before.amount,
-        'after credit:',
-        after.amount
-      );
       throw new Error('Datos de balances faltantes para proceso de VaultTransactions en update');
     }
 
@@ -1573,7 +1561,7 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
     const evaluation = await evaluateVaultTokenBalance({ ...after, id: docId });
 
     let updateData = {
-      lastEvaluation: admin.firestore.FieldValue.serverTimestamp(),
+      lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
       mustEvaluate: false,
       evaluationRetries: 0,
     };
@@ -1597,7 +1585,7 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
         })
         .catch((err) => {
           updateData = {
-            lastEvaluation: admin.firestore.FieldValue.serverTimestamp(),
+            lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
             mustEvaluate: true,
             evaluationRetries: evaluation.vault.evaluationRetries + 1,
           };
@@ -1626,19 +1614,15 @@ exports.onVaultUpdate = functions.firestore
     try {
       console.log('onVaultUpdate ' + documentPath);
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
-      console.log('balanceUpdateData: ', JSON.stringify(balanceUpdateData));
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
-      console.log('evaluateUpdateData: ', JSON.stringify(evaluateUpdateData));
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
-      console.log('updateData: ', JSON.stringify(updateData));
 
       if (Object.keys(updateData).length > 0) {
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
       }
-
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
       console.error('error onVaultUpdate document', documentPath, err);
@@ -1956,7 +1940,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
         maxPriorityFeePerGas,
       })
       .catch((err) => {
-        console.log('Error swapeando broco.');
         swap.wait().then((tx) => {
           console.log('Swap failed tx: ', JSON.stringify(tx));
           const errEvents = tx.events.filter((event) => event.event === 'SwapError');
@@ -1964,7 +1947,16 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
           throw new Error(err);
         });
       });
-    const tx = await swap.wait();
+
+    const tx = await swap.wait().catch((err) => {
+      swap.wait().then((tx) => {
+        console.log('Error swapeando BROCO');
+        console.log('Swap failed tx: ', JSON.stringify(tx));
+        const errEvents = tx.events.filter((event) => event.event === 'SwapError');
+        console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
+        throw new Error(err);
+      });
+    });
     console.log('Swap tx: ', JSON.stringify(tx));
 
     // Returns swaps results
