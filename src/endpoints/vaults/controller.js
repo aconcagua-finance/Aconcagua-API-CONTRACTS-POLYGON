@@ -1949,13 +1949,11 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       });
 
     const tx = await swap.wait().catch((err) => {
-      swap.wait().then((tx) => {
-        console.log('Error swapeando BROCO');
-        console.log('Swap failed tx: ', JSON.stringify(tx));
-        const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-        console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-        throw new Error(err);
-      });
+      console.log('Error swapeando BROCO');
+      console.log('Swap failed tx: ', JSON.stringify(tx));
+      const errEvents = tx.events.filter((event) => event.event === 'SwapError');
+      console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
+      throw new Error(err);
     });
     console.log('Swap tx: ', JSON.stringify(tx));
 
