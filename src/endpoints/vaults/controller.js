@@ -1968,8 +1968,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log('Swap tx: ', JSON.stringify(tx));
 
     // Returns swaps results
-    if (tx.events) {
-    }
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
 
     const swapsResults = swapEvents.map((event) => {
