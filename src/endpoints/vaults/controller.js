@@ -1553,6 +1553,12 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
     console.log(`Evaluación contrato ${docId}`);
     const evaluation = await evaluateVaultTokenBalance({ ...after, id: docId });
 
+    let updateData = {
+      lastEvaluation: admin.firestore.FieldValue.serverTimestamp(),
+      mustEvaluate: false,
+      evaluationRetries: 0,
+    };
+
     // Acciono si se requiere.
     if (evaluation.actionType === ActionTypes.NOTIFICATION) {
       await sendVaultEvaluationEmail(evaluation);
@@ -1563,21 +1569,23 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
         transactionType: VaultTransactionTypes.BALANCE_NOTIFICATION,
       });
     }
+
     if (evaluation.actionType === ActionTypes.SWAP) {
-      const tokenSwapsResult = await swapVaultTokenBalances(evaluation.vault);
-      evaluation.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
-      await sendVaultEvaluationEmail(evaluation);
+      const tokenSwapsResult = await swapVaultTokenBalances(evaluation.vault)
+        .then(async (tokenSwapsResult) => {
+          evaluation.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
+          await sendVaultEvaluationEmail(evaluation);
+        })
+        .catch((err) => {
+          updateData = {
+            lastEvaluation: admin.firestore.FieldValue.serverTimestamp(),
+            mustEvaluate: true,
+            evaluationRetries: evaluation.vault.evaluationRetries + 1,
+          };
+        });
     }
 
     console.log('onVaultUpdate post vault evaluation' + docId);
-    const updateData = {
-      lastEvaluation: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
-      mustEvaluate: false,
-      evaluationRetries: 0,
-    };
-
-    // after.mustEvaluate = false;  // ? Ver
-
     // const db = admin.firestore();
     // const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
     return updateData;
@@ -1599,18 +1607,20 @@ exports.onVaultUpdate = functions.firestore
     try {
       console.log('onVaultUpdate ' + documentPath);
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
+      console.log('balanceUpdateData: ', JSON.stringify(balanceUpdateData));
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
+      console.log('evaluateUpdateData: ', JSON.stringify(evaluateUpdateData));
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
-      console.log(updateData);
+      console.log('updateData: ', JSON.stringify(updateData));
+
       const db = admin.firestore();
       const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
 
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
       console.error('error onVaultUpdate document', documentPath, err);
-
       return null;
     }
   });
@@ -1919,12 +1929,13 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     maxFeePerGas,
     maxPriorityFeePerGas,
   });
-  const tx = await swap.wait().catch((err) => console.error(JSON.stringify(err)));
-  console.log(JSON.stringify(tx));
+  const tx = await swap.wait();
+  console.log('Swap tx: ', JSON.stringify(tx));
 
   // Returns swaps results
+  if (tx.events) {
+  }
   const swapEvents = tx.events.filter((event) => event.event === 'Swap');
-  // const errEvents = tx.events.filter((event) => event.event === 'SwapError');
 
   const swapsResults = swapEvents.map((event) => {
     const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
