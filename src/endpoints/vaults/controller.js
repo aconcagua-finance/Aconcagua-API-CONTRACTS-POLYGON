@@ -1949,11 +1949,21 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log(JSON.stringify(swapsParams));
 
     // Execute swaps.
-    const swap = await blockchainContract.swapExactInputs(swapsParams, {
-      gasLimit,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-    });
+    const swap = await blockchainContract
+      .swapExactInputs(swapsParams, {
+        gasLimit,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      })
+      .catch((err) => {
+        console.log('Error swapeando broco.');
+        swap.wait().then((tx) => {
+          console.log('Swap failed tx: ', JSON.stringify(tx));
+          const errEvents = tx.events.filter((event) => event.event === 'SwapError');
+          console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
+          throw new Error(err);
+        });
+      });
     const tx = await swap.wait();
     console.log('Swap tx: ', JSON.stringify(tx));
 
