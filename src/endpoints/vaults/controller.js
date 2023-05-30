@@ -1360,7 +1360,14 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       // movementType = null;
     }
   } else {
-    if (before && after && before.balances && after.balances && before.amount && after.amount) {
+    if (
+      before &&
+      after &&
+      before.balances &&
+      after.balances &&
+      typeof before.amount == 'number' &&
+      typeof after.amount == 'number'
+    ) {
       console.log(
         'transactionType:',
         transactionType,
