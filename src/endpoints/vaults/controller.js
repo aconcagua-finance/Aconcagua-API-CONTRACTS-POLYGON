@@ -1602,11 +1602,10 @@ exports.onVaultUpdate = functions.firestore
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
+      const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
+      console.log(updateData);
       const db = admin.firestore();
-      const doc = await db
-        .collection(COLLECTION_NAME)
-        .doc(docId)
-        .update({ ...balanceUpdateData, ...evaluateUpdateData });
+      const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
 
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
