@@ -1879,81 +1879,88 @@ const sendVaultEvaluationEmail = async (evalVault) => {
 };
 
 const swapVaultExactInputs = async (vault, swapsParams) => {
-  // V1 internal swap function.
+  try {
+    // V1 internal swap function.
 
-  // Preparo contrato
-  const contractJson = require('../../../artifacts/contracts/' +
-    vault.contractName +
-    '.sol/' +
-    vault.contractName +
-    '.json');
-  const abi = contractJson.abi;
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
-  const signer = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-  const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, signer);
-
-  // Gas estimation
-  const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
-  let swapsGasEstimation = hre.ethers.BigNumber.from('0');
-  let gasLimit;
-
-  for (const swap of swapsParams) {
-    const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
-      swap.params.path,
-      swap.params.amountIn
+    // Preparo contrato
+    const contractJson = require('../../../artifacts/contracts/' +
+      vault.contractName +
+      '.sol/' +
+      vault.contractName +
+      '.json');
+    const abi = contractJson.abi;
+    const alchemy = new hre.ethers.providers.AlchemyProvider(
+      PROVIDER_NETWORK_NAME,
+      ALCHEMY_API_KEY
     );
-    swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
-  }
+    const signer = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
+    const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, signer);
 
-  await blockchainContract.estimateGas
-    .swapExactInputs(swapsParams)
-    .then((estimateGasAmount) => {
-      gasLimit = estimateGasAmount;
-      // gasLimit = estimateGasAmount.add(swapsGasEstimation);
-    })
-    .catch((err) => {
-      gasLimit = Math.ceil(swapsGasEstimation * 2);
-    }); // Prueba y error
+    // Gas estimation
+    const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+    let swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    let gasLimit;
 
-  const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
+    for (const swap of swapsParams) {
+      const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
+        swap.params.path,
+        swap.params.amountIn
+      );
+      swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
+    }
 
-  console.log(`gasLimit: ${gasLimit}`);
-  console.log(
-    `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
-  );
-  console.log(JSON.stringify(swapsParams));
+    await blockchainContract.estimateGas
+      .swapExactInputs(swapsParams)
+      .then((estimateGasAmount) => {
+        gasLimit = estimateGasAmount;
+        // gasLimit = estimateGasAmount.add(swapsGasEstimation);
+      })
+      .catch((err) => {
+        gasLimit = Math.ceil(swapsGasEstimation * 2);
+      }); // Prueba y error
 
-  // Execute swaps.
-  const swap = await blockchainContract.swapExactInputs(swapsParams, {
-    gasLimit,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-  });
-  const tx = await swap.wait();
-  console.log('Swap tx: ', JSON.stringify(tx));
+    const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
-  // Returns swaps results
-  if (tx.events) {
-  }
-  const swapEvents = tx.events.filter((event) => event.event === 'Swap');
-
-  const swapsResults = swapEvents.map((event) => {
-    const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
-    const token = Object.values(tokens).find((token) => token.address === tokenIn);
-    const amountInDec = Number(Utils.formatUnits(amountIn.toString(), token.decimals));
-    const amountOutDec = Number(Utils.formatUnits(amountOut.toString(), tokenOut.decimals));
+    console.log(`gasLimit: ${gasLimit}`);
     console.log(
-      `Vault ${vault.id} swapped ${amountInDec} of ${token.symbol} for ${amountOutDec} of ${tokenOut.symbol}`
+      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
     );
+    console.log(JSON.stringify(swapsParams));
 
-    return {
-      token,
-      amountInDec,
-      amountOutDec,
-      tokenOut,
-    };
-  });
-  return swapsResults;
+    // Execute swaps.
+    const swap = await blockchainContract.swapExactInputs(swapsParams, {
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    });
+    const tx = await swap.wait();
+    console.log('Swap tx: ', JSON.stringify(tx));
+
+    // Returns swaps results
+    if (tx.events) {
+    }
+    const swapEvents = tx.events.filter((event) => event.event === 'Swap');
+
+    const swapsResults = swapEvents.map((event) => {
+      const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
+      const token = Object.values(tokens).find((token) => token.address === tokenIn);
+      const amountInDec = Number(Utils.formatUnits(amountIn.toString(), token.decimals));
+      const amountOutDec = Number(Utils.formatUnits(amountOut.toString(), tokenOut.decimals));
+      console.log(
+        `Vault ${vault.id} swapped ${amountInDec} of ${token.symbol} for ${amountOutDec} of ${tokenOut.symbol}`
+      );
+
+      return {
+        token,
+        amountInDec,
+        amountOutDec,
+        tokenOut,
+      };
+    });
+    return swapsResults;
+  } catch (error) {
+    console.log(`Error while swapping vault ${vault.id}: ${JSON.stringify(error)}`);
+  }
 };
 
 const buildSwapsParams = async (swapsData) => {
