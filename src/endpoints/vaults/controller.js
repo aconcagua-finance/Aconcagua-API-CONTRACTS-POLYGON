@@ -1348,6 +1348,84 @@ const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
   }
 };
 
+const getVaultCompanyEmployees = async (vault) => {
+  const INDEXED_FILTERS = ['userId', 'companyId'];
+  const filters = {};
+  if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
+
+  console.log(`Consultando Vault ${vault.id} CompanyEmployees`);
+  const result = await listByPropInner({
+    limit: 1000,
+    offset: 0,
+    filters,
+
+    primaryEntityPropName: COMPANY_ENTITY_PROPERTY_NAME,
+    primaryEntityValue: vault.companyId,
+    primaryEntityCollectionName: Collections.COMPANIES,
+    listByCollectionName: Collections.COMPANY_EMPLOYEES,
+    indexedFilters: INDEXED_FILTERS,
+    relationships: [{ collectionName: Collections.USERS, propertyName: USER_ENTITY_PROPERTY_NAME }],
+  });
+
+  return result.items
+    ? result.items.filter((employee) =>
+        employee.employeeRols.some(
+          (rol) => rol === 'ENTERPRISE_ADMIN' || rol === 'ENTERPRISE_EMPLOYEE'
+        )
+      )
+    : null;
+};
+
+const sendDepositEmails = async (vault, movementAmount) => {
+  console.log('Envio mails por depósito de cripto.');
+
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.userId,
+  });
+  const employees = await getVaultCompanyEmployees(vault);
+
+  // Envio aviso a los employees de la companía
+  employees.forEach((compEmployee) => {
+    const employee = compEmployee.userId_SOURCE_ENTITIES[0];
+
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-cripto',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: vault.id,
+          lender: lender.name,
+          value: movementAmount.toFixed(2),
+          currency: 'ARS',
+        },
+      },
+    });
+  });
+
+  // Envio el email al borrower de esta boveda
+  EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-cripto',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        value: movementAmount.toFixed(2),
+        currency: 'ARS',
+      },
+    },
+  });
+};
+
 const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
@@ -1485,52 +1563,9 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     }
   }
 
-  // Mail ingreso crypto
+  // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
-    const lender = await fetchSingleItem({
-      collectionName: Collections.COMPANIES,
-      id: after.companyId,
-    });
-    const borrower = await fetchSingleItem({
-      collectionName: Collections.USERS,
-      id: after.userId,
-    });
-
-    // Ver
-    const employee = { email: 'pato@koigroup.io', firstName: 'Pato', lastName: 'Raschetti' };
-    const arsBalance = after.balances.find((bal) => bal.isValuation && bal.currency === 'ars');
-
-    // Envio el email al empleado que creó la boveda
-    EmailSender.send({
-      to: employee.email,
-      message: null,
-      template: {
-        name: 'mail-cripto',
-        data: {
-          username: employee.firstName + ' ' + employee.lastName,
-          vaultId: after.id,
-          lender: lender.name,
-          value: movementAmount.toFixed(2),
-          currency: 'ARS',
-        },
-      },
-    });
-
-    // Envio el email al borrower de esta boveda
-    EmailSender.send({
-      to: borrower.email,
-      message: null,
-      template: {
-        name: 'mail-cripto',
-        data: {
-          username: borrower.firstName + ' ' + borrower.lastName,
-          vaultId: after.id,
-          lender: lender.name,
-          value: movementAmount.toFixed(2),
-          currency: 'ARS',
-        },
-      },
-    });
+    await sendDepositEmails(after, movementAmount);
   }
 
   // Creacion VaultTransaction
