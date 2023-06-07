@@ -276,8 +276,8 @@ exports.patch = async function (req, res) {
     const { rescueWalletAccount } = req.body;
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
-      // await setSmartContractRescueAcount({ vault: existentDoc, rescueWalletAccount });
-      // console.log('RescueWalletAccount in blockchain set OK');
+      await setSmartContractRescueAcount({ vault: existentDoc, rescueWalletAccount });
+      console.log('RescueWalletAccount in blockchain set OK');
     }
 
     console.log('Patch args (' + COLLECTION_NAME + '):', JSON.stringify(req.body));
