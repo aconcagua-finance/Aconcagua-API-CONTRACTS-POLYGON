@@ -30,7 +30,7 @@ const createSchema = Joi.object({
   ...basicData,
 
   creditType: Joi.string().required(),
-
+  balances: Joi.array(),
   dueDate: Joi.alternatives().conditional('creditType', {
     is: [
       Types.CreditTypes.CREDIT_TYPE_INSTALLMENT,
