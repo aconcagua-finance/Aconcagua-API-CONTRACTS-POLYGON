@@ -2044,7 +2044,13 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log('Swap tx: ', JSON.stringify(tx));
 
     // Returns swaps results
-    let swapsResults;
+    const swapsResults = {
+      success: [],
+      tokenOutAmount: 0,
+      hasErrors: false,
+      errorMsg: '',
+    };
+
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
     const errEvents = tx.events.filter((event) => event.event === 'SwapError');
 
@@ -2052,22 +2058,24 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     if (errEvents.length > 0) {
       swapsResults.hasErrors = true;
       let errMsg;
-      const allSwapsFails = errEvents.length == swapsParams.length;
+      const allSwapsFailed = errEvents.length == swapsParams.length;
 
-      if (allSwapsFails) {
+      if (allSwapsFailed) {
         errMsg = 'All swaps fails from Uniswap Router with errors: ';
       } else {
         errMsg = 'Some of the swaps fails from uniswap Router with error: ';
       }
-
       const errorMsg = errEvents.reduce((msg, event) => {
         const symbol = Object.values(tokens).find((token) => token.address === event.args[0]);
         return `${msg}Swap of ${symbol} fails with error "${event.args[1]}"; `;
       }, errMsg);
       console.log(errorMsg);
 
-      if (allSwapsFails) throw new Error(errorMsg);
-      else swapsResults.errorMsg = errorMsg;
+      if (allSwapsFailed) {
+        throw new Error(errorMsg);
+      } else {
+        swapsResults.errorMsg = errorMsg;
+      }
     }
 
     swapsResults.success = swapEvents.map((event) => {
