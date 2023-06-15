@@ -1650,9 +1650,8 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
 
     console.log(`Evaluación contrato ${docId}`);
     const evaluation = await evaluateVaultTokenBalance({ ...after, id: docId });
-
     let updateData = {
-      lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
+      lastEvaluation: Date.now(),
       mustEvaluate: false,
       evaluationRetries: 0,
     };
@@ -1669,14 +1668,19 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
     }
 
     if (evaluation.actionType === ActionTypes.SWAP) {
-      const tokenSwapsResult = await swapVaultTokenBalances(evaluation.vault)
-        .then(async (tokenSwapsResult) => {
-          evaluation.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
+      await swapVaultTokenBalances(evaluation.vault)
+        .then(async (swapsResults) => {
+          evaluation.swap.tokenOutAmount = swapsResults.tokenOutAmount;
           await sendVaultEvaluationEmail(evaluation);
+
+          if (swapsResults.hasErrors) {
+            throw new Error(swapsResults.errorMsg);
+          }
         })
         .catch((err) => {
+          console.log(`Error swapping tokens: ${err.message}`);
           updateData = {
-            lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
+            lastEvaluation: Date.now(),
             mustEvaluate: true,
             evaluationRetries: evaluation.vault.evaluationRetries + 1,
           };
@@ -1684,8 +1688,6 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
     }
 
     console.log('onVaultUpdate post vault evaluation' + docId);
-    // const db = admin.firestore();
-    // const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
     return updateData;
   } catch (e) {
     console.error('Error evaluando los balances del contrato ' + docId + '. ' + e.message);
@@ -1714,6 +1716,7 @@ exports.onVaultUpdate = functions.firestore
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
       }
+
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
       console.error('error onVaultUpdate document', documentPath, err);
@@ -2024,34 +2027,44 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log(JSON.stringify(swapsParams));
 
     // Execute swaps.
-    const swap = await blockchainContract
-      .swapExactInputs(swapsParams, {
-        gasLimit,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
-      })
-      .catch((err) => {
-        swap.wait().then((tx) => {
-          console.log('Swap failed tx: ', JSON.stringify(tx));
-          const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-          console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-          throw new Error(err);
-        });
-      });
-
-    const tx = await swap.wait().catch((err) => {
-      console.log('Error swapeando BROCO');
-      console.log('Swap failed tx: ', JSON.stringify(tx));
-      const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-      console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-      throw new Error(err);
+    const swap = await blockchainContract.swapExactInputs(swapsParams, {
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
     });
+    console.log('Swap tx hash: ' + swap.hash);
+
+    const tx = await swap.wait();
     console.log('Swap tx: ', JSON.stringify(tx));
 
     // Returns swaps results
+    let swapsResults;
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
+    const errEvents = tx.events.filter((event) => event.event === 'SwapError');
 
-    const swapsResults = swapEvents.map((event) => {
+    // Valido results
+    if (errEvents.length > 0) {
+      swapsResults.hasErrors = true;
+      let errMsg;
+      const allSwapsFails = errEvents.length == swapsParams.length;
+
+      if (allSwapsFails) {
+        errMsg = 'All swaps fails from Uniswap Router with errors: ';
+      } else {
+        errMsg = 'Some of the swaps fails from uniswap Router with error: ';
+      }
+
+      const errorMsg = errEvents.reduce((msg, event) => {
+        const symbol = Object.values(tokens).find((token) => token.address === event.args[0]);
+        return `${msg}Swap of ${symbol} fails with error "${event.args[1]}"; `;
+      }, errMsg);
+      console.log(errorMsg);
+
+      if (allSwapsFails) throw new Error(errorMsg);
+      else swapsResults.errorMsg = errorMsg;
+    }
+
+    swapsResults.success = swapEvents.map((event) => {
       const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
       const token = Object.values(tokens).find((token) => token.address === tokenIn);
       const amountInDec = Number(Utils.formatUnits(amountIn.toString(), token.decimals));
@@ -2067,9 +2080,17 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
         tokenOut,
       };
     });
+
+    // Sumar los montos resultantes.
+    swapsResults.tokenOutAmount = swapsResults.success.reduce(
+      (tokenOutAmount, swapResult) => tokenOutAmount + swapResult.amountOutDec,
+      0
+    );
+
     return swapsResults;
   } catch (error) {
-    console.log(`Error while swapping vault ${vault.id}: ${JSON.stringify(error)}`);
+    console.log(`Error while swapping vault ${vault.id}: ${error.message}`);
+    throw error;
   }
 };
 
@@ -2166,12 +2187,7 @@ const swapVaultTokenBalances = async (vault) => {
   // Ejecuto swaps
   const swapsResults = await swapVaultExactInputs(vault, swapsParams);
 
-  // Sumar los montos resultantes y devolverlos pal mail sender.
-  const tokenOutAmount = swapsResults.reduce(
-    (tokenOutAmount, swapResult) => tokenOutAmount + swapResult.amountOutDec,
-    0
-  );
-  return { tokenOutAmount };
+  return swapsResults;
 };
 
 exports.evaluate = async function (req, res) {

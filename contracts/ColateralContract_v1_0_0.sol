@@ -421,7 +421,7 @@ contract ColateralContract_v1_0_0 is Ownable {
 
   event Swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
 
-  event SwapError(string msg);
+  event SwapError(address tokenIn, string msg);
 
   struct CustomBalance {
     string token;
@@ -601,8 +601,8 @@ contract ColateralContract_v1_0_0 is Ownable {
         emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, amountOut);
         require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
       } catch Error(string memory errorMsg) {
-        emit SwapError(errorMsg);
-        revert("Swap failed");
+        emit SwapError(swapParams.tokenIn, errorMsg);
+        require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
       }
     }
   }
