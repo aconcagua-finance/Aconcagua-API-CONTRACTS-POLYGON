@@ -1674,12 +1674,15 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
           await sendVaultEvaluationEmail(evaluation);
 
           if (swapsResults.hasErrors) {
+            updateData = { ...updateData, forceSwap: true };
             throw new Error(swapsResults.errorMsg);
           }
+          updateData = { ...updateData, forceSwap: false };
         })
         .catch((err) => {
           console.log(`Error swapping tokens: ${err.message}`);
           updateData = {
+            ...updateData,
             lastEvaluation: Date.now(),
             mustEvaluate: true,
             evaluationRetries: evaluation.vault.evaluationRetries + 1,
@@ -1905,7 +1908,10 @@ const evaluateVaultTokenBalance = async (vault) => {
   };
 
   // Comparo el crédito con los límites y clasifico la bóveda.
-  if (arsCredit < arsLimits.notificationLimit) {
+  if (vault.forceSwap) {
+    console.log(`Vault ${vault.id} forzada acción SWAP`);
+    evaluation.actionType = ActionTypes.SWAP;
+  } else if (arsCredit < arsLimits.notificationLimit) {
     console.log(`Vault ${vault.id} evaluada sin acción`);
     evaluation.actionType = null;
   } else if (arsCredit >= arsLimits.actionLimit) {
