@@ -448,12 +448,12 @@ exports.create = async function (req, res) {
     body.contractStatus = 'pending-deployment-verification';
     body.contractNetwork = hre.network.name;
     body.contractVersion = '1.0.0';
-    body.rescueWalletAccount = ContractTypes.EMPTY_ADDRESS;
+    body.rescueWalletAccount = signerAddress;
+    body.balances = [];
 
     console.log('Create args (' + collectionName + '):', body);
 
     const itemData = await sanitizeData({ data: body, validationSchema });
-
     const dbItemData = await createFirestoreDocument({
       collectionName,
       itemData,
