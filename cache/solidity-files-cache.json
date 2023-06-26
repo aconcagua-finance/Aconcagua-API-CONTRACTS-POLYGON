@@ -94,6 +94,389 @@
       "imports": [],
       "versionPragmas": [">=0.5.0"],
       "artifacts": ["IUniswapV3SwapCallback"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralProxyAdmin.sol": {
+      "lastModificationDate": 1685573645271,
+      "contentHash": "f6401bba49ba6e9f9c2a30b7bedd50bc",
+      "sourceName": "contracts/ColateralProxyAdmin.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ColateralProxyAdmin"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\transparent\\ProxyAdmin.sol": {
+      "lastModificationDate": 1687766504860,
+      "contentHash": "9891986e27d357222a8ac8c0c13abe31",
+      "sourceName": "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["./TransparentUpgradeableProxy.sol", "../../access/Ownable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ProxyAdmin"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\transparent\\TransparentUpgradeableProxy.sol": {
+      "lastModificationDate": 1687766504878,
+      "contentHash": "1286aa8d056c7120d1a2da252e310d2f",
+      "sourceName": "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../ERC1967/ERC1967Proxy.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ITransparentUpgradeableProxy", "TransparentUpgradeableProxy"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
+      "lastModificationDate": 1687766504855,
+      "contentHash": "5a20b2cad87ddb61c7a3a6af21289e28",
+      "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../utils/Context.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Ownable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\ERC1967\\ERC1967Proxy.sol": {
+      "lastModificationDate": 1687766504659,
+      "contentHash": "3fc3c7c0a2956f36e766691bb9473b06",
+      "sourceName": "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../Proxy.sol", "./ERC1967Upgrade.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ERC1967Proxy"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\Proxy.sol": {
+      "lastModificationDate": 1687766504859,
+      "contentHash": "40b3d81a836d50ff47e03893dcaaf204",
+      "sourceName": "@openzeppelin/contracts/proxy/Proxy.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Proxy"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\ERC1967\\ERC1967Upgrade.sol": {
+      "lastModificationDate": 1687766504660,
+      "contentHash": "a127706394bead18392601a20d44867a",
+      "sourceName": "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../beacon/IBeacon.sol",
+        "../../interfaces/IERC1967.sol",
+        "../../interfaces/draft-IERC1822.sol",
+        "../../utils/Address.sol",
+        "../../utils/StorageSlot.sol"
+      ],
+      "versionPragmas": ["^0.8.2"],
+      "artifacts": ["ERC1967Upgrade"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1967.sol": {
+      "lastModificationDate": 1687766504765,
+      "contentHash": "d0d060231a45da7a1eecbb5cd286fa40",
+      "sourceName": "@openzeppelin/contracts/interfaces/IERC1967.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC1967"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC1822.sol": {
+      "lastModificationDate": 1687766504635,
+      "contentHash": "2858d98e74e67987ec81b39605230b74",
+      "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC1822.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC1822Proxiable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
+      "lastModificationDate": 1687766504873,
+      "contentHash": "682f7dd1f2e1147c8390e7575deceb2d",
+      "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["StorageSlot"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
+      "lastModificationDate": 1687766504606,
+      "contentHash": "211ffd288c1588ba8c10eae668ca3c66",
+      "sourceName": "@openzeppelin/contracts/utils/Address.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.1"],
+      "artifacts": ["Address"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\beacon\\IBeacon.sol": {
+      "lastModificationDate": 1687766504735,
+      "contentHash": "b6bd23bf19e90b771337037706470933",
+      "sourceName": "@openzeppelin/contracts/proxy/beacon/IBeacon.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IBeacon"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
+      "lastModificationDate": 1687766504620,
+      "contentHash": "5f2c5c4b6af2dd4551027144797bc8be",
+      "sourceName": "@openzeppelin/contracts/utils/Context.sol",
+      "solcConfig": {
+        "version": "0.8.4",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Context"]
     }
   }
 }
