@@ -1,48 +1,12 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract_v1_0_0.sol": {
-      "lastModificationDate": 1681432544063,
-      "contentHash": "a09369009a425dc9a537ce3538ce4816",
-      "sourceName": "contracts/ColateralContract_v1_0_0.sol",
-      "solcConfig": {
-        "version": "0.8.4",
-        "settings": {
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": ["ast"]
-            }
-          }
-        }
-      },
-      "imports": ["@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"],
-      "versionPragmas": ["^0.8.0", "^0.8.0", "^0.8.0", "^0.8.0", "^0.8", ">=0.7.0 <0.9.0"],
-      "artifacts": [
-        "Address",
-        "ColateralContract_v1_0_0",
-        "Context",
-        "IERC20",
-        "Ownable",
-        "Strings"
-      ]
-    },
     "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@uniswap\\v3-periphery\\contracts\\interfaces\\ISwapRouter.sol": {
       "lastModificationDate": 1680153418772,
       "contentHash": "ffd42687b3db01d30c24213d961fcf9f",
       "sourceName": "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -71,7 +35,7 @@
       "contentHash": "a8ba2d37b0107911ae0e3b0e123cbd83",
       "sourceName": "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -100,7 +64,7 @@
       "contentHash": "f6401bba49ba6e9f9c2a30b7bedd50bc",
       "sourceName": "contracts/ColateralProxyAdmin.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -129,7 +93,7 @@
       "contentHash": "9891986e27d357222a8ac8c0c13abe31",
       "sourceName": "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -158,7 +122,7 @@
       "contentHash": "1286aa8d056c7120d1a2da252e310d2f",
       "sourceName": "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -187,7 +151,7 @@
       "contentHash": "5a20b2cad87ddb61c7a3a6af21289e28",
       "sourceName": "@openzeppelin/contracts/access/Ownable.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -216,7 +180,7 @@
       "contentHash": "3fc3c7c0a2956f36e766691bb9473b06",
       "sourceName": "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -245,7 +209,7 @@
       "contentHash": "40b3d81a836d50ff47e03893dcaaf204",
       "sourceName": "@openzeppelin/contracts/proxy/Proxy.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -274,7 +238,7 @@
       "contentHash": "a127706394bead18392601a20d44867a",
       "sourceName": "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -309,7 +273,7 @@
       "contentHash": "d0d060231a45da7a1eecbb5cd286fa40",
       "sourceName": "@openzeppelin/contracts/interfaces/IERC1967.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -338,7 +302,7 @@
       "contentHash": "2858d98e74e67987ec81b39605230b74",
       "sourceName": "@openzeppelin/contracts/interfaces/draft-IERC1822.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -367,7 +331,7 @@
       "contentHash": "682f7dd1f2e1147c8390e7575deceb2d",
       "sourceName": "@openzeppelin/contracts/utils/StorageSlot.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -396,7 +360,7 @@
       "contentHash": "211ffd288c1588ba8c10eae668ca3c66",
       "sourceName": "@openzeppelin/contracts/utils/Address.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -425,7 +389,7 @@
       "contentHash": "b6bd23bf19e90b771337037706470933",
       "sourceName": "@openzeppelin/contracts/proxy/beacon/IBeacon.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -454,7 +418,7 @@
       "contentHash": "5f2c5c4b6af2dd4551027144797bc8be",
       "sourceName": "@openzeppelin/contracts/utils/Context.sol",
       "solcConfig": {
-        "version": "0.8.4",
+        "version": "0.8.18",
         "settings": {
           "optimizer": {
             "enabled": false,
@@ -477,6 +441,722 @@
       "imports": [],
       "versionPragmas": ["^0.8.0"],
       "artifacts": ["Context"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract.sol": {
+      "lastModificationDate": 1687905484828,
+      "contentHash": "efb37157a275e0684a26538f302d4085",
+      "sourceName": "contracts/ColateralContract.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/utils/Strings.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
+        "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
+        "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol",
+        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
+        "./IColateralContract.sol"
+      ],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ColateralContract"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContract.sol": {
+      "lastModificationDate": 1687905506342,
+      "contentHash": "7ca08befce23b57b8f75027e0df5a43d",
+      "sourceName": "contracts/IColateralContract.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"],
+      "versionPragmas": [">=0.7.0 <0.9.0"],
+      "artifacts": ["IColateralContract"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Strings.sol": {
+      "lastModificationDate": 1687766504875,
+      "contentHash": "48686fc32a22a3754b8e63321857dd2a",
+      "sourceName": "@openzeppelin/contracts/utils/Strings.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["./math/Math.sol", "./math/SignedMath.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Strings"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol": {
+      "lastModificationDate": 1687905861532,
+      "contentHash": "efeffcf5034292d7ea635de588c95995",
+      "sourceName": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ReentrancyGuardUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\AccessControlEnumerableUpgradeable.sol": {
+      "lastModificationDate": 1687905861305,
+      "contentHash": "141240d6632637f38267138453986cb4",
+      "sourceName": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IAccessControlEnumerableUpgradeable.sol",
+        "./AccessControlUpgradeable.sol",
+        "../utils/structs/EnumerableSetUpgradeable.sol",
+        "../proxy/utils/Initializable.sol"
+      ],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["AccessControlEnumerableUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\security\\PausableUpgradeable.sol": {
+      "lastModificationDate": 1687905861515,
+      "contentHash": "cbe53d6b803c1102081e00b3a0418ea3",
+      "sourceName": "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../utils/ContextUpgradeable.sol", "../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["PausableUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
+      "lastModificationDate": 1687766504768,
+      "contentHash": "df36f7051335cd1e748b1b6463b7fdd3",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC20"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
+      "lastModificationDate": 1687766504866,
+      "contentHash": "a159c68235d1d18f16dd0a57a000daea",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../IERC20.sol", "../extensions/IERC20Permit.sol", "../../../utils/Address.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SafeERC20"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\math\\Math.sol": {
+      "lastModificationDate": 1687766504851,
+      "contentHash": "fe63409d8a06818b926cf89e0ea88b1b",
+      "sourceName": "@openzeppelin/contracts/utils/math/Math.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Math"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\math\\SignedMath.sol": {
+      "lastModificationDate": 1687766504871,
+      "contentHash": "9488ebd4daacfee8ad04811600d7d061",
+      "sourceName": "@openzeppelin/contracts/utils/math/SignedMath.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SignedMath"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol": {
+      "lastModificationDate": 1687905861515,
+      "contentHash": "b0970a564d121abf9adfff8d1a01eb16",
+      "sourceName": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../../utils/AddressUpgradeable.sol"],
+      "versionPragmas": ["^0.8.2"],
+      "artifacts": ["Initializable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\AddressUpgradeable.sol": {
+      "lastModificationDate": 1687905861308,
+      "contentHash": "c30c805386fda8a42ff515da963d3a95",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.1"],
+      "artifacts": ["AddressUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\IAccessControlEnumerableUpgradeable.sol": {
+      "lastModificationDate": 1687905861457,
+      "contentHash": "528e2ae40c0c6471d72356f811661545",
+      "sourceName": "@openzeppelin/contracts-upgradeable/access/IAccessControlEnumerableUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["./IAccessControlUpgradeable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IAccessControlEnumerableUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol": {
+      "lastModificationDate": 1687905861306,
+      "contentHash": "c88845618a815ef601f3f552c99d7ebb",
+      "sourceName": "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IAccessControlUpgradeable.sol",
+        "../utils/ContextUpgradeable.sol",
+        "../utils/StringsUpgradeable.sol",
+        "../utils/introspection/ERC165Upgradeable.sol",
+        "../proxy/utils/Initializable.sol"
+      ],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["AccessControlUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\structs\\EnumerableSetUpgradeable.sol": {
+      "lastModificationDate": 1687905861338,
+      "contentHash": "b5cad7eaf6f7db7b48d990721ee0d89e",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["EnumerableSetUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\IAccessControlUpgradeable.sol": {
+      "lastModificationDate": 1687905861458,
+      "contentHash": "21b43d1337ebc77c11da3cbe3fd65316",
+      "sourceName": "@openzeppelin/contracts-upgradeable/access/IAccessControlUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IAccessControlUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\StringsUpgradeable.sol": {
+      "lastModificationDate": 1687905861545,
+      "contentHash": "c221361be1c4953f5b71f47475b90266",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["./math/MathUpgradeable.sol", "./math/SignedMathUpgradeable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["StringsUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol": {
+      "lastModificationDate": 1687905861317,
+      "contentHash": "6200b84950eb05b4a92a39fd1d6e0f9b",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ContextUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\introspection\\ERC165Upgradeable.sol": {
+      "lastModificationDate": 1687905861354,
+      "contentHash": "5f2d8b81c0ff5bd2047b4846c20b998d",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["./IERC165Upgradeable.sol", "../../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ERC165Upgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\math\\MathUpgradeable.sol": {
+      "lastModificationDate": 1687905861515,
+      "contentHash": "5a2a749b45b6a8eb035f4bf75addcb27",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["MathUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\math\\SignedMathUpgradeable.sol": {
+      "lastModificationDate": 1687905861542,
+      "contentHash": "2a6b819b2e241091ada6d645df3e3929",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/math/SignedMathUpgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SignedMathUpgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\introspection\\IERC165Upgradeable.sol": {
+      "lastModificationDate": 1687905861473,
+      "contentHash": "d6ecf203a5e72c845be9bbf2f304a289",
+      "sourceName": "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC165Upgradeable"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Permit.sol": {
+      "lastModificationDate": 1687766504771,
+      "contentHash": "aa849939a4ae83a4dcb2dca9b3e9e707",
+      "sourceName": "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC20Permit"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralProxy.sol": {
+      "lastModificationDate": 1687905685059,
+      "contentHash": "12f66a647f47f5735a2812deacef4bd5",
+      "sourceName": "contracts/ColateralProxy.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ColateralProxy"]
     }
   }
 }

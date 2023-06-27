@@ -67,7 +67,7 @@ if (ENVIRONMENT === 'local') {
  */
 
 module.exports = {
-  solidity: '0.8.4',
+  solidity: '0.8.18',
   defaultNetwork: HARDHAT_NETWORK_NAME, // muy importante para que tome la red esta
   networks: {
     [HARDHAT_NETWORK_NAME]: {
