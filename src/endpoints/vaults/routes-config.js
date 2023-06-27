@@ -2,6 +2,7 @@ const {
   find,
   get,
   create,
+  createVaultAdmin,
   patch,
   remove,
   findByUser,
@@ -125,6 +126,18 @@ exports.vaultsRoutesConfig = function (app) {
     }),
     */
     findVaultsLimitsByUser,
+  ]);
+
+  // deploy de ProxyAdmin para ser asociado a una companía en creación
+  app.get('/vaultAdmin/:owner', [
+    Audit.logger,
+    /*
+      Auth.isAuthenticated,
+      Auth.isAuthorized({
+        hasAppRole: [Types.AppRols.APP_ADMIN],
+      }),
+      */
+    createVaultAdmin,
   ]);
 
   app.post('/:companyId/:userId/:id/withdraw', [

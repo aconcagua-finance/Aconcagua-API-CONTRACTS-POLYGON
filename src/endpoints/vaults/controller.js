@@ -2183,3 +2183,50 @@ exports.evaluate = async function (req, res) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.createVaultAdmin = async (req, res) => {
+  try {
+    const { owner } = req.params;
+    if (!owner || typeof owner !== 'string' || owner.length !== 42) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_ARGS',
+        null,
+        'Invalida args creating ProxyAdmin contract',
+        null
+      );
+    }
+
+    console.log(`Pedido creacion ProxyAdmin con owner ${owner}`);
+    console.log('CURRENT NETWORK: ', hre.network.name);
+
+    const contractName = 'ColateralProxyAdmin';
+    const blockchainContract = await hre.ethers.getContractFactory(contractName);
+    const deploymentResponse = await blockchainContract.deploy(owner);
+
+    console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
+    const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
+    const contractAddress = contractDeployment.address;
+
+    if (!contractAddress) {
+      throw new CustomError.TechnicalError(
+        'ERROR_CREATE_CONTRACT',
+        null,
+        'Empty contract address response',
+        null
+      );
+    }
+
+    console.log('Contract deployment:', JSON.stringify(contractDeployment));
+
+    const proxyAdmin = {
+      proxyAdminAddress: contractAddress,
+      owner,
+      contractDeployment,
+    };
+
+    console.log(`ProxyAdmin ${contractAddress} creado con exito con owner ${owner}`);
+    return res.status(201).send(proxyAdmin);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
