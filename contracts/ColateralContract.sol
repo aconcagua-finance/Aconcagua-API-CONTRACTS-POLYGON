@@ -132,28 +132,28 @@ contract ColateralContract is
     }
 
     // Version
-    function version() external pure returns (string memory) {
+    function version() external override pure returns (string memory) {
         return "1.0.0";
     }
 
-    function setWithdrawWalletAddress(address _withdrawWalletAddress) external onlyRole(ACONCAGUA_ROLE) {
+    function setWithdrawWalletAddress(address _withdrawWalletAddress) external override onlyRole(ACONCAGUA_ROLE) {
         require(_withdrawWalletAddress != address(0x0), "WithdrawWallet is zero address");
         withdrawWalletAddress = _withdrawWalletAddress;
     }
 
-    function setRescueWalletAddress(address _rescueWalletAddress) external onlyRole(ACONCAGUA_ROLE) {
+    function setRescueWalletAddress(address _rescueWalletAddress) external override onlyRole(ACONCAGUA_ROLE) {
         require(_rescueWalletAddress != address(0x0), "RescueWallet is zero address");
         rescueWalletAddress = _rescueWalletAddress;
     }
 
-    function setStartTimePeriod(uint _startTimePeriod) external onlyRole(ACONCAGUA_ROLE) {
+    function setStartTimePeriod(uint _startTimePeriod) external override onlyRole(ACONCAGUA_ROLE) {
         require(_startTimePeriod < startTimePeriod, "New startTimePeriod must be before current startTimePeriod");
         require(_startTimePeriod + 24 hours > block.timestamp, "New endTimePeriod must be after current time");
         startTimePeriod = _startTimePeriod;
         endTimePeriod = startTimePeriod + 24 hours;
     }
 
-    function setTokenAddress(address _tokenAddress, string calldata _tokenSymbol) external onlyRole(ACONCAGUA_ROLE) {
+    function setTokenAddress(address _tokenAddress, string calldata _tokenSymbol) external override onlyRole(ACONCAGUA_ROLE) {
         address oldTokenAddress = tokenAddress[_tokenSymbol];
         tokenAddress[_tokenSymbol] = _tokenAddress;
         emit TokenAddressChange(msg.sender, _tokenSymbol, oldTokenAddress, _tokenAddress);
@@ -162,13 +162,13 @@ contract ColateralContract is
     function setWithdrawalLimitPerPeriod(
         uint256 _withdrawalLimitPerPeriod,
         string calldata _tokenSymbol
-    ) external onlyRole(ACONCAGUA_ROLE) {
+    ) external override onlyRole(ACONCAGUA_ROLE) {
         uint256 oldWithdrawalLimitPerPeriod = withdrawalLimitPerPeriod[_tokenSymbol];
         withdrawalLimitPerPeriod[_tokenSymbol] = _withdrawalLimitPerPeriod;
         emit WithdrawalLimitChange(msg.sender, _tokenSymbol, oldWithdrawalLimitPerPeriod, _withdrawalLimitPerPeriod);
     }
 
-    function swapExactInputs(SwapParams[] calldata swapsParams) external onlyRole(SWAPPER_ROLE) {
+    function swapExactInputs(SwapParams[] calldata swapsParams) external override onlyRole(SWAPPER_ROLE) {
         require(swapsParams.length > 0, "Empty input array");  
 
         for (uint256 i = 0; i < swapsParams.length; i++) {
@@ -210,7 +210,7 @@ contract ColateralContract is
     function withdraw(
         uint256 _amount,
         string calldata _tokenSymbol
-    ) external onlyRole(LENDER_LIQ_ROLE) whenNotPaused nonReentrant {
+    ) external override onlyRole(LENDER_LIQ_ROLE) whenNotPaused nonReentrant {
         _checkPeriodLimits();
         require(
             withdrawalLimitPerPeriod[_tokenSymbol] >= _amount + tokensWithdrawnInTheLastPeriod[_tokenSymbol],
@@ -222,7 +222,7 @@ contract ColateralContract is
         emit Withdraw(withdrawWalletAddress, _tokenSymbol, _amount);
     }
 
-    function balanceOf(string memory _tokenSymbol) public view returns (uint256) {
+    function balanceOf(string memory _tokenSymbol) public override view returns (uint256) {
         // returns balance of token  in contract.
         IERC20 token = IERC20(tokenAddress[_tokenSymbol]);
         return token.balanceOf(address(this));
@@ -231,13 +231,13 @@ contract ColateralContract is
     function rescue(
         uint256 _amount,
         string calldata _tokenSymbol
-    ) external onlyRole(RESCUER_ROLE) whenNotPaused nonReentrant {
+    ) external override onlyRole(RESCUER_ROLE) whenNotPaused nonReentrant {
         // transfers Tokens that belong to your contract to the sender address
         SafeERC20.safeTransfer(IERC20(tokenAddress[_tokenSymbol]), rescueWalletAddress, _amount);
         emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
     }
 
-    function getBalances() external view returns (uint256[] memory) {
+    function getBalances() external override view returns (uint256[] memory) {
         uint256[] memory balances = new uint256[](5);
         balances[0] = address(this).balance;
         balances[1] = balanceOf(USDC);
