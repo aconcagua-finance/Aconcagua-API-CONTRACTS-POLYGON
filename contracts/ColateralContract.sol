@@ -67,13 +67,13 @@ contract ColateralContract is
         address _swapRouterAddress,
         address _swapperAddress
     ) external initializer {
-        require(_aconcagua != address(0), "Admin is the zero address");
-        require(_rescueWalletAddress != address(0), "Rescue address is zero address");
-        require(_withdrawWalletAddress != address(0), "Withdraw address is zero address");
-        require(_firstLenderLiq != address(0), "First Lender Liq is zero address");
-        require(_secondLenderLiq != address(0), "Second Lender Liq is zero address");
-        require(_swapRouterAddress != address(0), "SwapRouter is zero address");
-        require(_swapperAddress != address(0), "Swapper address is zero address");
+        require(_aconcagua != address(0), "AdminAddr");
+        require(_rescueWalletAddress != address(0), "RescueAddr");
+        require(_withdrawWalletAddress != address(0), "WithdrawAddr");
+        require(_firstLenderLiq != address(0), "FirstLenderLiqAddr");
+        require(_secondLenderLiq != address(0), "SecondLenderLiqAddr");
+        require(_swapRouterAddress != address(0), "SwapRouterAddr");
+        require(_swapperAddress != address(0), "SwapperAddr");
 
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
@@ -137,12 +137,12 @@ contract ColateralContract is
     }
 
     function setWithdrawWalletAddress(address _withdrawWalletAddress) external override onlyRole(ACONCAGUA_ROLE) {
-        require(_withdrawWalletAddress != address(0x0), "WithdrawWallet is zero address");
+        require(_withdrawWalletAddress != address(0x0), "Withdraw0Addr");
         withdrawWalletAddress = _withdrawWalletAddress;
     }
 
     function setRescueWalletAddress(address _rescueWalletAddress) external override onlyRole(ACONCAGUA_ROLE) {
-        require(_rescueWalletAddress != address(0x0), "RescueWallet is zero address");
+        require(_rescueWalletAddress != address(0x0), "Rescue0Addr");
         rescueWalletAddress = _rescueWalletAddress;
     }
 
@@ -169,27 +169,26 @@ contract ColateralContract is
     }
 
     function swapExactInputs(SwapParams[] calldata swapsParams) external override onlyRole(SWAPPER_ROLE) {
-        require(swapsParams.length > 0, "Empty input array");  
-
         for (uint256 i = 0; i < swapsParams.length; i++) {
             SwapParams calldata swapParams = swapsParams[i];
 
             // Input validations
-            require(swapParams.params.recipient == address(this), "Swap recipient is not the Vault Proxy address");
-            require(swapParams.params.amountOutMinimum > 0, "AmountOutMinimum should be positive");
+            require(swapParams.params.recipient == address(this), "Err recipient");
+            require(swapParams.params.amountOutMinimum > 0, "Err Slipp");
+            require(swapParams.tokenOut == tokenAddress["USDC"] || swapParams.tokenOut == tokenAddress["USDT"], "Err TokenOut");
 
             // Get token and approve amount
             IERC20 token = IERC20(address(swapParams.tokenIn));
-            require(swapParams.params.amountIn > 0 && swapParams.params.amountIn <= token.balanceOf(address(this)), "Amounts should be within balance");
-            require(token.approve(address(swapRouter), swapParams.params.amountIn), "Approval failed");
+            require(swapParams.params.amountIn > 0 && swapParams.params.amountIn <= token.balanceOf(address(this)), "Err AmountIn");
+            require(token.approve(address(swapRouter), swapParams.params.amountIn), "Err Approval");
 
             // Execute swap and revoke approval.
             try swapRouter.exactInput(swapParams.params) returns (uint256 amountOut) {
                 emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, amountOut);
-                require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
+                require(token.approve(address(swapRouter), 0), "Err Approval0");
             } catch Error(string memory errorMsg) {
                 emit SwapError(swapParams.tokenIn, errorMsg);
-                require(token.approve(address(swapRouter), 0), "Revoke Approval failed");
+                require(token.approve(address(swapRouter), 0), "Err Approval0");
             }
         }
     }
@@ -249,7 +248,7 @@ contract ColateralContract is
     }
 
     function _checkPauserRole() internal view {
-        require(hasRole(PAUSER_ROLE, _msgSender()) || hasRole(ACONCAGUA_ROLE, _msgSender()), "Caller is not a pauser");
+        require(hasRole(PAUSER_ROLE, _msgSender()) || hasRole(ACONCAGUA_ROLE, _msgSender()), "Caller not pauser");
     }
 
     function pause() external {
