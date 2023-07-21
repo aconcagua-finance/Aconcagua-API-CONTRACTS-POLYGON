@@ -65,7 +65,7 @@ contract ColateralContract is
         address _firstLenderLiq,
         address _secondLenderLiq,
         address _swapRouterAddress,
-        address _swapperAddress
+        address _swapper
     ) external initializer {
         require(_aconcagua != address(0), "AdminAddr");
         require(_rescueWalletAddress != address(0), "RescueAddr");
@@ -73,7 +73,7 @@ contract ColateralContract is
         require(_firstLenderLiq != address(0), "FirstLenderLiqAddr");
         require(_secondLenderLiq != address(0), "SecondLenderLiqAddr");
         require(_swapRouterAddress != address(0), "SwapRouterAddr");
-        require(_swapperAddress != address(0), "SwapperAddr");
+        require(_swapper != address(0), "SwapperAddr");
 
         __AccessControl_init_unchained();
         __Pausable_init_unchained();
@@ -106,7 +106,7 @@ contract ColateralContract is
         _grantRole(ACONCAGUA_ROLE, _aconcagua);
         _grantRole(LENDER_LIQ_ROLE, _firstLenderLiq);
         _grantRole(LENDER_LIQ_ROLE, _secondLenderLiq);
-        _grantRole(SWAPPER_ROLE, _swapperAddress);
+        _grantRole(SWAPPER_ROLE, _swapper);
 
         _setRoleAdmin(ACONCAGUA_ROLE, ACONCAGUA_ROLE);
         _setRoleAdmin(LENDER_LIQ_ROLE, LENDER_LIQ_ROLE);
@@ -127,7 +127,7 @@ contract ColateralContract is
             _firstLenderLiq,
             _secondLenderLiq,
             _swapRouterAddress,
-            _swapperAddress
+            _swapper
         );
     }
 
