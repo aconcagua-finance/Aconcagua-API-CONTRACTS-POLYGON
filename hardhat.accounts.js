@@ -31,4 +31,4 @@ const namedAccounts = {
   },
 };
 
-export default namedAccounts;
+module.exports = namedAccounts;

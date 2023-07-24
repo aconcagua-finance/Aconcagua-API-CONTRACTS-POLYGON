@@ -38,9 +38,9 @@
         },
         {
           "indexed": false,
-          "internalType": "address",
-          "name": "admin",
-          "type": "address"
+          "internalType": "address[3]",
+          "name": "admins",
+          "type": "address[3]"
         },
         {
           "indexed": false,
@@ -69,13 +69,13 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "swapRouter",
+          "name": "swapRouterAddress",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "swapperAddress",
+          "name": "swapper",
           "type": "address"
         }
       ],

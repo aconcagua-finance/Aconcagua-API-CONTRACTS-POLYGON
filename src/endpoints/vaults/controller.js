@@ -628,7 +628,7 @@ const fetchVaultBalances = async (vault) => {
     },
     {
       currency: Types.CurrencyTypes.WBTC,
-      balance: parseFloat(Utils.formatUnits(contractBalances[3], 8)), // 8 decimales (Mumbai -Catedral- usa WMATIC capeado a 8 decimales)
+      balance: parseFloat(Utils.formatUnits(contractBalances[3], 8)), // 8 decimales
     },
     {
       currency: Types.CurrencyTypes.WETH,

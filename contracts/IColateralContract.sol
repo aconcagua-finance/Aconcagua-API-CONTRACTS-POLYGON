@@ -11,13 +11,13 @@ interface IColateralContract {
         address usdtTokenAddress,
         address wbtcTokenAddress,
         address wethTokenAddress,
-        address admin,
+        address[3] admins,
         address rescueWalletAddress,
         address withdrawWalletAddress,
         address firstlenderLiq,
         address secondLenderLiq,
-        address swapRouter,
-        address swapperAddress
+        address swapRouterAddress,
+        address swapper
     );
     // Emitted when token address is changed
     event TokenAddressChange(address sender, string token, address oldTokenAddress, address newTokenAddress);

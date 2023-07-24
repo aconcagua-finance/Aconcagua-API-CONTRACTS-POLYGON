@@ -4,7 +4,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 import "./IColateralContract.sol";
 
@@ -13,7 +12,6 @@ pragma solidity ^0.8.0;
 contract ColateralContract is
     IColateralContract,
     AccessControlEnumerableUpgradeable,
-    PausableUpgradeable,
     ReentrancyGuardUpgradeable
 {
     using Strings for uint256;
@@ -59,7 +57,7 @@ contract ColateralContract is
         address _usdtTokenAddress,
         address _wbtcTokenAddress,
         address _wethTokenAddress,
-        address _aconcagua,
+        address[3] calldata _aconcagua,
         address _rescueWalletAddress,
         address _withdrawWalletAddress,
         address _firstLenderLiq,
@@ -67,7 +65,7 @@ contract ColateralContract is
         address _swapRouterAddress,
         address _swapper
     ) external initializer {
-        require(_aconcagua != address(0), "AdminAddr");
+        require(_aconcagua[0] != address(0) || _aconcagua[1] != address(0) || _aconcagua[2] != address(0), "AdminAddr");
         require(_rescueWalletAddress != address(0), "RescueAddr");
         require(_withdrawWalletAddress != address(0), "WithdrawAddr");
         require(_firstLenderLiq != address(0), "FirstLenderLiqAddr");
@@ -76,7 +74,6 @@ contract ColateralContract is
         require(_swapper != address(0), "SwapperAddr");
 
         __AccessControl_init_unchained();
-        __Pausable_init_unchained();
         __ReentrancyGuard_init_unchained();
         tokenAddress[USDC] = _usdcTokenAddress;
         tokenAddress[USDT] = _usdtTokenAddress;
@@ -100,19 +97,21 @@ contract ColateralContract is
         _rolesSet.add(ACONCAGUA_ROLE);
         _rolesSet.add(LENDER_LIQ_ROLE);
         _rolesSet.add(RESCUER_ROLE);
-        _rolesSet.add(PAUSER_ROLE);
         _rolesSet.add(SWAPPER_ROLE);
 
-        _grantRole(ACONCAGUA_ROLE, _aconcagua);
+        _grantRole(ACONCAGUA_ROLE, _aconcagua[0]);
+        _grantRole(ACONCAGUA_ROLE, _aconcagua[1]);
+        _grantRole(ACONCAGUA_ROLE, _aconcagua[2]);
         _grantRole(LENDER_LIQ_ROLE, _firstLenderLiq);
         _grantRole(LENDER_LIQ_ROLE, _secondLenderLiq);
+        _grantRole(RESCUER_ROLE, _firstLenderLiq);
+        _grantRole(RESCUER_ROLE, _secondLenderLiq);
         _grantRole(SWAPPER_ROLE, _swapper);
 
         _setRoleAdmin(ACONCAGUA_ROLE, ACONCAGUA_ROLE);
         _setRoleAdmin(LENDER_LIQ_ROLE, LENDER_LIQ_ROLE);
-        _setRoleAdmin(RESCUER_ROLE, ACONCAGUA_ROLE);
-        _setRoleAdmin(PAUSER_ROLE, ACONCAGUA_ROLE);
-        _setRoleAdmin(SWAPPER_ROLE, SWAPPER_ROLE);
+        _setRoleAdmin(RESCUER_ROLE, RESCUER_ROLE);
+        _setRoleAdmin(SWAPPER_ROLE, ACONCAGUA_ROLE);
 
         // Emit initialize event
         emit Initialize(
@@ -209,13 +208,14 @@ contract ColateralContract is
     function withdraw(
         uint256 _amount,
         string calldata _tokenSymbol
-    ) external override onlyRole(LENDER_LIQ_ROLE) whenNotPaused nonReentrant {
+    ) external override onlyRole(LENDER_LIQ_ROLE) nonReentrant {
         _checkPeriodLimits();
         require(
             withdrawalLimitPerPeriod[_tokenSymbol] >= _amount + tokensWithdrawnInTheLastPeriod[_tokenSymbol],
             "Withdrawal limit exceeded"
         );
         tokensWithdrawnInTheLastPeriod[_tokenSymbol] += _amount;
+        
         // transfers Tokens that belong to your contract to the withdraw address
         SafeERC20.safeTransfer(IERC20(tokenAddress[_tokenSymbol]), withdrawWalletAddress, _amount);
         emit Withdraw(withdrawWalletAddress, _tokenSymbol, _amount);
@@ -225,15 +225,6 @@ contract ColateralContract is
         // returns balance of token  in contract.
         IERC20 token = IERC20(tokenAddress[_tokenSymbol]);
         return token.balanceOf(address(this));
-    }
-
-    function rescue(
-        uint256 _amount,
-        string calldata _tokenSymbol
-    ) external override onlyRole(RESCUER_ROLE) whenNotPaused nonReentrant {
-        // transfers Tokens that belong to your contract to the sender address
-        SafeERC20.safeTransfer(IERC20(tokenAddress[_tokenSymbol]), rescueWalletAddress, _amount);
-        emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
     }
 
     function getBalances() external override view returns (uint256[] memory) {
@@ -247,18 +238,13 @@ contract ColateralContract is
         return balances;
     }
 
-    function _checkPauserRole() internal view {
-        require(hasRole(PAUSER_ROLE, _msgSender()) || hasRole(ACONCAGUA_ROLE, _msgSender()), "Caller not pauser");
-    }
-
-    function pause() external {
-        _checkPauserRole();
-        _pause();
-    }
-
-    function unpause() external {
-        _checkPauserRole();
-        _unpause();
+    function rescue(
+        uint256 _amount,
+        string calldata _tokenSymbol
+    ) external override onlyRole(RESCUER_ROLE) nonReentrant {
+        // transfers Tokens that belong to your contract to the sender address
+        SafeERC20.safeTransfer(IERC20(tokenAddress[_tokenSymbol]), rescueWalletAddress, _amount);
+        emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
     }
 
     /**
