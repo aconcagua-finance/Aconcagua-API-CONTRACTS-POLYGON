@@ -1127,6 +1127,42 @@
       "imports": ["@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol"],
       "versionPragmas": ["^0.8.0"],
       "artifacts": ["ColateralProxy"]
+    },
+    "C:\\Repos\\SandboxInc\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract_v1_0_0.sol": {
+      "lastModificationDate": 1690239767093,
+      "contentHash": "a09369009a425dc9a537ce3538ce4816",
+      "sourceName": "contracts/ColateralContract_v1_0_0.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": ["ast"]
+            }
+          }
+        }
+      },
+      "imports": ["@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"],
+      "versionPragmas": ["^0.8.0", "^0.8.0", "^0.8.0", "^0.8.0", "^0.8", ">=0.7.0 <0.9.0"],
+      "artifacts": [
+        "Address",
+        "ColateralContract_v1_0_0",
+        "Context",
+        "IERC20",
+        "Ownable",
+        "Strings"
+      ]
     }
   }
 }
