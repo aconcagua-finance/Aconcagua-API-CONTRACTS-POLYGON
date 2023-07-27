@@ -660,8 +660,8 @@ exports.create = async function (req, res) {
 
 const getGasPrice = async () => {
   // TODO: add fallback source
-  let maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
-  let maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
+  let maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
+  let maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
   try {
     const { data } = await axios({
       method: 'get',
