@@ -21,7 +21,8 @@ export const FIREB_MESSAGING_SENDER_ID = Config.getEnvConfig('FIREB_MESSAGING_SE
 export const FIREB_MEASURAMENT_ID = Config.getEnvConfig('FIREB_MEASURAMENT_ID');
 export const FIREB_APP_ID = Config.getEnvConfig('FIREBASE_APP_ID');
 
-export const WALLET_PRIVATE_KEY = Config.getEnvConfig('WALLET_PRIVATE_KEY');
+export const DEPLOYER_PRIVATE_KEY = Config.getEnvConfig('DEPLOYER_PRIVATE_KEY');
+export const SWAPPER_PRIVATE_KEY = Config.getEnvConfig('SWAPPER_PRIVATE_KEY');
 export const ALCHEMY_API_KEY = Config.getEnvConfig('ALCHEMY_API_KEY');
 export const HARDHAT_API_URL = Config.getEnvConfig('HARDHAT_API_URL');
 export const HARDHAT_NETWORK_NAME = Config.getEnvConfig('HARDHAT_NETWORK_NAME');
@@ -34,6 +35,19 @@ export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS');
 export const WETH_TOKEN_ADDRESS = Config.getEnvConfig('WETH_TOKEN_ADDRESS');
 export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS');
 export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS');
+export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS');
+export const OPERATOR1_ADDRESS = Config.getEnvConfig('OPERATOR1_ADDRESS');
+export const OPERATOR2_ADDRESS = Config.getEnvConfig('OPERATOR2_ADDRESS');
+export const OPERATOR3_ADDRESS = Config.getEnvConfig('OPERATOR3_ADDRESS');
+export const DEFAULT_RESCUE_WALLET_ADDRESS = Config.getEnvConfig('DEFAULT_RESCUE_WALLET_ADDRESS');
+export const DEFAULT_WITHDRAW_WALLET_ADDRESS = Config.getEnvConfig(
+  'DEFAULT_WITHDRAW_WALLET_ADDRESS'
+);
+
+// Mumbai Safe account creation (QA only)
+export const ALIQ1_ADDRESS = Config.getEnvConfig('ALIQ1_ADDRESS');
+export const ALIQ2_ADDRESS = Config.getEnvConfig('ALIQ2_ADDRESS');
+
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
 export const BINANCE_URL = Config.getEnvConfig('BINANCE_URL');

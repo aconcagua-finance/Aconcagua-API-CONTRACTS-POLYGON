@@ -5,6 +5,11 @@ require('@nomiclabs/hardhat-waffle');
 // require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
 // require('dotenv').config();
 
+/* 
+import { config as dotEnvConfig } from 'dotenv'
+dotEnvConfig()
+*/
+
 const getEnvConfig = (key) => {
   return process.env[key];
 };
@@ -40,7 +45,7 @@ const loadConfigSync = () => {
 
 const ENVIRONMENT = getEnvConfig('ENVIRONMENT');
 const HARDHAT_API_URL = getEnvConfig('HARDHAT_API_URL');
-const WALLET_PRIVATE_KEY = getEnvConfig('WALLET_PRIVATE_KEY');
+const DEPLOYER_PRIVATE_KEY = getEnvConfig('DEPLOYER_PRIVATE_KEY');
 const HARDHAT_NETWORK_NAME = getEnvConfig('HARDHAT_NETWORK_NAME');
 const POLYGONSCAN_API_KEY = getEnvConfig('POLYGONSCAN_API_KEY');
 const ETHERSCAN_API_KEY = getEnvConfig('ETHERSCAN_API_KEY');
@@ -65,16 +70,24 @@ if (ENVIRONMENT === 'local') {
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
+const namedAccounts = require('./hardhat.accounts');
 
 module.exports = {
-  solidity: '0.8.4',
+  solidity: '0.8.18',
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200,
+    },
+  },
   defaultNetwork: HARDHAT_NETWORK_NAME, // muy importante para que tome la red esta
   networks: {
     [HARDHAT_NETWORK_NAME]: {
       url: HARDHAT_API_URL || '',
-      accounts: WALLET_PRIVATE_KEY ? [WALLET_PRIVATE_KEY] : [],
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
     },
   },
+  namedAccounts,
   etherscan: {
     apiKey: {
       // ethereum

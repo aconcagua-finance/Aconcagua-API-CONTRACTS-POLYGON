@@ -21,6 +21,7 @@ const basicData = {
   otherExpenses: Joi.number(),
 
   rescueWalletAccount: Joi.string().allow(''),
+  withdrawWalletAccount: Joi.string().allow(''),
 
   notes: Joi.string().allow(''),
   attachments: Joi.any(),
@@ -47,7 +48,7 @@ const createSchema = Joi.object({
     otherwise: Joi.number(),
   }),
 
-  //   // autoassigned on creation, not accepted onupdate
+  // autoassigned on creation, not accepted onupdate
   userId: Joi.string(),
   companyId: Joi.string(),
   contractAddress: Joi.string(),
@@ -58,6 +59,14 @@ const createSchema = Joi.object({
   contractName: Joi.string(),
   contractStatus: Joi.string(),
   contractError: Joi.string().allow(null).allow(''),
+
+  proxyContractAddress: Joi.string(),
+  proxyContractVersion: Joi.string(),
+  proxyContractSignerAddress: Joi.string(),
+  proxyContractDeployment: Joi.any(),
+  proxyContractName: Joi.string(),
+  proxyContractStatus: Joi.string(),
+  proxyContractError: Joi.string().allow(null).allow(''),
 });
 
 const updateSchema = Joi.object({
@@ -68,8 +77,23 @@ const requiredBaseFields = [
   'userId',
   'companyId',
   'contractAddress',
+  'contractVersion',
   'contractSignerAddress',
+  'contractNetwork',
+  'contractDeployment',
   'contractName',
+  'contractStatus',
+
+  'proxyContractAddress',
+  'proxyContractVersion',
+  'proxyContractSignerAddress',
+  'proxyContractDeployment',
+  'proxyContractName',
+  'proxyContractStatus',
+
+  'rescueWalletAccount',
+  'withdrawWalletAccount',
+
   'creditType',
   'loanStatus',
   'currency',
