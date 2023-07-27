@@ -70,7 +70,8 @@ const {
 } = require('../baseEndpoint');
 
 const {
-  WALLET_PRIVATE_KEY,
+  DEPLOYER_PRIVATE_KEY,
+  SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
@@ -81,6 +82,12 @@ const {
   GAS_STATION_URL,
   QUOTER2_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
+  SWAPPER_ADDRESS,
+  OPERATOR1_ADDRESS,
+  OPERATOR2_ADDRESS,
+  OPERATOR3_ADDRESS,
+  DEFAULT_RESCUE_WALLET_ADDRESS,
+  DEFAULT_WITHDRAW_WALLET_ADDRESS,
 } = require('../../config/appConfig');
 
 const hre = require('hardhat');
@@ -102,7 +109,7 @@ const USER_ENTITY_PROPERTY_NAME = 'userId';
 // };
 // const alchemy = new Alchemy(settings);
 
-// const wallet = new Wallet(WALLET_PRIVATE_KEY);
+// const wallet = new Wallet(DEPLOYER_PRIVATE_KEY);
 
 exports.find = async function (req, res) {
   const { limit, offset } = req.query;
@@ -388,6 +395,45 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
   };
 };
 
+const deployContract = async (contractName, args = null) => {
+  const contract = await hre.ethers.getContractFactory(contractName);
+  let deploymentResponse;
+
+  if (Array.isArray(args)) {
+    deploymentResponse = await contract.deploy(...args);
+  } else {
+    deploymentResponse = await contract.deploy(args);
+  }
+  console.log('colateralContract deploymentResponse:', JSON.stringify(deploymentResponse));
+
+  // Parse
+  const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
+  console.log('Contract deployment:', JSON.stringify(contractDeployment));
+
+  return { deploymentResponse, contractDeployment };
+};
+
+const getDeployedContract = (vault) => {
+  const smartContract = vault;
+
+  const contractJson = require('../../../artifacts/contracts/' +
+    smartContract.contractName +
+    '.sol/' +
+    smartContract.contractName +
+    '.json');
+  const abi = contractJson.abi;
+
+  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
+
+  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+
+  // Get the deployed contract.
+  const blockchainContract = new hre.ethers.Contract(smartContract.id, abi, userWallet); // smartContract.proxyContractAddress
+
+  return blockchainContract;
+};
+
 exports.create = async function (req, res) {
   try {
     const { userId } = res.locals;
@@ -398,117 +444,159 @@ exports.create = async function (req, res) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_ARGS',
         null,
-        'Invalida args creating contract',
+        'Invalids args creating contract',
         null
       );
     }
 
-    console.log('CURRENT NETWORK: ', hre.network.name);
+    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+    if (!lender || !lender.vaultAdminAddress) {
+      throw new CustomError.TechnicalError(
+        'ERROR_COMPANY_NOT_FOUND',
+        null,
+        'Company not found for Vault creation',
+        null
+      );
+    }
 
-    const contractName = 'ColateralContract_v1_0_0';
+    const networkName = hre.network.name;
+    console.log('CURRENT NETWORK: ', networkName);
 
-    const blockchainContract = await hre.ethers.getContractFactory(contractName);
+    const colateralContractName = 'ColateralContract';
+    const proxyContractName = 'ColateralProxy';
+    debugger;
+    // Deploy ColateralContract
+    const colateralContractDeploy = await deployContract(colateralContractName);
+    const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
+    const colateralContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
 
-    const deploymentResponse = await blockchainContract.deploy(
+    if (!colateralContractAddress) {
+      throw new CustomError.TechnicalError(
+        'ERROR_CREATE_COLATERAL_CONTRACT',
+        null,
+        'Empty Colateral contract address response',
+        null
+      );
+    }
+
+    // Deploy ColateralProxy
+    const contractJson = require('../../../artifacts/contracts/' +
+      colateralContractName +
+      '.sol/' +
+      colateralContractName +
+      '.json');
+    const colateralAbi = contractJson.abi;
+    const alchemy = new hre.ethers.providers.AlchemyProvider(
+      PROVIDER_NETWORK_NAME,
+      ALCHEMY_API_KEY
+    );
+    const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+
+    const colateralBlockchainContract = new hre.ethers.Contract(
+      colateralContractAddress,
+      colateralAbi,
+      deployerWallet
+    );
+
+    const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
+    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
       WETH_TOKEN_ADDRESS,
-      SWAP_ROUTER_V3_ADDRESS
+      operators,
+      DEFAULT_WITHDRAW_WALLET_ADDRESS,
+      DEFAULT_RESCUE_WALLET_ADDRESS,
+      lender.safeLiq1,
+      lender.safeLiq2,
+      SWAP_ROUTER_V3_ADDRESS,
+      SWAPPER_ADDRESS
     );
 
-    console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
+    debugger;
+    const proxyContractArgs = [
+      colateralContractAddress,
+      lender.vaultAdminAddress,
+      initializeData.data || '0x',
+    ];
 
-    const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
+    const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
+    const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
+    const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
 
-    const contractAddress = contractDeployment.address;
-    const signerAddress = contractDeployment.signerAddress;
-
-    if (!contractAddress) {
+    if (!proxyContractAddress) {
       throw new CustomError.TechnicalError(
-        'ERROR_CREATE_CONTRACT',
+        'ERROR_CREATE_PROXY_CONTRACT',
         null,
-        'Empty contract address response',
+        'Empty Proxy contract address response',
         null
       );
     }
 
-    console.log('Contract deployment:', JSON.stringify(contractDeployment));
-
+    // Build entity
     const collectionName = COLLECTION_NAME;
     const validationSchema = schemas.create;
 
     const body = req.body;
     body.userId = targetUserId;
     body.companyId = companyId;
-    body.contractAddress = contractAddress;
-    body.contractSignerAddress = signerAddress;
-    body.contractDeployment = contractDeployment;
-    body.contractName = contractName;
-    body.contractStatus = 'pending-deployment-verification';
-    body.contractNetwork = hre.network.name;
-    body.contractVersion = '1.0.0';
-    body.rescueWalletAccount = signerAddress;
+    body.rescueWalletAccount = DEFAULT_RESCUE_WALLET_ADDRESS;
+    body.withdrawWalletAccount = DEFAULT_WITHDRAW_WALLET_ADDRESS;
     body.balances = [];
+
+    body.contractAddress = colateralContractAddress;
+    body.contractSignerAddress = colateralContractSignerAddress;
+    body.contractDeployment = colateralContractDeploy.contractDeployment;
+    body.contractName = colateralContractName;
+    body.contractStatus = 'pending-deployment-verification';
+    body.contractNetwork = networkName;
+    body.contractVersion = '';
+
+    body.proxyContractAddress = proxyContractAddress;
+    body.proxyContractSignerAddress = proxyContractSignerAddress;
+    body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
+    body.proxyContractName = proxyContractName;
+    body.proxyContractStatus = 'pending-deployment-verification';
+    body.proxyContractVersion = 'TransparentUpgradeable';
 
     console.log('Create args (' + collectionName + '):', body);
 
+    // Store entity and response
     const itemData = await sanitizeData({ data: body, validationSchema });
     const dbItemData = await createFirestoreDocument({
       collectionName,
       itemData,
       auditUid,
-      documentId: contractAddress,
-    });
-
-    // Pido los datos del empleado, el banco y el borrower para utilizarlos en el email
-    const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
-    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-    const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
-
-    // Envio el email al empleado que creó la boveda
-    await EmailSender.send({
-      to: employee.email,
-      message: null,
-      template: {
-        name: 'mail-vault',
-        data: {
-          username: employee.firstName + ' ' + employee.lastName,
-          vaultId: contractAddress,
-          lender: lender.name,
-        },
-      },
-    });
-    // Envio el email al borrower de esta boveda
-    await EmailSender.send({
-      to: borrower.email,
-      message: null,
-      template: {
-        name: 'mail-vault',
-        data: {
-          username: borrower.firstName + ' ' + borrower.lastName,
-          vaultId: contractAddress,
-          lender: lender.name,
-        },
-      },
+      documentId: proxyContractAddress,
     });
     console.log('Create data: (' + collectionName + ')', dbItemData);
 
+    res.status(201).send(dbItemData);
+
+    // Check contracts deployments and update status & version
     try {
-      await deploymentResponse.deployed();
-      console.log('Deployment success');
+      await colateralContractDeploy.deploymentResponse.deployed();
+      console.log('ColateralContract Deployment success');
 
       await updateSingleItem({
         collectionName,
         data: { contractStatus: 'deployed' },
         auditUid,
-        id: contractAddress,
+        id: proxyContractAddress,
       });
 
-      console.log('Update contract status success' + contractAddress);
+      console.log(
+        'Updated deployment status for ColateralContract ' +
+          colateralContractAddress +
+          ' for Vault ' +
+          proxyContractAddress
+      );
     } catch (e) {
       console.log(
-        'Deployment error while waiting for depoy confirmation' + contractAddress,
+        'Deployment error while waiting for ColateralContract deploy confirmation ' +
+          colateralContractAddress +
+          'of Vault ' +
+          proxyContractAddress,
         JSON.stringify(e)
       );
 
@@ -516,21 +604,62 @@ exports.create = async function (req, res) {
         collectionName,
         data: { contractError: e.message },
         auditUid,
-        id: contractAddress,
+        id: proxyContractAddress,
       });
 
-      console.log('Success updating errorto contract' + contractAddress);
+      console.log(
+        'Updated deployment status error for ColateralContract ' +
+          colateralContractAddress +
+          'of Vault ' +
+          proxyContractAddress
+      );
     }
 
-    return res.status(201).send(dbItemData);
+    try {
+      await proxyContractDeploy.deploymentResponse.deployed();
+      console.log('ProxyContract Deployment success');
+
+      const blockchainContract = new hre.ethers.Contract(
+        proxyContractAddress,
+        colateralAbi,
+        deployerWallet
+      );
+
+      const contractVersion = await blockchainContract.version();
+
+      await updateSingleItem({
+        collectionName,
+        data: { proxyContractStatus: 'deployed', contractVersion },
+        auditUid,
+        id: proxyContractAddress,
+      });
+
+      console.log('Updated deployment status of ProxyContract for Vault' + proxyContractAddress);
+    } catch (e) {
+      console.log(
+        'Deployment error while waiting for Proxy contract deploy confirmation for Vault ' +
+          proxyContractAddress,
+        JSON.stringify(e)
+      );
+
+      await updateSingleItem({
+        collectionName,
+        data: { proxyContractError: e.message },
+        auditUid,
+        id: proxyContractAddress,
+      });
+
+      console.log(
+        'Updated deployment status error of ProxyContract for Vault ' + proxyContractAddress
+      );
+    }
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
 
 const getGasPrice = async () => {
-  // const gasEstimated = await blockchainContract.estimateGas.withdrawUSDC(ethAmount);
-  // get max fees from gas station
+  // TODO: add fallback source
   let maxFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
   let maxPriorityFeePerGas = hre.ethers.BigNumber.from(40000000000); // fallback to 40 gwei
   try {
@@ -548,69 +677,28 @@ const getGasPrice = async () => {
     );
   } catch (e) {
     console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
-    // ignore
   }
 
   return { maxFeePerGas, maxPriorityFeePerGas };
 };
 
+// Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
-  const contractJson = require('../../../artifacts/contracts/' +
-    vault.contractName +
-    '.sol/' +
-    vault.contractName +
-    '.json');
-  const abi = contractJson.abi;
-
-  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-  // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
-
-  // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
-  const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-  // // Get the deployed contract.
-  const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, userWallet);
-
-  // console.log('before: ' + (await blockchainContract.rescueWalletAccount()));
+  const blockchainContract = getDeployedContract(vault);
 
   const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
-  const setTx1 = await blockchainContract.setRescueWalletAccount(rescueWalletAccount, {
+  const setTx1 = await blockchainContract.setRescueWalletAddress(rescueWalletAccount, {
     maxFeePerGas,
     maxPriorityFeePerGas,
   });
   await setTx1.wait();
-  console.log('after: ' + (await blockchainContract.rescueWalletAccount()));
+  console.log('after: ' + (await blockchainContract.rescueWalletAddress()));
 };
 
 const fetchVaultBalances = async (vault) => {
-  const smartContract = vault;
-
-  const contractJson = require('../../../artifacts/contracts/' +
-    smartContract.contractName +
-    '.sol/' +
-    smartContract.contractName +
-    '.json');
-  const abi = contractJson.abi;
-
-  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
-
-  console.log('alchemmy config done');
-
-  const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-  console.log('wallet config done');
-
   // Get the deployed contract.
-  const blockchainContract = new hre.ethers.Contract(
-    smartContract.contractAddress,
-    abi,
-    userWallet
-  );
+  const blockchainContract = getDeployedContract(vault);
 
   console.log('Get the deployed contract done');
   const contractBalances = await blockchainContract.getBalances();
@@ -671,9 +759,7 @@ exports.getVaultBalances = async function (req, res) {
   const auditUid = userId;
 
   try {
-    // TODO MICHEL
-
-    // return res.status(200).send([
+    // [
     //   {
     //     currency: 'usdc',
     //     balance: 0.1,
@@ -692,7 +778,7 @@ exports.getVaultBalances = async function (req, res) {
     //   },
     //   { currency: 'usd', value: 0.1, balance: 0.1, isValuation: true },
     //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
-    // ]);
+    // ]
     console.log('ENTRO A getVaultBalances' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
@@ -723,9 +809,6 @@ const balancesToValuations = (balancesWithToken, valuations) => {
       item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
     );
   });
-
-  // USDT 0
-  // USDC 0.1
 
   balancesWithToken.forEach((balanceWithToken) => {
     const usdValuation = valuations.find((item) => {
@@ -759,6 +842,7 @@ const balancesToValuations = (balancesWithToken, valuations) => {
   return newBalances;
 };
 
+// Se sustituirá por transacción de SAFE_LIQ (adaptada x ahora a DEPLOYER)
 exports.withdraw = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
@@ -815,30 +899,8 @@ exports.withdraw = async function (req, res) {
       );
     }
 
-    const contractJson = require('../../../artifacts/contracts/' +
-      smartContract.contractName +
-      '.sol/' +
-      smartContract.contractName +
-      '.json');
-    const abi = contractJson.abi;
-
-    console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-    // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-
-    // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
-    const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-    // // Get the deployed contract.
-    const blockchainContract = new hre.ethers.Contract(
-      smartContract.contractAddress,
-      abi,
-      userWallet
-    );
+    // Get the deployed contract.
+    const blockchainContract = getDeployedContract(smartContract);
 
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
@@ -850,25 +912,25 @@ exports.withdraw = async function (req, res) {
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
     if (token === Types.CurrencyTypes.USDC) {
-      const wd = await blockchainContract.withdrawUSDC(ethAmount, {
+      const wd = await blockchainContract.withdraw(ethAmount, 'USDC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
-      const wd = await blockchainContract.withdrawUSDT(ethAmount, {
+      const wd = await blockchainContract.withdraw(ethAmount, 'USDT', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.withdrawWBTC(ethAmount, {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.withdrawWETH(ethAmount, {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -900,12 +962,12 @@ exports.withdraw = async function (req, res) {
         amount: smartContract.amount - withdrawInARS,
       },
     });
-    // Aca
+
+    // Refactor con otros mails
     const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
-    // Guardo el mismo valor que withdrawTotalAmountArs en firebase
-    // Envio un mail al empleado que liquido la boveda
+
     await EmailSender.send({
       to: employee.email,
       message: null,
@@ -920,7 +982,7 @@ exports.withdraw = async function (req, res) {
         },
       },
     });
-    // Envio un mail al borrower de esta boveda
+
     await EmailSender.send({
       to: borrower.email,
       message: null,
@@ -952,6 +1014,7 @@ exports.withdraw = async function (req, res) {
   }
 };
 
+// Se sustituirá por transacción Safe de SAFE_LIQ como RESCUER (adaptada x ahora a DEPLOYER)
 exports.rescue = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
@@ -1048,30 +1111,8 @@ exports.rescue = async function (req, res) {
       );
     }
 
-    const contractJson = require('../../../artifacts/contracts/' +
-      smartContract.contractName +
-      '.sol/' +
-      smartContract.contractName +
-      '.json');
-    const abi = contractJson.abi;
-
-    console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-    // const alchemy = new hre.ethers.providers.AlchemyProvider('maticmum', process.env.ALCHEMY_API_KEY);
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-
-    // const userWallet = new hre.ethers.Wallet(process.env.PRIVATE_KEY, alchemy);
-    const userWallet = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-
-    // // Get the deployed contract.
-    const blockchainContract = new hre.ethers.Contract(
-      smartContract.contractAddress,
-      abi,
-      userWallet
-    );
+    // Get the deployed contract.
+    const blockchainContract = getDeployedContract(smartContract);
 
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
@@ -1083,25 +1124,25 @@ exports.rescue = async function (req, res) {
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
     if (token === Types.CurrencyTypes.USDC) {
-      const wd = await blockchainContract.rescueUSDC(ethAmount, {
+      const wd = await blockchainContract.rescue(ethAmount, 'USDC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.USDT) {
-      const wd = await blockchainContract.rescueUSDT(ethAmount, {
+      const wd = await blockchainContract.rescue(ethAmount, 'USDT', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.rescueWBTC(ethAmount, {
+      const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.rescueWETH(ethAmount, {
+      const wd = await blockchainContract.rescue(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1133,10 +1174,10 @@ exports.rescue = async function (req, res) {
       },
     });
 
-    const employee = await fetchSingleItem({ collectionName: Collections.USERS, id: auditUid });
+    // Refactor con otros mails
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
-    // Guardo el mismo monto que se guarda en rescueTotalAmountARS en firebase
+
     // Guardo en que moneda estaba guardada en la boveda
     let currency = '';
     if (token === Types.CurrencyTypes.USDC) {
@@ -1148,7 +1189,7 @@ exports.rescue = async function (req, res) {
     } else if (token === Types.CurrencyTypes.WETH) {
       currency = 'WETH';
     }
-    // Envio mail al borrower una vez que la boveda es rescatada
+
     await EmailSender.send({
       to: borrower.email,
       message: null,
@@ -1377,6 +1418,7 @@ const getVaultCompanyEmployees = async (vault) => {
 };
 
 const sendDepositEmails = async (vault, movementAmount) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
   console.log('Envio mails por depósito de cripto.');
 
   const lender = await fetchSingleItem({
@@ -1438,8 +1480,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       console.log(
         'transactionType:',
         transactionType,
-        'contractAddress:',
-        JSON.stringify(after.contractAddress),
+        'proxyContractAddress:',
+        JSON.stringify(after.proxyContractAddress),
         'after:',
         JSON.stringify(after)
       );
@@ -1577,6 +1619,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     transactionType,
 
     contractDeployment: null, // para que no grabe el bodoque...
+    proxyContractDeployment: null,
 
     state: Types.StateTypes.STATE_ACTIVE,
     ...creationStruct('admin'),
@@ -1584,6 +1627,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   delete createData.id;
   delete createData.contractDeployment;
+  delete createData.proxyContractDeployment;
 
   console.log('Creando transaccion: (' + transactionType + ')' + JSON.stringify(createData));
 
@@ -1739,6 +1783,7 @@ exports.onVaultCreate = functions.firestore
         after,
         transactionType: VaultTransactionTypes.VAULT_CREATE,
       });
+      await sendCreateEmails(after);
 
       console.log('onVaultCreate success ' + documentPath);
     } catch (err) {
@@ -1747,6 +1792,47 @@ exports.onVaultCreate = functions.firestore
       return null;
     }
   });
+
+const sendCreateEmails = async (vault) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+  console.log(`Sending Vault ${vault.id} emails on creation`);
+
+  const employee = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.createdBy,
+  });
+  const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: vault.userId });
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+
+  await EmailSender.send({
+    to: employee.email,
+    message: null,
+    template: {
+      name: 'mail-vault',
+      data: {
+        username: employee.firstName + ' ' + employee.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+      },
+    },
+  });
+
+  await EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-vault',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+      },
+    },
+  });
+};
 
 const getVaultLimits = (vault, ratios) => {
   console.log(`Obtengo límites para vault ${vault.id}`);
@@ -1930,6 +2016,8 @@ const fetchTokenRatios = async () => {
 };
 
 const sendVaultEvaluationEmail = async (evalVault) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
     id: evalVault.vault.companyId,
@@ -1989,8 +2077,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       PROVIDER_NETWORK_NAME,
       ALCHEMY_API_KEY
     );
-    const signer = new hre.ethers.Wallet(WALLET_PRIVATE_KEY, alchemy);
-    const blockchainContract = new hre.ethers.Contract(vault.contractAddress, abi, signer);
+    const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
+    const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
     // Gas estimation
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
@@ -2040,7 +2128,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       });
 
     const tx = await swap.wait().catch((err) => {
-      console.log('Error swapeando BROCO');
       console.log('Swap failed tx: ', JSON.stringify(tx));
       const errEvents = tx.events.filter((event) => event.event === 'SwapError');
       console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
@@ -2149,7 +2236,7 @@ const swapVaultTokenBalances = async (vault) => {
     console.log(`Balance de token ${bal.currency} a swapear: ${bal.balance}`);
 
     return {
-      recipient: vault.contractAddress,
+      recipient: vault.id, // vault.proxyContractAddress
       tokenIn: tokens[bal.currency],
       tokenOut,
       amountIn: bal.balance,
@@ -2195,16 +2282,15 @@ exports.createVaultAdmin = async (req, res) => {
         null
       );
     }
-
     console.log(`Pedido creacion ProxyAdmin con owner ${owner}`);
     console.log('CURRENT NETWORK: ', hre.network.name);
 
     const contractName = 'ColateralProxyAdmin';
-    const blockchainContract = await hre.ethers.getContractFactory(contractName);
-    const deploymentResponse = await blockchainContract.deploy(owner);
+    const { deploymentResponse, contractDeployment } = await deployContract(contractName, owner);
 
-    console.log('deploymentResponse!:', JSON.stringify(deploymentResponse));
-    const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
+    await deploymentResponse.deployed();
+    console.log('Deployment success');
+
     const contractAddress = contractDeployment.address;
 
     if (!contractAddress) {
@@ -2215,8 +2301,6 @@ exports.createVaultAdmin = async (req, res) => {
         null
       );
     }
-
-    console.log('Contract deployment:', JSON.stringify(contractDeployment));
 
     const proxyAdmin = {
       proxyAdminAddress: contractAddress,

@@ -1,5 +1,5 @@
 /* eslint-disable operator-linebreak */
-const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
+const { Alchemy, Network, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
 const {
@@ -55,8 +55,6 @@ const {
   filterItems,
 } = require('../baseEndpoint');
 const {
-  WALLET_PRIVATE_KEY,
-  WALLET_ADDRESS,
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
   QUOTER2_CONTRACT_ADDRESS,
