@@ -396,6 +396,8 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
 };
 
 const deployContract = async (contractName, args = null) => {
+  if (!contractName) return null;
+
   const contract = await hre.ethers.getContractFactory(contractName);
   let deploymentResponse;
 
@@ -464,7 +466,7 @@ exports.create = async function (req, res) {
 
     const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
-    debugger;
+
     // Deploy ColateralContract
     const colateralContractDeploy = await deployContract(colateralContractName);
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
@@ -477,6 +479,17 @@ exports.create = async function (req, res) {
         'Empty Colateral contract address response',
         null
       );
+    }
+
+    let contractStatus;
+    let contractError = '';
+    try {
+      await colateralContractDeploy.deploymentResponse.deployed();
+      console.log('ColateralContract Deployment success');
+      contractStatus = 'deployed';
+    } catch (err) {
+      contractStatus = 'error';
+      contractError = err.message;
     }
 
     // Deploy ColateralProxy
@@ -513,7 +526,6 @@ exports.create = async function (req, res) {
       SWAPPER_ADDRESS
     );
 
-    debugger;
     const proxyContractArgs = [
       colateralContractAddress,
       lender.vaultAdminAddress,
@@ -548,9 +560,10 @@ exports.create = async function (req, res) {
     body.contractSignerAddress = colateralContractSignerAddress;
     body.contractDeployment = colateralContractDeploy.contractDeployment;
     body.contractName = colateralContractName;
-    body.contractStatus = 'pending-deployment-verification';
+    body.contractStatus = contractStatus;
     body.contractNetwork = networkName;
     body.contractVersion = '';
+    contractError ? (body.contractError = contractError) : null;
 
     body.proxyContractAddress = proxyContractAddress;
     body.proxyContractSignerAddress = proxyContractSignerAddress;
@@ -573,48 +586,7 @@ exports.create = async function (req, res) {
 
     res.status(201).send(dbItemData);
 
-    // Check contracts deployments and update status & version
-    try {
-      await colateralContractDeploy.deploymentResponse.deployed();
-      console.log('ColateralContract Deployment success');
-
-      await updateSingleItem({
-        collectionName,
-        data: { contractStatus: 'deployed' },
-        auditUid,
-        id: proxyContractAddress,
-      });
-
-      console.log(
-        'Updated deployment status for ColateralContract ' +
-          colateralContractAddress +
-          ' for Vault ' +
-          proxyContractAddress
-      );
-    } catch (e) {
-      console.log(
-        'Deployment error while waiting for ColateralContract deploy confirmation ' +
-          colateralContractAddress +
-          'of Vault ' +
-          proxyContractAddress,
-        JSON.stringify(e)
-      );
-
-      await updateSingleItem({
-        collectionName,
-        data: { contractError: e.message },
-        auditUid,
-        id: proxyContractAddress,
-      });
-
-      console.log(
-        'Updated deployment status error for ColateralContract ' +
-          colateralContractAddress +
-          'of Vault ' +
-          proxyContractAddress
-      );
-    }
-
+    // Check Proxy deployment and update status & contract version
     try {
       await proxyContractDeploy.deploymentResponse.deployed();
       console.log('ProxyContract Deployment success');
