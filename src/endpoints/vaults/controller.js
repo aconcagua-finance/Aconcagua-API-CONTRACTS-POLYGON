@@ -520,7 +520,7 @@ exports.create = async function (req, res) {
       operators,
       DEFAULT_WITHDRAW_WALLET_ADDRESS,
       DEFAULT_RESCUE_WALLET_ADDRESS,
-      lender.safeLiq1,
+      colateralContractSignerAddress, // lender.safeLiq1,
       lender.safeLiq2,
       SWAP_ROUTER_V3_ADDRESS,
       SWAPPER_ADDRESS
