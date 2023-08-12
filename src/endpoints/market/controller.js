@@ -259,25 +259,26 @@ const getQuotations = async (quoteAmounts) => {
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
   console.log(`Ejecuto llamadas de cotización`);
-  const quotations = await Promise.allSettled(quoters).then((results) => {
-    results.forEach((result, index) => {
-      // Logueo consultas fallidas
-      if (result.status === 'rejected') {
-        const error = `Error fetching quotes from ${providers[index].name} provider: `;
-        console.error(`${error}${result.reason.message}`);
+  const quotations = await Promise.allSettled(quoters);
 
-        // Si Uniswap falla entonces detengo la ejecución y tiro error (no se actualizará la cotización)
-        if (index === 0) {
-          result.reason.message = `${error}${result.reason.message}`;
-          throw result.reason;
-        }
+  // Logueo consultas fallidas
+  quotations.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const error = `Error fetching quotes from ${providers[index].name} provider: `;
+      console.error(`${error}${result.reason.message}`);
+
+      // Si Uniswap falla entonces detengo la ejecución (no se actualizará la cotización)
+      if (index === 0) {
+        result.reason.message = `${error}${result.reason.message}`;
+        throw new Error(result.reason);
       }
-    });
-    return results.map((result) => result.value);
+    }
   });
 
   console.log('Cotizaciones solicitadas exitosamente');
-  return parseQuotations(quotations);
+  const rawQuotations = quotations.map((result) => result.value).filter((obj) => obj);
+
+  return parseQuotations(rawQuotations);
 };
 
 const sendNotificationsEmails = async (emailMsgs) => {
