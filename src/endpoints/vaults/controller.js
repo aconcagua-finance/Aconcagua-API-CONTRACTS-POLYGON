@@ -1656,7 +1656,7 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
       lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
       mustEvaluate: false,
       evaluationRetries: 0,
-      swapFailed: false,
+      pendingSwap: false,
     };
 
     // Acciono si se requiere.
@@ -1691,13 +1691,14 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
             lastEvaluation: Date.now(),
             mustEvaluate: false,
             evaluationRetries: 0,
+            pendingSwap: true,
           };
         } else {
           updateData = {
             lastEvaluation: Date.now(),
             mustEvaluate: true,
             evaluationRetries: evaluation.vault.evaluationRetries + 1,
-            swapFailed: true,
+            pendingSwap: true,
           };
         }
       }
