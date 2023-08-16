@@ -1663,14 +1663,16 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
 const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
   try {
     if (!after.mustEvaluate) return;
-
     console.log(`Evaluación contrato ${docId}`);
+
+    // Evaluo boveda
     const evaluation = await evaluateVaultTokenBalance({ ...after, id: docId });
 
     let updateData = {
       lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
       mustEvaluate: false,
       evaluationRetries: 0,
+      pendingSwap: false,
     };
 
     // Acciono si se requiere.
@@ -1685,23 +1687,40 @@ const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
     }
 
     if (evaluation.actionType === ActionTypes.SWAP) {
-      const tokenSwapsResult = await swapVaultTokenBalances(evaluation.vault)
-        .then(async (tokenSwapsResult) => {
-          evaluation.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
-          await sendVaultEvaluationEmail(evaluation);
-        })
-        .catch((err) => {
+      try {
+        const tokenSwapsResult = await swapVaultTokenBalances(evaluation.vault);
+        evaluation.swap.tokenOutAmount = tokenSwapsResult.tokenOutAmount;
+
+        await sendVaultEvaluationEmail(evaluation);
+      } catch (err) {
+        // Si tiene +3 retries entonces se evaluará de nuevo en la próxima actualización de cotizaciones tokens (1h).
+        console.error(
+          `Error swapeando tokens de Vault ${evaluation.vault.id}: ${err.message}`,
+          err
+        );
+
+        if (evaluation.vault.evaluationRetries > 3) {
+          console.log(
+            'Bóveda con +3 retries de swap; se volverá a evaluar en la próxima actualización de cotización tokens'
+          );
           updateData = {
-            lastEvaluation: Date.now(), // admin.firestore.FieldValue.serverTimestamp(),
+            lastEvaluation: Date.now(),
+            mustEvaluate: false,
+            evaluationRetries: 0,
+            pendingSwap: true,
+          };
+        } else {
+          updateData = {
+            lastEvaluation: Date.now(),
             mustEvaluate: true,
             evaluationRetries: evaluation.vault.evaluationRetries + 1,
+            pendingSwap: true,
           };
-        });
+        }
+      }
     }
 
     console.log('onVaultUpdate post vault evaluation' + docId);
-    // const db = admin.firestore();
-    // const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
     return updateData;
   } catch (e) {
     console.error('Error evaluando los balances del contrato ' + docId + '. ' + e.message);
@@ -2055,8 +2074,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     // Gas estimation
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
-    let gasLimit;
-
     for (const swap of swapsParams) {
       const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
         swap.params.path,
@@ -2065,16 +2082,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
 
-    await blockchainContract.estimateGas
-      .swapExactInputs(swapsParams)
-      .then((estimateGasAmount) => {
-        gasLimit = estimateGasAmount;
-        // gasLimit = estimateGasAmount.add(swapsGasEstimation);
-      })
-      .catch((err) => {
-        gasLimit = Math.ceil(swapsGasEstimation * 2);
-      }); // Prueba y error
-
+    const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
     console.log(`gasLimit: ${gasLimit}`);
@@ -2084,27 +2092,22 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log(JSON.stringify(swapsParams));
 
     // Execute swaps.
-    const swap = await blockchainContract
-      .swapExactInputs(swapsParams, {
+    let swap;
+    try {
+      swap = await blockchainContract.swapExactInputs(swapsParams, {
         gasLimit,
         maxFeePerGas,
         maxPriorityFeePerGas,
-      })
-      .catch((err) => {
-        swap.wait().then((tx) => {
-          console.log('Swap failed tx: ', JSON.stringify(tx));
-          const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-          console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-          throw new Error(err);
-        });
       });
-
-    const tx = await swap.wait().catch((err) => {
+    } catch (error) {
+      const tx = await swap.wait();
       console.log('Swap failed tx: ', JSON.stringify(tx));
-      const errEvents = tx.events.filter((event) => event.event === 'SwapError');
-      console.log(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-      throw new Error(err);
-    });
+      const errEvents = tx.events?.filter((event) => event.event === 'SwapError');
+      console.error(`Swap Error Events: ${JSON.stringify(errEvents)}`);
+      throw new Error(error);
+    }
+
+    const tx = await swap.wait();
     console.log('Swap tx: ', JSON.stringify(tx));
 
     // Returns swaps results
@@ -2195,7 +2198,7 @@ const buildSwapsParams = async (swapsData) => {
 };
 
 const swapVaultTokenBalances = async (vault) => {
-  // Swapea todos los balances de tokens volátiles por TokenOut
+  // Swapea todos los balances de tokens volátiles por TokenOut en config file.
 
   // Obtengo balances de tokens volátiles
   const tokenTypes = Object.values(TokenTypes).map((token) => token.toString());
