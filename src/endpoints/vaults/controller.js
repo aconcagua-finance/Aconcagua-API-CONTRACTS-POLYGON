@@ -2131,7 +2131,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     });
     return swapsResults;
   } catch (error) {
-    console.log(`Error while swapping vault ${vault.id}: ${JSON.stringify(error)}`);
+    console.log(`Error while swapping vault ${vault.id}: `, JSON.stringify(error));
     throw new Error(error);
   }
 };
