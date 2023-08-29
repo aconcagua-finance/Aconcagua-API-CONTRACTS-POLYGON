@@ -2295,10 +2295,16 @@ exports.createVaultAdmin = async (req, res) => {
   }
 };
 
+// Solo se utliza en MUMBAI para crear SAFE asociada a un lender
 exports.createSafeAccount = async (req, res) => {
   try {
     // Inputs: address (str) lenderLiqAddress, (int) threshold, (int 1 o 2) safeLiqAddressNumber, optional: aconLiqAddress
+
+    // threshold = cantidad de firmantes para aprobar una transaccion
+    // safeLiqAddressNumber >> 1 = ALIQ1_ADDRESS / 2 = ALIQ2_ADDRESS
+    // aconLiqAddress >> si e envia este parametro, define el segundo rol del safe con esta address
     const body = req.body;
+
     if (!body.lenderLiqAddress || !body.threshold || !body.safeLiqAddressNumber) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_ARGS',
