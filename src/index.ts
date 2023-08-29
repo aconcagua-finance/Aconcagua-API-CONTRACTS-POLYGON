@@ -2,9 +2,9 @@
 // import { Config } from '@abdalamichel/vs-core';
 
 import * as functions from 'firebase-functions';
-import * as express from 'express';
+import express from 'express';
 import * as httpContext from 'express-http-context';
-import * as cors from 'cors';
+import cors from 'cors';
 
 import * as admin from 'firebase-admin';
 import { FirebaseConfig } from './config/firebaseConfig';
