@@ -13,6 +13,7 @@ const {
   rescue,
   findVaultsLimitsByCompany,
   findVaultsLimitsByUser,
+  createSafeAccount,
 } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
@@ -170,6 +171,9 @@ exports.vaultsRoutesConfig = function (app) {
     }),
     create,
   ]);
+
+  // Deploya un contrato Safe en Mumbai
+  app.post('/createSafeAccount', [Audit.logger, createSafeAccount]);
 
   // update un documento, el companyId / userId es para validacion de permisos
   app.patch('/:companyId/:userId/:id', [
