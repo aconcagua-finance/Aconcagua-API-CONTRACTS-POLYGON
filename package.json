@@ -47,6 +47,7 @@
   },
   "main": "dist/index.js",
   "dependencies": {
+    "@ethersproject/providers": "^5.7.2",
     "@google-cloud/datastore": "^6.6.2",
     "@google-cloud/logging": "^9.2.3",
     "@google-cloud/storage": "^5.18.2",
@@ -63,7 +64,7 @@
     "@uniswap/smart-order-router": "^3.5.0",
     "@uniswap/v3-periphery": "^1.4.3",
     "@uniswap/v3-sdk": "^3.9.0",
-    "alchemy-sdk": "^2.2.0",
+    "alchemy-sdk": "^2.10.0",
     "axios": "^0.25.0",
     "cors": "^2.8.5",
     "date-fns": "^2.26.0",

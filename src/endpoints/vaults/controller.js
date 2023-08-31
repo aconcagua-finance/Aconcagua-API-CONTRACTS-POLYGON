@@ -503,6 +503,9 @@ exports.create = async function (req, res) {
       colateralContractName +
       '.json');
     const colateralAbi = contractJson.abi;
+
+    // aca michel
+    console.log('Instanciando alchemy provider with: ' + PROVIDER_NETWORK_NAME);
     const alchemy = new hre.ethers.providers.AlchemyProvider(
       PROVIDER_NETWORK_NAME,
       ALCHEMY_API_KEY
@@ -636,24 +639,24 @@ exports.create = async function (req, res) {
 
 const getGasPrice = async () => {
   // TODO: add fallback source
-  let maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
-  let maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
-  try {
-    const { data } = await axios({
-      method: 'get',
-      url: GAS_STATION_URL,
-      // url: isProd
-      //   ? 'https://gasstation-mainnet.matic.network/v2'
-      //   : 'https://gasstation-mumbai.matic.today/v2',
-    });
-    maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
-    maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
-      Math.ceil(data.fast.maxPriorityFee) + '',
-      'gwei'
-    );
-  } catch (e) {
-    console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
-  }
+  const maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
+  const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
+  // try {
+  //   const { data } = await axios({
+  //     method: 'get',
+  //     url: GAS_STATION_URL,
+  //     // url: isProd
+  //     //   ? 'https://gasstation-mainnet.matic.network/v2'
+  //     //   : 'https://gasstation-mumbai.matic.today/v2',
+  //   });
+  //   maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
+  //   maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
+  //     Math.ceil(data.fast.maxPriorityFee) + '',
+  //     'gwei'
+  //   );
+  // } catch (e) {
+  //   console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
+  // }
 
   return { maxFeePerGas, maxPriorityFeePerGas };
 };

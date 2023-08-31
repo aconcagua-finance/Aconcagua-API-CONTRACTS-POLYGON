@@ -12,7 +12,7 @@ const {
 } = require('./appConfig');
 
 export const chainId =
-  PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.POLYGON_MUMBAI;
+  PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.GOERLI;
 
 export const swapOptions = {
   recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
