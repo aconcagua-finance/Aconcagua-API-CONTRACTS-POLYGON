@@ -475,7 +475,7 @@ exports.create = async function (req, res) {
     // Deploy ColateralContract
     const colateralContractDeploy = await deployContract(colateralContractName);
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-    const colateralContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
+    const colateralContractSignerAddress = lender.safeLiq1; // colateralContractDeploy.contractDeployment.signerAddress;
 
     if (!colateralContractAddress) {
       throw new CustomError.TechnicalError(
