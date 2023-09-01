@@ -260,10 +260,11 @@ exports.get = async function (req, res) {
     ],
     postProcessor: async (item) => {
       // Importante para validar permisos - complementario a routes-config
-      if (userId && item.userId !== userId) throw new Error('userId missmatch');
-      if (companyId && item.companyId !== companyId) throw new Error('companyId missmatch');
+      if (userId && item && item.userId !== userId) throw new Error('userId missmatch');
+      if (companyId && item && item.companyId !== companyId) throw new Error('companyId missmatch');
 
-      if (item.dueDate) item.dueDate = item.dueDate.toDate();
+      if (item && item.dueDate) item.dueDate = item.dueDate.toDate();
+
       return item;
     },
   });
@@ -2370,6 +2371,41 @@ exports.createSafeAccount = async (req, res) => {
     const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
     const safeLiqAddress = safeSdk.getAddress();
     return res.status(201).send({ safeLiqAddress });
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+exports.amountToConversions = async (req, res) => {
+  try {
+    const { token, targetToken, amount } = req.body; // token = ars
+
+    const valuations = await getCurrenciesValuations();
+
+    const tokenToUSDValuation = valuations.find((item) => {
+      return item.currency === token && item.targetCurrency === Types.CurrencyTypes.USD;
+    });
+
+    const targetTokenToUSDValuation = valuations.find((item) => {
+      return item.currency === targetToken && item.targetCurrency === Types.CurrencyTypes.USD;
+    });
+
+    if (!tokenToUSDValuation || !targetTokenToUSDValuation) {
+      throw new CustomError.TechnicalError(
+        'ERROR_MISSING_VALUATION',
+        null,
+        'Missing valuations',
+        null
+      );
+    }
+
+    // 100 = amount, ars = token, targetToken = usdc
+
+    const amountInUSD = amount / tokenToUSDValuation.value;
+    // tokenToUSDValuation.value = 700
+    // amountInUSD = 0,14
+    const amountInTargetToken = amountInUSD * targetTokenToUSDValuation.value;
+    return res.status(200).send({ amountInUSD, amountInTargetToken });
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }

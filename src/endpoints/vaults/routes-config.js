@@ -14,6 +14,7 @@ const {
   findVaultsLimitsByCompany,
   findVaultsLimitsByUser,
   createSafeAccount,
+  amountToConversions,
 } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
@@ -94,6 +95,16 @@ exports.vaultsRoutesConfig = function (app) {
     getVaultBalances,
   ]);
 
+  // consulta las conversiones de el monto y moneda enviada a usd y target token recibido (se usa al momento de aprobar una liquidacion/rescate)
+  app.post('/amount-to-conversions', [
+    Audit.logger,
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+    }),
+    amountToConversions,
+  ]);
+
   // busca los documentos por filtros
   app.get('/', [
     Audit.logger,
@@ -105,39 +116,39 @@ exports.vaultsRoutesConfig = function (app) {
   // busca los límites de las bóvedas asociadas a una company
   app.get('/vaultsLimits/by-company/:companyId', [
     Audit.logger,
-    /*
+
     Auth.isAuthenticated,
     Auth.isAuthorized({
       hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
       isEnterpriseEmployee: true,
     }),
-    */
+
     findVaultsLimitsByCompany,
   ]);
 
   // busca los límites de las bóvedas asociadas a un usuario
   app.get('/vaultsLimits/by-user/:userId', [
     Audit.logger,
-    /*
+
     Auth.isAuthenticated,
     Auth.isAuthorized({
       hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
       allowSameUser: true,
       allowStaffRelationship: true,
     }),
-    */
+
     findVaultsLimitsByUser,
   ]);
 
   // deploy de ProxyAdmin para ser asociado a una companía en creación
   app.get('/vaultAdmin/:owner', [
     Audit.logger,
-    /*
-      Auth.isAuthenticated,
-      Auth.isAuthorized({
-        hasAppRole: [Types.AppRols.APP_ADMIN],
-      }),
-      */
+
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN],
+    }),
+
     createVaultAdmin,
   ]);
 
