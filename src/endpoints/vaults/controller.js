@@ -525,9 +525,12 @@ exports.create = async function (req, res) {
       USDT_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
       WETH_TOKEN_ADDRESS,
+
       operators,
-      DEFAULT_WITHDRAW_WALLET_ADDRESS,
+
       DEFAULT_RESCUE_WALLET_ADDRESS,
+      DEFAULT_WITHDRAW_WALLET_ADDRESS,
+
       colateralContractSignerAddress, // lender.safeLiq1,
       lender.safeLiq2,
       SWAP_ROUTER_V3_ADDRESS,
