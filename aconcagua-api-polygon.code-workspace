@@ -20,6 +20,7 @@
       "**/node_modules": true // this excludes all folders
       // named "node_modules" from
       // the explore tree
-    }
+    },
+    "solidity.compileUsingRemoteVersion": "v0.8.18+commit.87f61d96"
   }
 }

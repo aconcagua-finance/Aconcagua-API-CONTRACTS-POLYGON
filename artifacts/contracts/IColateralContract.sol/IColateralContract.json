@@ -348,61 +348,12 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "_startTimePeriod",
-          "type": "uint256"
-        }
-      ],
-      "name": "setStartTimePeriod",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "address",
-          "name": "_usdcTokenAddress",
-          "type": "address"
-        },
-        {
-          "internalType": "string",
-          "name": "_tokenSymbol",
-          "type": "string"
-        }
-      ],
-      "name": "setTokenAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
           "internalType": "address",
           "name": "_withdrawWalletAddress",
           "type": "address"
         }
       ],
       "name": "setWithdrawWalletAddress",
-      "outputs": [],
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    {
-      "inputs": [
-        {
-          "internalType": "uint256",
-          "name": "_withdrawalLimitPerPeriod",
-          "type": "uint256"
-        },
-        {
-          "internalType": "string",
-          "name": "_tokenSymbol",
-          "type": "string"
-        }
-      ],
-      "name": "setWithdrawalLimitPerPeriod",
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
