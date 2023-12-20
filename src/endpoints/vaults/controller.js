@@ -2302,7 +2302,7 @@ exports.createVaultAdmin = async (req, res) => {
   }
 };
 
-// Solo se utliza en MUMBAI para crear SAFE asociada a un lender
+// Se desestima. MUMBAI para crear SAFE asociada a un lender
 exports.createSafeAccount = async (req, res) => {
   try {
     // Inputs: address (str) lenderLiqAddress, (int) threshold, (int 1 o 2) safeLiqAddressNumber, optional: aconLiqAddress

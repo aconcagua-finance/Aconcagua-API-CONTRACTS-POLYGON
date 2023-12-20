@@ -17,14 +17,14 @@ export const chainId =
 export const swapOptions = {
   recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
   slippageTolerance:
-    PROVIDER_NETWORK_NAME === 'matic' ? new Percent(5, 1000) : new Percent(10, 100), // 0.5% for polygon (ASK)
+    PROVIDER_NETWORK_NAME === 'matic' ? new Percent(5, 1000) : new Percent(10, 100), // 0.5% for Polygon; 10% for Goerli
   deadline: Math.floor(Date.now() / 1000 + 60 * 10), // 10 min
   type: SwapType.SWAP_ROUTER_02, // Ver Universal Router
 };
 
 // Default quotes
 export const quoteAmounts = {
-  weth: 20,
+  weth: 10,
   wbtc: 2,
 };
 
@@ -58,11 +58,12 @@ export const staticPaths =
     : {
         // Catedral
         weth: {
-          tokens: [tokens.weth.address, tokenOut.address],
-          fees: [FeeAmount.HIGH],
+          // Se prueba con hop en USDT
+          tokens: [tokens.weth.address, stableCoins.usdt.address, tokenOut.address],
+          fees: [FeeAmount.MEDIUM, FeeAmount.MEDIUM],
         },
         wbtc: {
           tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.HIGH],
+          fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli
         },
       };
