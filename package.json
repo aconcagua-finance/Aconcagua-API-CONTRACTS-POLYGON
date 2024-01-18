@@ -18,6 +18,7 @@
     "clean": "bash ./scripts/clean.sh",
     "cleanse": "bash ./scripts/cleanse.sh",
     "deploy-ci": "bash ./scripts/deploy-ci.sh",
+    "deploy-ci-sb": "bash ./scripts/deploy-ci-sb.sh",
     "lint": "bash ./scripts/lint.sh",
     "lint-ci": "bash ./scripts/lint-ci.sh",
     "lint-staged": "bash ./scripts/lint-staged.sh",
