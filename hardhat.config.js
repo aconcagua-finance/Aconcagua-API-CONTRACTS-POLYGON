@@ -2,8 +2,8 @@ const { readFileSync, existsSync } = require('fs');
 const { parse } = require('dotenv');
 
 require('@nomiclabs/hardhat-waffle');
-require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
-require('dotenv').config();
+//require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
+//require('dotenv').config();
 
 /*
 import { config as dotEnvConfig } from 'dotenv'
