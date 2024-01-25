@@ -886,10 +886,10 @@ exports.withdraw = async function (req, res) {
     const blockchainContract = getDeployedContract(smartContract);
 
     const ethAmount =
-      token === Types.CurrencyTypes.USDT ||
-      token === Types.CurrencyTypes.USDC ||
-      token === Types.CurrencyTypes.USDM
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 8)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
