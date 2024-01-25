@@ -889,7 +889,7 @@ exports.withdraw = async function (req, res) {
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
         : token === Types.CurrencyTypes.USDM
-        ? Utils.parseUnits(amount, 8)
+        ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
@@ -1099,15 +1099,14 @@ exports.rescue = async function (req, res) {
     // Get the deployed contract.
     const blockchainContract = getDeployedContract(smartContract);
 
-    if (token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC) {
-      ethAmount = Utils.parseUnits(amount, 6);
-    } else if (token === Types.CurrencyTypes.USDM) {
-      ethAmount = Utils.parseUnits(amount, 18);
-    } else if (token === Types.CurrencyTypes.WBTC) {
-      ethAmount = Utils.parseUnits(amount, 8);
-    } else {
-      ethAmount = Utils.parseEther(amount);
-    }
+    const ethAmount =
+      token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
+        ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 18)
+        : token === Types.CurrencyTypes.WBTC
+        ? Utils.parseUnits(amount, 8)
+        : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
 
