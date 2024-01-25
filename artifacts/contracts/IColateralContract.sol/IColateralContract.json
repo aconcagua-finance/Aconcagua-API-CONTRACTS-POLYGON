@@ -27,13 +27,13 @@
         {
           "indexed": false,
           "internalType": "address",
-          "name": "wbtcTokenAddress",
+          "name": "usdmTokenAddress",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "wethTokenAddress",
+          "name": "wbtcTokenAddress",
           "type": "address"
         },
         {
