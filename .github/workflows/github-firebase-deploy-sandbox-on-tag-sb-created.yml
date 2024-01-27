@@ -33,8 +33,9 @@ env:
 
   USDC_TOKEN_ADDRESS: '0x02B1d825d3ff7A3CC51C3d3Df5A8de749DF609AE'
   USDT_TOKEN_ADDRESS: '0x1E94bc717D52B5F8aEEB40f4E74687a3fd34c38f'
+  USDM_TOKEN_ADDRESS: '0x14eD7c6D6BbFcE2c48075E9ac0C678A6374A2D43'
   WBTC_TOKEN_ADDRESS: '0xD88b19F80933B9Bc06406274a421FF8cE3bdb697'
-  WETH_TOKEN_ADDRESS: '0xdf8d9E002533Cd7A2dDc5380764560328661Ae71'
+  #WETH_TOKEN_ADDRESS: '0xdf8d9E002533Cd7A2dDc5380764560328661Ae71'
 
   QUOTER2_CONTRACT_ADDRESS: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e'
   SWAP_ROUTER_V3_ADDRESS: '0xE592427A0AEce92De3Edee1F18E0157C05861564'
@@ -60,7 +61,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
         with:
-          node-version: 16.17.1
+          node-version: 18.19.0
           registry-url: https://npm.pkg.github.com/
       - run: npm ci --force --legacy-peer-deps
         env:

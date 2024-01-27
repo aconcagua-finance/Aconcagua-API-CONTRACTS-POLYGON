@@ -18,6 +18,7 @@
     "clean": "bash ./scripts/clean.sh",
     "cleanse": "bash ./scripts/cleanse.sh",
     "deploy-ci": "bash ./scripts/deploy-ci.sh",
+    "deploy-ci-sb": "bash ./scripts/deploy-ci-sb.sh",
     "lint": "bash ./scripts/lint.sh",
     "lint-ci": "bash ./scripts/lint-ci.sh",
     "lint-staged": "bash ./scripts/lint-staged.sh",
@@ -40,7 +41,7 @@
     "hardhat-verify": "npx hardhat verify '0x59f0C14F9A93a8c3ef01730fcCd8Acfd26287e73' --network mumbaiAux"
   },
   "engines": {
-    "node": "16"
+    "node": "18"
   },
   "bugs": {
     "url": "https://github.com/replace-org-name/replace-package-name/issues"
@@ -51,7 +52,6 @@
     "@google-cloud/datastore": "^6.6.2",
     "@google-cloud/logging": "^9.2.3",
     "@google-cloud/storage": "^5.18.2",
-    "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-waffle": "^2.0.3",
     "@openzeppelin/contracts": "^4.9.2",
     "@openzeppelin/contracts-upgradeable": "^4.9.2",
@@ -74,11 +74,11 @@
     "express-multipart-file-parser": "^0.1.2",
     "fast-memoize": "^2.5.1",
     "firebase-admin": "^10.2.0",
-    "firebase-functions": "^4.0.1",
+    "firebase-functions": "^4.6.0",
+    "firebase-tools": "^13.1.0",
     "fs-extra": "^10.0.0",
     "fuse.js": "^6.5.3",
     "googleapis": "^105.0.0",
-    "hardhat": "^2.9.2",
     "hardhat-change-network": "0.0.7",
     "install": "^0.13.0",
     "joi": "^17.6.0",
@@ -92,6 +92,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-etherscan": "^3.1.0",
     "@types/fs-extra": "^9.0.13",
     "@types/jest": "^27.0.3",
@@ -109,8 +110,7 @@
     "eslint-plugin-prettier": "^3.4.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "4.0.1",
-    "firebase-functions-test": "^0.2.0",
-    "firebase-tools": "^11.14.2",
+    "hardhat": "^2.19.4",
     "husky": "^4.3.8",
     "jest": "^27.0.5",
     "lint-staged": "^11.0.0",

@@ -78,8 +78,8 @@ const {
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
-  WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
   QUOTER2_CONTRACT_ADDRESS,
@@ -523,8 +523,8 @@ exports.create = async function (req, res) {
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
+      USDM_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS,
 
       operators,
 
@@ -698,12 +698,12 @@ const fetchVaultBalances = async (vault) => {
       balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
     },
     {
-      currency: Types.CurrencyTypes.WBTC,
-      balance: parseFloat(Utils.formatUnits(contractBalances[3], 8)), // 8 decimales
+      currency: Types.CurrencyTypes.USDM,
+      balance: parseFloat(Utils.formatUnits(contractBalances[3], 18)), // 18 decimales
     },
     {
-      currency: Types.CurrencyTypes.WETH,
-      balance: parseFloat(Utils.formatEther(contractBalances[4])), // 18 decimales
+      currency: Types.CurrencyTypes.WBTC,
+      balance: parseFloat(Utils.formatUnits(contractBalances[4], 8)), // 8 decimales
     },
   ];
 
@@ -888,6 +888,8 @@ exports.withdraw = async function (req, res) {
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
@@ -906,14 +908,14 @@ exports.withdraw = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
+    } else if (token === Types.CurrencyTypes.USDM) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'USDM', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.withdraw(ethAmount, 'WETH', {
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1100,6 +1102,8 @@ exports.rescue = async function (req, res) {
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
@@ -1118,14 +1122,14 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
+    } else if (token === Types.CurrencyTypes.USDM) {
+      const wd = await blockchainContract.rescue(ethAmount, 'USDM', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.rescue(ethAmount, 'WETH', {
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1167,10 +1171,10 @@ exports.rescue = async function (req, res) {
       currency = 'USDC';
     } else if (token === Types.CurrencyTypes.USDT) {
       currency = 'USDT';
+    } else if (token === Types.CurrencyTypes.USDM) {
+      currency = 'USDM';
     } else if (token === Types.CurrencyTypes.WBTC) {
       currency = 'WBTC';
-    } else if (token === Types.CurrencyTypes.WETH) {
-      currency = 'WETH';
     }
 
     await EmailSender.send({

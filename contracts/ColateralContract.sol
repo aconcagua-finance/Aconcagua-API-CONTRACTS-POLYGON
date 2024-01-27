@@ -33,8 +33,8 @@ contract ColateralContract is
   // Supported Tokens
   string public constant USDC = 'USDC';
   string public constant USDT = 'USDT';
+  string public constant USDM = 'USDM';
   string public constant WBTC = 'WBTC';
-  string public constant WETH = 'WETH';
   // Token => Token Address
   mapping(string => address) public tokenAddress;
 
@@ -50,8 +50,8 @@ contract ColateralContract is
   function initialize(
     address _usdcTokenAddress,
     address _usdtTokenAddress,
+    address _usdmTokenAddress,
     address _wbtcTokenAddress,
-    address _wethTokenAddress,
     address[3] calldata _aconcagua,
     address _rescueWalletAddress,
     address _withdrawWalletAddress,
@@ -75,8 +75,8 @@ contract ColateralContract is
     __ReentrancyGuard_init_unchained();
     tokenAddress[USDC] = _usdcTokenAddress;
     tokenAddress[USDT] = _usdtTokenAddress;
+    tokenAddress[USDM] = _usdmTokenAddress;
     tokenAddress[WBTC] = _wbtcTokenAddress;
-    tokenAddress[WETH] = _wethTokenAddress;
 
     withdrawWalletAddress = _withdrawWalletAddress;
     rescueWalletAddress = _rescueWalletAddress;
@@ -108,8 +108,8 @@ contract ColateralContract is
       msg.sender,
       _usdcTokenAddress,
       _usdtTokenAddress,
+      _usdmTokenAddress,
       _wbtcTokenAddress,
-      _wethTokenAddress,
       _aconcagua,
       _rescueWalletAddress,
       _withdrawWalletAddress,
@@ -122,7 +122,7 @@ contract ColateralContract is
 
   // Version
   function version() external pure override returns (string memory) {
-    return '1.0.0';
+    return '1.1.0';
   }
 
   function setWithdrawWalletAddress(
@@ -149,7 +149,7 @@ contract ColateralContract is
       require(swapParams.params.recipient == address(this), 'Err recipient');
       require(swapParams.params.amountOutMinimum > 0, 'Err Slipp');
       require(
-        swapParams.tokenOut == tokenAddress['USDC'] || swapParams.tokenOut == tokenAddress['USDT'],
+        swapParams.tokenOut == tokenAddress['USDC'] || swapParams.tokenOut == tokenAddress['USDT'] || swapParams.tokenOut == tokenAddress['USDM'],
         'Err TokenOut'
       );
 
@@ -193,8 +193,8 @@ contract ColateralContract is
     balances[0] = address(this).balance;
     balances[1] = balanceOf(USDC);
     balances[2] = balanceOf(USDT);
-    balances[3] = balanceOf(WBTC);
-    balances[4] = balanceOf(WETH);
+    balances[3] = balanceOf(USDM);
+    balances[4] = balanceOf(WBTC);
 
     return balances;
   }
