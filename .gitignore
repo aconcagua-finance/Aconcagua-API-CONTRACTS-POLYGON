@@ -167,3 +167,8 @@ firebase-debug.log
 /art-files
 /art-build
 
+# Smart Contract Maintenance scripts
+/contracts/IColateralContractOper.sol
+/contracts/ColateralContractOper.sol
+/scripts/deploy.js
+
