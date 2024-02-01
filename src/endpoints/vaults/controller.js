@@ -402,7 +402,6 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
 
 const deployContract = async (contractName, args = null) => {
   if (!contractName) return null;
-
   const contract = await hre.ethers.getContractFactory(contractName);
   let deploymentResponse;
 
@@ -429,8 +428,6 @@ const getDeployedContract = (vault) => {
     smartContract.contractName +
     '.json');
   const abi = contractJson.abi;
-
-  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
 
   const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
@@ -467,7 +464,6 @@ exports.create = async function (req, res) {
     }
 
     const networkName = hre.network.name;
-    console.log('CURRENT NETWORK: ', networkName);
 
     const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
@@ -963,6 +959,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
@@ -978,6 +975,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
