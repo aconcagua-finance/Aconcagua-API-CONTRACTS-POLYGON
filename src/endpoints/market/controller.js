@@ -56,6 +56,7 @@ const {
 } = require('../baseEndpoint');
 const {
   ALCHEMY_API_KEY,
+  HARDHAT_API_URL,
   PROVIDER_NETWORK_NAME,
   QUOTER2_CONTRACT_ADDRESS,
   COINGECKO_URL,
