@@ -76,7 +76,8 @@ const getUniswapQuotes = async (tokens) => {
 
 const getUniSmartRouterQuotes = async (quoteAmounts) => {
   // Provider
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde smart router');
 
   // Router Instance
@@ -114,7 +115,8 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
 const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
   // Router contract
