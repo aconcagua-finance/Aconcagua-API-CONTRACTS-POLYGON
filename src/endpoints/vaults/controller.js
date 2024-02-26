@@ -76,6 +76,7 @@ const {
   SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
+  HARDHAT_API_URL,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
@@ -402,7 +403,6 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
 
 const deployContract = async (contractName, args = null) => {
   if (!contractName) return null;
-
   const contract = await hre.ethers.getContractFactory(contractName);
   let deploymentResponse;
 
@@ -430,9 +430,8 @@ const getDeployedContract = (vault) => {
     '.json');
   const abi = contractJson.abi;
 
-  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
   // Get the deployed contract.
@@ -467,7 +466,6 @@ exports.create = async function (req, res) {
     }
 
     const networkName = hre.network.name;
-    console.log('CURRENT NETWORK: ', networkName);
 
     const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
@@ -506,11 +504,16 @@ exports.create = async function (req, res) {
     const colateralAbi = contractJson.abi;
 
     // aca michel
+    console.log('Hola la API URL ES ', HARDHAT_API_URL);
     console.log('Instanciando alchemy provider with: ' + PROVIDER_NETWORK_NAME);
+    /*
     const alchemy = new hre.ethers.providers.AlchemyProvider(
       PROVIDER_NETWORK_NAME,
       ALCHEMY_API_KEY
     );
+    */
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+    console.log('Wallet');
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
     const colateralBlockchainContract = new hre.ethers.Contract(
@@ -963,6 +966,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
@@ -978,6 +982,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
@@ -2079,10 +2084,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       vault.contractName +
       '.json');
     const abi = contractJson.abi;
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
+    // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
@@ -2326,10 +2329,8 @@ exports.createSafeAccount = async (req, res) => {
     }
 
     // Init
-    const provider = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
+    // const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME,ALCHEMY_API_KEY);
+    const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerOwnerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
 
     const ethAdapterDeployer = new EthersAdapter({
