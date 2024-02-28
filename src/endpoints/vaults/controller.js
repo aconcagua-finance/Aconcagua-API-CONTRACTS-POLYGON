@@ -765,10 +765,11 @@ exports.getVaultBalances = async function (req, res) {
     //   { currency: 'usd', value: 0.1, balance: 0.1, isValuation: true },
     //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
     // ]
-    console.log('ENTRO A getVaultBalances' + id);
+    console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
-
     const allBalances = await fetchVaultBalances(vault);
+    console.log('La vault que estoy procesando es');
+    console.log(vault);
 
     // actualizo
     await updateSingleItem({
