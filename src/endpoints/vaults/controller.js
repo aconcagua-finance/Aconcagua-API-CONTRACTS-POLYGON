@@ -1848,6 +1848,7 @@ const sendCreateEmails = async (vault) => {
 
 const getVaultLimits = (vault, ratios) => {
   console.log(`Obtengo límites para vault ${vault.id}`);
+  console.log('Los ratios son ', ratios);
   // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
   const notificationLimit = vault.balances.reduce((limit, bal) => {
     if (!bal.isValuation) {
@@ -1892,6 +1893,7 @@ exports.findVaultsLimitsByUser = async (req, res) => {
   if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
 
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
+  console.log('tokens', tokens);
 
   try {
     const result = await listByPropInner({
