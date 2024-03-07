@@ -64,7 +64,11 @@ echo "COINGECKO_URL="${COINGECKO_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
 echo "API_PATH_QUOTES="${API_PATH_QUOTES} >> .env
 
-firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
-#firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
+# Set Credentials
+echo "${FIREBASE_SERVICE_ACCOUNT_KEY}" > /tmp/serviceAccountKey.json
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceAccountKey.json
+echo "Deploy proyecto $FIREB_PROJECT_ID"
+
+firebase deploy --project $FIREB_PROJECT_ID --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
 
 echo "deploy complete!"
