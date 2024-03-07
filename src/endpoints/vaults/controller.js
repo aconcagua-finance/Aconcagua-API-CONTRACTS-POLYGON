@@ -765,10 +765,11 @@ exports.getVaultBalances = async function (req, res) {
     //   { currency: 'usd', value: 0.1, balance: 0.1, isValuation: true },
     //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
     // ]
-    console.log('ENTRO A getVaultBalances' + id);
+    console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
-
     const allBalances = await fetchVaultBalances(vault);
+    console.log('La vault que estoy procesando es');
+    console.log(vault);
 
     // actualizo
     await updateSingleItem({
@@ -1847,6 +1848,7 @@ const sendCreateEmails = async (vault) => {
 
 const getVaultLimits = (vault, ratios) => {
   console.log(`Obtengo límites para vault ${vault.id}`);
+  console.log('Los ratios son ', ratios);
   // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
   const notificationLimit = vault.balances.reduce((limit, bal) => {
     if (!bal.isValuation) {
@@ -1891,6 +1893,7 @@ exports.findVaultsLimitsByUser = async (req, res) => {
   if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
 
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
+  console.log('tokens', tokens);
 
   try {
     const result = await listByPropInner({
