@@ -209,17 +209,6 @@ const getCoingeckoQuotes = async (tokens) => {
 
 const getBinanceQuotes = async (tokens) => {
   console.log(`LLamada quotes Binances`);
-  const apiResponse = await invoke_get_api({
-    endpoint: `${BINANCE_URL}/ticker/price`,
-  });
-  if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
-    throw new CustomError.TechnicalError(
-      'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
-      null,
-      `Respuesta inválida del servicio de valuacion Binance`,
-      null
-    );
-  }
 
   // TODO: Refactor config file
   const provider = 'binance';
@@ -230,6 +219,20 @@ const getBinanceQuotes = async (tokens) => {
     const symbol = token.toUpperCase();
     if (Object.prototype.hasOwnProperty.call(BinanceTypes, symbol)) {
       const pair = BinanceTypes[symbol];
+      // MRM Busco cada token
+      const apiResponse = await invoke_get_api({
+        endpoint: `${BINANCE_URL}/ticker/price?symbol=${pair}`,
+      });
+      if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
+        throw new CustomError.TechnicalError(
+          'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
+          null,
+          `Respuesta inválida del servicio de valuacion Binance para ${pair}`,
+          null
+        );
+      }
+      //
+
       const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
       quotes[token] = Number(quote.price);
       console.log(`Quote Binance para token ${symbol}: ${quote.price}`);
