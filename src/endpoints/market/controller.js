@@ -223,14 +223,10 @@ const getBinanceQuotes = async (tokens) => {
     if (Object.prototype.hasOwnProperty.call(BinanceTypes, symbol)) {
       const pair = BinanceTypes[symbol];
       // MRM Busco cada token
-
-      https://api.kraken.com/0/public/Ticker?pair=BTCUSDT
-
       const apiResponse = await invoke_get_api({
         endpoint: `https://api.kraken.com/0/public/Ticker?pair=BTCUSDT`,
-       });
-      
-      
+      });
+
       // const apiResponse = await invoke_get_api({
       //   endpoint: `${BINANCE_URL}/ticker/price?symbol=${pair}`,
       // });
