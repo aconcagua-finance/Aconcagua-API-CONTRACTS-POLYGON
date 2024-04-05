@@ -388,6 +388,7 @@ const evaluateQuotations = async (quotations) => {
 exports.getTokensQuotes = async function (req, res) {
   try {
     // Consulto las cotizaciones
+    console.log('getTokenQuotes con quoteaAmounts ', quoteAmounts);
     const quotations = await getQuotations(quoteAmounts);
 
     // Evaluo las cotizaciones y notifico.
