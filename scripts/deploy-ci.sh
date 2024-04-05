@@ -43,8 +43,9 @@ echo "POLYGONSCAN_API_KEY="${POLYGONSCAN_API_KEY} >> .env
 echo "ETHERSCAN_API_KEY="${ETHERSCAN_API_KEY} >> .env
 echo "USDC_TOKEN_ADDRESS="${USDC_TOKEN_ADDRESS} >> .env
 echo "USDT_TOKEN_ADDRESS="${USDT_TOKEN_ADDRESS} >> .env
+echo "USDM_TOKEN_ADDRESS="${USDM_TOKEN_ADDRESS} >> .env
 echo "WBTC_TOKEN_ADDRESS="${WBTC_TOKEN_ADDRESS} >> .env
-echo "WETH_TOKEN_ADDRESS="${WETH_TOKEN_ADDRESS} >> .env
+#echo "WETH_TOKEN_ADDRESS="${WETH_TOKEN_ADDRESS} >> .env
 echo "QUOTER2_CONTRACT_ADDRESS="${QUOTER2_CONTRACT_ADDRESS} >> .env
 echo "SWAP_ROUTER_V3_ADDRESS="${SWAP_ROUTER_V3_ADDRESS} >> .env
 echo "SWAPPER_ADDRESS="${SWAPPER_ADDRESS} >> .env
@@ -63,7 +64,11 @@ echo "COINGECKO_URL="${COINGECKO_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
 echo "API_PATH_QUOTES="${API_PATH_QUOTES} >> .env
 
-firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
-#firebase deploy --project $FIREB_PROJECT_ID --token "$FIREBASE_TOKEN" --only functions
+# Set Credentials
+echo "${FIREBASE_SERVICE_ACCOUNT_KEY}" > /tmp/serviceAccountKey.json
+export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceAccountKey.json
+echo "Deploy proyecto $FIREB_PROJECT_ID"
+
+firebase deploy --project $FIREB_PROJECT_ID --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
 
 echo "deploy complete!"

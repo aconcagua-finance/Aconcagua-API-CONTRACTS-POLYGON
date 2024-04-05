@@ -2,8 +2,8 @@ const { readFileSync, existsSync } = require('fs');
 const { parse } = require('dotenv');
 
 require('@nomiclabs/hardhat-waffle');
-// require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
-// require('dotenv').config();
+require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
+require('dotenv').config();
 
 /*
 import { config as dotEnvConfig } from 'dotenv'
@@ -92,11 +92,7 @@ module.exports = {
     apiKey: {
       // ethereum
       mainnet: ETHERSCAN_API_KEY,
-      ropsten: ETHERSCAN_API_KEY,
-      rinkeby: ETHERSCAN_API_KEY,
-      goerli: ETHERSCAN_API_KEY,
-      kovan: ETHERSCAN_API_KEY,
-
+      sepolia: ETHERSCAN_API_KEY,
       // polygon
       polygon: POLYGONSCAN_API_KEY,
       polygonMumbai: POLYGONSCAN_API_KEY,

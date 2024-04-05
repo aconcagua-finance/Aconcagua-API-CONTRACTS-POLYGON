@@ -7,12 +7,12 @@ const {
   PROVIDER_NETWORK_NAME,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
-  WETH_TOKEN_ADDRESS,
 } = require('./appConfig');
 
 export const chainId =
-  PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.GOERLI;
+  PROVIDER_NETWORK_NAME === 'matic' ? SupportedChainId.POLYGON : SupportedChainId.SEPOLIA;
 
 export const swapOptions = {
   recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
@@ -30,13 +30,13 @@ export const quoteAmounts = {
 
 // Supported tokens
 export const tokens = {
-  weth: new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ethereum'),
   wbtc: new Token(chainId, WBTC_TOKEN_ADDRESS, 8, 'wbtc', 'Wrapped Bitcoin'),
 };
 
 export const stableCoins = {
   usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
+  usdm: new Token(chainId, USDM_TOKEN_ADDRESS, 6, 'usdm', 'USD Mountain'),
 };
 
 // TokenOut: quotations and swaps depending on paths relies on.
@@ -46,22 +46,13 @@ export const staticPaths =
   PROVIDER_NETWORK_NAME === 'matic'
     ? {
         // Prod
-        weth: {
-          tokens: [tokens.weth.address, tokenOut.address],
-          fees: [FeeAmount.LOW],
-        },
         wbtc: {
-          tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
+          tokens: [tokens.wbtc.address, tokenOut.address],
           fees: [FeeAmount.LOW, FeeAmount.LOW],
         },
       }
     : {
         // Catedral
-        weth: {
-          // Se prueba con hop en USDT
-          tokens: [tokens.weth.address, stableCoins.usdt.address, tokenOut.address],
-          fees: [FeeAmount.MEDIUM, FeeAmount.MEDIUM],
-        },
         wbtc: {
           tokens: [tokens.wbtc.address, tokenOut.address],
           fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli

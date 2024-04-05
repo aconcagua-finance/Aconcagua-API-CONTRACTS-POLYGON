@@ -76,10 +76,11 @@ const {
   SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
+  HARDHAT_API_URL,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
+  USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
-  WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
   QUOTER2_CONTRACT_ADDRESS,
@@ -402,7 +403,6 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
 
 const deployContract = async (contractName, args = null) => {
   if (!contractName) return null;
-
   const contract = await hre.ethers.getContractFactory(contractName);
   let deploymentResponse;
 
@@ -430,9 +430,8 @@ const getDeployedContract = (vault) => {
     '.json');
   const abi = contractJson.abi;
 
-  console.log('CURRENT NETWORK: ', PROVIDER_NETWORK_NAME);
-
-  const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
   // Get the deployed contract.
@@ -467,7 +466,6 @@ exports.create = async function (req, res) {
     }
 
     const networkName = hre.network.name;
-    console.log('CURRENT NETWORK: ', networkName);
 
     const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
@@ -506,11 +504,16 @@ exports.create = async function (req, res) {
     const colateralAbi = contractJson.abi;
 
     // aca michel
+    console.log('Hola la API URL ES ', HARDHAT_API_URL);
     console.log('Instanciando alchemy provider with: ' + PROVIDER_NETWORK_NAME);
+    /*
     const alchemy = new hre.ethers.providers.AlchemyProvider(
       PROVIDER_NETWORK_NAME,
       ALCHEMY_API_KEY
     );
+    */
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+    console.log('Wallet');
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
     const colateralBlockchainContract = new hre.ethers.Contract(
@@ -523,8 +526,8 @@ exports.create = async function (req, res) {
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
+      USDM_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS,
 
       operators,
 
@@ -698,12 +701,12 @@ const fetchVaultBalances = async (vault) => {
       balance: parseFloat(Utils.formatUnits(contractBalances[2], 6)), // 6 decimales
     },
     {
-      currency: Types.CurrencyTypes.WBTC,
-      balance: parseFloat(Utils.formatUnits(contractBalances[3], 8)), // 8 decimales
+      currency: Types.CurrencyTypes.USDM,
+      balance: parseFloat(Utils.formatUnits(contractBalances[3], 18)), // 18 decimales
     },
     {
-      currency: Types.CurrencyTypes.WETH,
-      balance: parseFloat(Utils.formatEther(contractBalances[4])), // 18 decimales
+      currency: Types.CurrencyTypes.WBTC,
+      balance: parseFloat(Utils.formatUnits(contractBalances[4], 8)), // 8 decimales
     },
   ];
 
@@ -762,10 +765,11 @@ exports.getVaultBalances = async function (req, res) {
     //   { currency: 'usd', value: 0.1, balance: 0.1, isValuation: true },
     //   { currency: 'ars', value: 30, balance: 30, isValuation: true },
     // ]
-    console.log('ENTRO A getVaultBalances' + id);
+    console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
-
     const allBalances = await fetchVaultBalances(vault);
+    console.log('La vault que estoy procesando es');
+    console.log(vault);
 
     // actualizo
     await updateSingleItem({
@@ -888,6 +892,8 @@ exports.withdraw = async function (req, res) {
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
@@ -906,14 +912,14 @@ exports.withdraw = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
+    } else if (token === Types.CurrencyTypes.USDM) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'USDM', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.withdraw(ethAmount, 'WETH', {
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -961,6 +967,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
@@ -976,6 +983,7 @@ exports.withdraw = async function (req, res) {
           vaultId: id,
           lender: lender.name,
           value: withdrawInARS,
+          vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
         },
       },
@@ -1100,6 +1108,8 @@ exports.rescue = async function (req, res) {
     const ethAmount =
       token === Types.CurrencyTypes.USDT || token === Types.CurrencyTypes.USDC
         ? Utils.parseUnits(amount, 6)
+        : token === Types.CurrencyTypes.USDM
+        ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
         : Utils.parseEther(amount);
@@ -1118,14 +1128,14 @@ exports.rescue = async function (req, res) {
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WBTC) {
-      const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
+    } else if (token === Types.CurrencyTypes.USDM) {
+      const wd = await blockchainContract.rescue(ethAmount, 'USDM', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
       await wd.wait();
-    } else if (token === Types.CurrencyTypes.WETH) {
-      const wd = await blockchainContract.rescue(ethAmount, 'WETH', {
+    } else if (token === Types.CurrencyTypes.WBTC) {
+      const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1167,10 +1177,10 @@ exports.rescue = async function (req, res) {
       currency = 'USDC';
     } else if (token === Types.CurrencyTypes.USDT) {
       currency = 'USDT';
+    } else if (token === Types.CurrencyTypes.USDM) {
+      currency = 'USDM';
     } else if (token === Types.CurrencyTypes.WBTC) {
       currency = 'WBTC';
-    } else if (token === Types.CurrencyTypes.WETH) {
-      currency = 'WETH';
     }
 
     await EmailSender.send({
@@ -1838,6 +1848,7 @@ const sendCreateEmails = async (vault) => {
 
 const getVaultLimits = (vault, ratios) => {
   console.log(`Obtengo límites para vault ${vault.id}`);
+  console.log('Los ratios son ', ratios);
   // Sumo el balance en ARS de cada token multiplicado por su actionType's ratio, en cada uno de los balances que no sea valuación
   const notificationLimit = vault.balances.reduce((limit, bal) => {
     if (!bal.isValuation) {
@@ -1882,6 +1893,7 @@ exports.findVaultsLimitsByUser = async (req, res) => {
   if (!filters.state) filters.state = { $equal: Types.StateTypes.STATE_ACTIVE };
 
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
+  console.log('tokens', tokens);
 
   try {
     const result = await listByPropInner({
@@ -2075,10 +2087,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       vault.contractName +
       '.json');
     const abi = contractJson.abi;
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
+    // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
@@ -2322,10 +2332,8 @@ exports.createSafeAccount = async (req, res) => {
     }
 
     // Init
-    const provider = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
+    // const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME,ALCHEMY_API_KEY);
+    const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerOwnerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
 
     const ethAdapterDeployer = new EthersAdapter({
