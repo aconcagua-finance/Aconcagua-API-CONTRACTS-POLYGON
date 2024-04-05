@@ -223,6 +223,10 @@ const getKrakenQuotes = async (tokens) => {
     if (Object.prototype.hasOwnProperty.call(KrakenTypes, symbol)) {
       const pair = KrakenTypes[symbol];
       // MRM Busco cada token
+      console.log('tokens es '.tokens);
+      console.log('pair es '.pair);
+      console.log('KRAKEN_URL es '.KRAKEN_URL);
+
       const apiResponse = await invoke_get_api({
         endpoint: `${KRAKEN_URL}/Ticker?pair=${pair}`,
       });
