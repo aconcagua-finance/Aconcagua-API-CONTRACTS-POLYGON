@@ -226,6 +226,9 @@ const getBinanceQuotes = async (tokens) => {
       const apiResponse = await invoke_get_api({
         endpoint: `${BINANCE_URL}/ticker/price?symbol=${pair}`,
       });
+
+      console.log('Binance Quote apiResponse es ', apiResponse);
+
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
           'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
@@ -234,11 +237,11 @@ const getBinanceQuotes = async (tokens) => {
           null
         );
       }
-      //
-      console.log('Binance Quote apiResponse es ', apiResponse);
 
-      const quote = apiResponse.price;
+      const apiResponseJSON = JSON.parse(apiResponse);
+      const quote = apiResponseJSON.price;
       quotes[symbol] = Number(quote);
+
       console.log(`Quote Binance para token ${symbol}: ${quote}`);
     } else {
       console.log(`Token ${symbol} no posee configuración Binance para quotear.`);
