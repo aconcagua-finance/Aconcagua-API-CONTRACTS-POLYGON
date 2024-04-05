@@ -114,9 +114,9 @@ exports.invoke_get_api = async function ({ endpoint, noTrace }) {
     // Calculate the difference in milliseconds
     const difference_ms = new Date().getTime() - traceStart.getTime();
 
-    const isErrorResponse = !result || !result.data;
-
     // MRM a ver si la mierda de Binance no funciona porque no trae status
+    // const isErrorResponse = !result || !result.data;
+
     // const responseStatusCode = result && result.status ? result.status : '400';
     const responseStatusCode = result ? result.status : '400';
 
