@@ -43,7 +43,6 @@ const {
   findWithRelationship,
   getWithRelationshipById,
   MULTIPLE_RELATIONSHIP_SUFFIX,
-
   findWithUserRelationship,
   getWithUserRelationshipById,
   listByProp,
@@ -211,7 +210,10 @@ const getCoingeckoQuotes = async (tokens) => {
 };
 
 const getKrakenQuotes = async (tokens) => {
-  console.log(`LLamada quotes Kraken`);
+  console.log(`getKrakenQuotes LLamada quotes Kraken`);
+  console.log(`getKrakenQuotes KRAKEN_URL es ${KRAKEN_URL}`);
+  console.log(`getKrakenQuotes COINGECKO_URL es ${COINGECKO_URL}`);
+  console.log('getKrakenQuotes tokens es ', tokens);
 
   // TODO: Refactor config file
   const provider = 'kraken';
@@ -223,9 +225,6 @@ const getKrakenQuotes = async (tokens) => {
     if (Object.prototype.hasOwnProperty.call(KrakenTypes, symbol)) {
       const pair = KrakenTypes[symbol];
       // MRM Busco cada token
-      console.log('tokens es ', tokens);
-      console.log('pair es ', pair);
-      console.log('KRAKEN_URL es ', KRAKEN_URL);
 
       const apiResponse = await invoke_get_api({
         endpoint: `${KRAKEN_URL}/Ticker?pair=${pair}`,
