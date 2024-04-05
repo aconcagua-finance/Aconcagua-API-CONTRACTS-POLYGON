@@ -15,7 +15,7 @@ const { encodePath } = require('../../helpers/uniswapHelper');
 const { ErrorHelper, LoggerHelper, EmailSender } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
-const { BinanceTypes } = require('../../types/binanceTypes');
+const { KrakenTypes } = require('../../types/krakenTypes');
 const { CoingeckoTypes } = require('../../types/coingeckoTypes');
 const { TokenTypes } = require('../../types/tokenTypes');
 const { Collections } = require('../../types/collectionsTypes');
@@ -60,7 +60,7 @@ const {
   PROVIDER_NETWORK_NAME,
   QUOTER2_CONTRACT_ADDRESS,
   COINGECKO_URL,
-  BINANCE_URL,
+  KRAKEN_URL,
 } = require('../../config/appConfig');
 
 const getUniswapQuotes = async (tokens) => {
@@ -210,45 +210,40 @@ const getCoingeckoQuotes = async (tokens) => {
   return result;
 };
 
-const getBinanceQuotes = async (tokens) => {
-  console.log(`LLamada quotes Binances`);
+const getKrakenQuotes = async (tokens) => {
+  console.log(`LLamada quotes Kraken`);
 
   // TODO: Refactor config file
-  const provider = 'binance';
+  const provider = 'kraken';
   const quotes = {};
 
   const tokensSymbols = Object.keys(tokens);
   for (const token of tokensSymbols) {
     const symbol = token.toUpperCase();
-    if (Object.prototype.hasOwnProperty.call(BinanceTypes, symbol)) {
-      const pair = BinanceTypes[symbol];
+    if (Object.prototype.hasOwnProperty.call(KrakenTypes, symbol)) {
+      const pair = KrakenTypes[symbol];
       // MRM Busco cada token
       const apiResponse = await invoke_get_api({
-        endpoint: `https://api.kraken.com/0/public/Ticker?pair=BTCUSDT`,
+        endpoint: `${KRAKEN_URL}/Ticker?pair=${pair}`,
       });
 
-      // const apiResponse = await invoke_get_api({
-      //   endpoint: `${BINANCE_URL}/ticker/price?symbol=${pair}`,
-      // });
-
-      console.log('Binance Quote apiResponse es ', apiResponse);
+      console.log('Kraken Quote apiResponse es ', apiResponse);
 
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
-          'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
+          'ERROR_KRAKEN_QUOTES_INVALID_RESPONSE',
           null,
-          `Respuesta inválida del servicio de valuacion Binance para ${pair}`,
+          `Respuesta inválida del servicio de valuacion Kraken para ${pair}`,
           null
         );
       }
 
-      const apiResponseJSON = JSON.parse(apiResponse);
-      const quote = apiResponseJSON.price;
+      const quote = parseFloat(apiResponse.result[symbol].c[0]);
       quotes[symbol] = Number(quote);
 
-      console.log(`Quote Binance para token ${symbol}: ${quote}`);
+      console.log(`Quote Kraken para token ${symbol}: ${quote}`);
     } else {
-      console.log(`Token ${symbol} no posee configuración Binance para quotear.`);
+      console.log(`Token ${symbol} no posee configuración Kraken para quotear.`);
     }
   }
 
@@ -271,7 +266,7 @@ const getQuotations = async (quoteAmounts) => {
   const providers = [
     { name: 'Uniswap', getQuotes: getUniswapQuotes },
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
-    { name: 'Binance', getQuotes: getBinanceQuotes },
+    { name: 'Kraken', getQuotes: getKrakenQuotes },
   ];
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
@@ -343,11 +338,11 @@ const sendNotificationsEmails = async (emailMsgs) => {
 };
 
 const evaluateQuotations = async (quotations) => {
-  const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
+  const { uniswap: uniswapQuotes, kraken: krakenQuotes, coingecko: coingeckoQuotes } = quotations;
   const emailMsgs = [];
   console.log(`Evalúo cotizaciones solicitadas`);
   // Si hay al menos una fuente centralizada se evalua
-  if (coingeckoQuotes || binanceQuotes) {
+  if (coingeckoQuotes || krakenQuotes) {
     const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
 
     for (const token in TokenTypes) {
@@ -355,15 +350,15 @@ const evaluateQuotations = async (quotations) => {
         const symbol = TokenTypes[token];
 
         // Calculo las diferencias entre Uniswap y las centralizadas.
-        const uniXBinanceDiffPercent = binanceQuotes
-          ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1).toFixed(3) * 100
+        const uniXKrakenDiffPercent = krakenQuotes
+          ? (uniswapQuotes[symbol] / krakenQuotes[symbol] - 1).toFixed(3) * 100
           : null;
         const uniXCoingeckoDiffPercent = coingeckoQuotes
           ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1).toFixed(3) * 100
           : null;
 
         // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces armo msg de mail.
-        if (uniXBinanceDiffPercent == null || uniXBinanceDiffPercent <= DIFF_THRESHOLD_PERCENT) {
+        if (uniXKrakenDiffPercent == null || uniXKrakenDiffPercent <= DIFF_THRESHOLD_PERCENT) {
           if (
             uniXCoingeckoDiffPercent == null ||
             uniXCoingeckoDiffPercent <= DIFF_THRESHOLD_PERCENT
@@ -371,8 +366,8 @@ const evaluateQuotations = async (quotations) => {
             const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD_PERCENT}%\nUniswap: $${
               uniswapQuotes[symbol]
             }\n${
-              uniXBinanceDiffPercent
-                ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinanceDiffPercent}% diff`
+              uniXKrakenDiffPercent
+                ? `Kraken: $${krakenQuotes[symbol]}, ${uniXKrakenDiffPercent}% diff`
                 : null
             }\n${
               uniXCoingeckoDiffPercent
