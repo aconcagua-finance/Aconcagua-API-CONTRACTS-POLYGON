@@ -50,6 +50,7 @@ env:
   GAS_STATION_URL: 'https://gasstation-mumbai.matic.today/v2'
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
   BINANCE_URL: 'https://api.binance.com/api/v3'
+  KRAKEN_URL: 'https://api.kraken.com/0/public'
   API_PATH_QUOTES: 'http://us-central1-lanin-6339b.cloudfunctions.net/market/pathQuotes'
 
 jobs:
