@@ -5,6 +5,8 @@ name: On tag created - Firebase deploy QA
 
 on:
   push:
+    branches:
+      - catedral
     tags:
       - rc*
 
