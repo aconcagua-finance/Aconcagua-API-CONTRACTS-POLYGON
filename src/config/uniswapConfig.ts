@@ -24,7 +24,7 @@ export const swapOptions = {
 
 // Default quotes
 export const quoteAmounts = {
-  weth: 10,
+  eth: 10,
   wbtc: 2,
 };
 
