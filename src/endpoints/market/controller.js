@@ -183,6 +183,9 @@ const getCoingeckoQuotes = async (tokens) => {
       const apiResponse = await invoke_get_api({
         endpoint: `${COINGECKO_URL}/simple/price?ids=${type}&vs_currencies=usd`,
       });
+
+      console.log('Coingecko Quote apiResponse es ', apiResponse);
+
       if (!apiResponse.data[type]) {
         throw new CustomError.TechnicalError(
           'ERROR_COINGECKO_QUOTES_INVALID_RESPONSE',
@@ -232,10 +235,11 @@ const getBinanceQuotes = async (tokens) => {
         );
       }
       //
+      console.log('Binance Quote apiResponse es ', apiResponse);
 
-      const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
-      quotes[token] = Number(quote.price);
-      console.log(`Quote Binance para token ${symbol}: ${quote.price}`);
+      const quote = apiResponse.price;
+      quotes[symbol] = Number(quote);
+      console.log(`Quote Binance para token ${symbol}: ${quote}`);
     } else {
       console.log(`Token ${symbol} no posee configuración Binance para quotear.`);
     }
