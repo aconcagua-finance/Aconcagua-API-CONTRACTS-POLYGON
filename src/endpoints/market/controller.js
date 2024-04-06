@@ -212,7 +212,6 @@ const getCoingeckoQuotes = async (tokens) => {
 const getKrakenQuotes = async (tokens) => {
   console.log(`getKrakenQuotes LLamada quotes Kraken`);
   console.log(`getKrakenQuotes KRAKEN_URL es ${KRAKEN_URL}`);
-  console.log(`getKrakenQuotes COINGECKO_URL es ${COINGECKO_URL}`);
   console.log('getKrakenQuotes tokens es ', tokens);
 
   // TODO: Refactor config file
@@ -230,7 +229,7 @@ const getKrakenQuotes = async (tokens) => {
         endpoint: `${KRAKEN_URL}/Ticker?pair=${pair}`,
       });
 
-      console.log('Kraken Quote apiResponse es ', apiResponse);
+      console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
 
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
@@ -244,9 +243,9 @@ const getKrakenQuotes = async (tokens) => {
       const quote = parseFloat(apiResponse.result[symbol].c[0]);
       quotes[symbol] = Number(quote);
 
-      console.log(`Quote Kraken para token ${symbol}: ${quote}`);
+      console.log(`getKrakenQuotes Quote Kraken para token ${symbol}: ${quote}`);
     } else {
-      console.log(`Token ${symbol} no posee configuración Kraken para quotear.`);
+      console.log(`getKrakenQuotes Token ${symbol} no posee configuración Kraken para quotear.`);
     }
   }
 
