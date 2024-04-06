@@ -232,7 +232,7 @@ const getKrakenQuotes = async (tokens) => {
       console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
 
       console.log(
-        'getKrakenQuotes Kraken Quote apiResponse.result.WBTCUSD.c[0]  es ',
+        'getKrakenQuotes Kraken Quote apiResponse.result.WBTCUSD.c[0] es ',
         apiResponse.result.WBTCUSD.c[0]
       );
 
@@ -245,7 +245,7 @@ const getKrakenQuotes = async (tokens) => {
         );
       }
 
-      const quote = parseFloat(apiResponse.result[pair].c[0]);
+      const quote = parseFloat(apiResponse.result.WBTCUSD.c[0]);
       quotes[symbol] = Number(quote);
 
       console.log(`getKrakenQuotes Quote Kraken para token ${symbol}: ${quote}`);
