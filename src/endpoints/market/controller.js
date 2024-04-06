@@ -231,10 +231,7 @@ const getKrakenQuotes = async (tokens) => {
 
       console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
 
-      console.log(
-        'getKrakenQuotes Kraken Quote apiResponse.result.WBTCUSD.c[0] es ',
-        apiResponse.result.WBTCUSD.c[0]
-      );
+      console.log('getKrakenQuotes Kraken Quote apiResponse.result es ', apiResponse.result);
 
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
