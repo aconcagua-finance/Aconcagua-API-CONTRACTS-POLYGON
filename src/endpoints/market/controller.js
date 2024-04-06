@@ -116,11 +116,16 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
   // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
   // Router contract
+  console.log('QUOTER2_CONTRACT_ADDRESS es ', QUOTER2_CONTRACT_ADDRESS);
+  console.log('Quoter2ABI es ', Quoter2ABI);
+
   const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+  console.log('quoter2Contract es ', quoter2Contract);
 
   // Quote data
   const quotes = {};
@@ -232,8 +237,8 @@ const getKrakenQuotes = async (tokens) => {
       console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
 
       console.log(
-        'getKrakenQuotes Kraken Quote apiResponse.data.result.WBTCUSD.c[0] es ',
-        apiResponse.data.result.WBTCUSD.c[0]
+        'getKrakenQuotes Kraken Quote apiResponse.data.result[pair].c[0] es ',
+        apiResponse.data.result[pair].c[0]
       );
 
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
@@ -245,7 +250,7 @@ const getKrakenQuotes = async (tokens) => {
         );
       }
 
-      const quote = parseFloat(apiResponse.data.result.WBTCUSD.c[0]);
+      const quote = parseFloat(apiResponse.data.result[pair].c[0]);
       quotes[symbol] = Number(quote);
 
       console.log(`getKrakenQuotes Quote Kraken para token ${symbol}: ${quote}`);
