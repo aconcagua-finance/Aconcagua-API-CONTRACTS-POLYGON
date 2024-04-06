@@ -121,8 +121,8 @@ const getUniPathQuotes = async (quoteAmounts) => {
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
   // Router contract
-  console.log('QUOTER2_CONTRACT_ADDRESS es ', QUOTER2_CONTRACT_ADDRESS);
-  console.log('Quoter2ABI es ', Quoter2ABI);
+  // console.log('QUOTER2_CONTRACT_ADDRESS es ', QUOTER2_CONTRACT_ADDRESS);
+  // console.log('Quoter2ABI es ', Quoter2ABI);
 
   const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
   console.log('quoter2Contract es ', quoter2Contract);
@@ -138,6 +138,8 @@ const getUniPathQuotes = async (quoteAmounts) => {
 
     console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
+    console.log('quoter2Result es ', quoter2Result);
+
     const quotation = Number(
       (
         Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
