@@ -231,7 +231,10 @@ const getKrakenQuotes = async (tokens) => {
 
       console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
 
-      console.log('getKrakenQuotes Kraken Quote apiResponse.result es ', apiResponse.result);
+      console.log(
+        'getKrakenQuotes Kraken Quote apiResponse.data.result.WBTCUSD.c[0] es ',
+        apiResponse.data.result.WBTCUSD.c[0]
+      );
 
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
@@ -242,7 +245,7 @@ const getKrakenQuotes = async (tokens) => {
         );
       }
 
-      const quote = parseFloat(apiResponse.result.WBTCUSD.c[0]);
+      const quote = parseFloat(apiResponse.data.result.WBTCUSD.c[0]);
       quotes[symbol] = Number(quote);
 
       console.log(`getKrakenQuotes Quote Kraken para token ${symbol}: ${quote}`);
