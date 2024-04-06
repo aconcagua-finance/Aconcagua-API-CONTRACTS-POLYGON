@@ -61,6 +61,7 @@ echo "ALIQ2_ADDRESS="${ALIQ2_ADDRESS} >> .env
 
 echo "GAS_STATION_URL="${GAS_STATION_URL} >> .env
 echo "COINGECKO_URL="${COINGECKO_URL} >> .env
+echo "KRAKEN_URL="${KRAKEN_URL} >> .env
 echo "BINANCE_URL="${BINANCE_URL} >> .env
 echo "API_PATH_QUOTES="${API_PATH_QUOTES} >> .env
 
