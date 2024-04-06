@@ -134,8 +134,9 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
+    console.log('encodedPath es ', encodedPath);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
-
+    console.log('amountIn es ', amountIn);
     console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
     console.log('quoter2Result es ', quoter2Result);
