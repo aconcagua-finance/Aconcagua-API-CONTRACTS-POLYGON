@@ -650,8 +650,6 @@ const getGasPrice = async (provider) => {
   const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
 
   console.log('Estimación de gas de Alchemy');
-  let maxFeePerGasAlchemy = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
-  let maxPriorityFeePerGasAlchemy = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
 
   provider.getGasPrice().then((maxFeePerGasAlchemy) => {
     console.log(`Current gas price: ${maxFeePerGasAlchemy}`);
