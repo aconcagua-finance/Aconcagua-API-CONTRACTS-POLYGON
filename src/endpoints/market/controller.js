@@ -125,7 +125,6 @@ const getUniPathQuotes = async (quoteAmounts) => {
   // console.log('Quoter2ABI es ', Quoter2ABI);
 
   const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
-  console.log('quoter2Contract es ', quoter2Contract);
 
   // Quote data
   const quotes = {};
