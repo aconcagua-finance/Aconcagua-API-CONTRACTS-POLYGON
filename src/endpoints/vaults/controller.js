@@ -2092,7 +2092,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     // V1 internal swap function.
     console.log(`Entro a swapVaultExactInputs`);
     console.log(`swapVaultExactInputs - vault ${vault}`);
-    console.log(`swapVaultExactInputs - swapsParams[0].path ${swapsParams[0].path}`);
+    console.log(`swapVaultExactInputs - JSON.stringify(swapsParams)`);
+    console.log(JSON.stringify(swapsParams));
 
     // Preparo contrato
     const contractJson = require('../../../artifacts/contracts/' +
@@ -2105,6 +2106,18 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
+
+    // Gas price
+    // MRM nuevo calculo de gas price
+    // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
+    const feeData = await alchemy.getFeeData();
+    const gasPrice = feeData.gasPrice;
+    const maxFeePerGas = feeData.maxFeePerGas;
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+    console.log(`gasPrice: ${gasPrice}`);
+    console.log(
+      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
+    );
 
     // Gas estimation
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
@@ -2120,22 +2133,13 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
     console.log(`swapVaultExactInputs - swapsGasEstimation: ${swapsGasEstimation}`);
 
-    const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams[0].path);
+    const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams, {
+      gasLimit,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+    });
     console.log(`swapVaultExactInputs - Listo estimateGas`);
-    // MRM nuevo calculo de gas
-    // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
-
-    const feeData = await alchemy.getFeeData();
-    const gasPrice = feeData.gasPrice;
-    const maxFeePerGas = feeData.maxFeePerGas;
-    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-
     console.log(`gasLimit: ${gasLimit}`);
-    console.log(`gasPrice: ${gasPrice}`);
-    console.log(
-      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
-    );
-    console.log(JSON.stringify(swapsParams));
 
     // Execute swaps.
     let swap;
