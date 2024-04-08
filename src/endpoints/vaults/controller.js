@@ -2091,7 +2091,6 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
   try {
     // V1 internal swap function.
     console.log(`Entro a swapVaultExactInputs`);
-    console.log(`swapVaultExactInputs - vault ${vault}`);
     console.log(`swapVaultExactInputs - JSON.stringify(swapsParams)`);
     console.log(JSON.stringify(swapsParams));
 
@@ -2122,30 +2121,21 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     // Gas estimation
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
-
     for (const swap of swapsParams) {
-      const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
-        swap.params.path,
-        swap.params.amountIn
-      );
+      const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swapsParams);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
-
     console.log(`swapVaultExactInputs - swapsGasEstimation: ${swapsGasEstimation}`);
 
-    const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams, {
-      gasLimit,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-    });
-    console.log(`swapVaultExactInputs - Listo estimateGas`);
-    console.log(`gasLimit: ${gasLimit}`);
+    // const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
+    // console.log(`swapVaultExactInputs - Listo estimateGas`);
+    // console.log(`gasLimit: ${gasLimit}`);
 
     // Execute swaps.
     let swap;
     try {
       swap = await blockchainContract.swapExactInputs(swapsParams, {
-        gasLimit,
+        swapsGasEstimation,
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
