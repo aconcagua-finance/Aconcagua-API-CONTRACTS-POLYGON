@@ -2115,12 +2115,21 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
 
-    console.log(`swapsGasEstimation: ${swapsGasEstimation}`);
+    console.log(`swapVaultExactInputs - swapsGasEstimation: ${swapsGasEstimation}`);
+    console.log(`swapVaultExactInputs - swapsParams: ${swapsParams}`);
 
     const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
-    const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
+    console.log(`swapVaultExactInputs - Listo estimateGas`);
+    // MRM nuevo calculo de gas
+    // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
+
+    const feeData = await alchemy.getFeeData();
+    const gasPrice = feeData.gasPrice;
+    const maxFeePerGas = feeData.maxFeePerGas;
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
 
     console.log(`gasLimit: ${gasLimit}`);
+    console.log(`gasPrice: ${gasPrice}`);
     console.log(
       `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
     );
