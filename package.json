@@ -84,6 +84,7 @@
     "hardhat-change-network": "0.0.7",
     "install": "^0.13.0",
     "joi": "^17.6.0",
+    "jsbi": "^4.3.0",
     "lodash": "^4.17.21",
     "memoize-one": "^6.0.0",
     "moment": "^2.29.1",
