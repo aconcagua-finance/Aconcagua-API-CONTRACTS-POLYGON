@@ -2199,10 +2199,6 @@ const buildSwapsParams = async (swapsData) => {
     );
   }
   const quotes = apiResponse.data;
-  console.log(
-    'buildSwapsParams - swap path is ',
-    encodePath(staticPaths[tokenIn.symbol].tokens, staticPaths[tokenIn.symbol].fees)
-  );
 
   // Armo objetos swap.
   return swapsData
