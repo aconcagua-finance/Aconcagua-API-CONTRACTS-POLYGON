@@ -21,23 +21,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../ERC1967/ERC1967Proxy.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ITransparentUpgradeableProxy",
-        "TransparentUpgradeableProxy"
-      ]
+      "imports": ["../ERC1967/ERC1967Proxy.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ITransparentUpgradeableProxy", "TransparentUpgradeableProxy"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\ERC1967\\ERC1967Proxy.sol": {
       "lastModificationDate": 1705676902964,
@@ -59,23 +50,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../Proxy.sol",
-        "./ERC1967Upgrade.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ERC1967Proxy"
-      ]
+      "imports": ["../Proxy.sol", "./ERC1967Upgrade.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ERC1967Proxy"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\Proxy.sol": {
       "lastModificationDate": 1705676904042,
@@ -97,20 +79,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Proxy"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Proxy"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\ERC1967\\ERC1967Upgrade.sol": {
       "lastModificationDate": 1705676902972,
@@ -132,9 +108,7 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
@@ -146,12 +120,8 @@
         "../../utils/Address.sol",
         "../../utils/StorageSlot.sol"
       ],
-      "versionPragmas": [
-        "^0.8.2"
-      ],
-      "artifacts": [
-        "ERC1967Upgrade"
-      ]
+      "versionPragmas": ["^0.8.2"],
+      "artifacts": ["ERC1967Upgrade"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Address.sol": {
       "lastModificationDate": 1705676902469,
@@ -173,20 +143,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.1"
-      ],
-      "artifacts": [
-        "Address"
-      ]
+      "versionPragmas": ["^0.8.1"],
+      "artifacts": ["Address"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\interfaces\\IERC1967.sol": {
       "lastModificationDate": 1705676903627,
@@ -208,20 +172,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC1967"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC1967"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\beacon\\IBeacon.sol": {
       "lastModificationDate": 1705676903490,
@@ -243,20 +201,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IBeacon"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IBeacon"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\interfaces\\draft-IERC1822.sol": {
       "lastModificationDate": 1705676902811,
@@ -278,20 +230,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC1822Proxiable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC1822Proxiable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\StorageSlot.sol": {
       "lastModificationDate": 1705676904164,
@@ -313,20 +259,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "StorageSlot"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["StorageSlot"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\proxy\\transparent\\ProxyAdmin.sol": {
       "lastModificationDate": 1707884813715,
@@ -348,23 +288,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "./TransparentUpgradeableProxy.sol",
-        "../../access/Ownable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ProxyAdmin"
-      ]
+      "imports": ["./TransparentUpgradeableProxy.sol", "../../access/Ownable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ProxyAdmin"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
       "lastModificationDate": 1707884813684,
@@ -386,22 +317,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../utils/Context.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Ownable"
-      ]
+      "imports": ["../utils/Context.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Ownable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Context.sol": {
       "lastModificationDate": 1707884812474,
@@ -423,20 +346,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Context"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Context"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContract.sol": {
       "lastModificationDate": 1706037966243,
@@ -458,22 +375,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"
-      ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "IColateralContract"
-      ]
+      "imports": ["@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"],
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["IColateralContract"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@uniswap\\v3-periphery\\contracts\\interfaces\\ISwapRouter.sol": {
       "lastModificationDate": 1705676901658,
@@ -495,22 +404,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol"
-      ],
-      "versionPragmas": [
-        ">=0.7.5"
-      ],
-      "artifacts": [
-        "ISwapRouter"
-      ]
+      "imports": ["@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol"],
+      "versionPragmas": [">=0.7.5"],
+      "artifacts": ["ISwapRouter"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@uniswap\\v3-core\\contracts\\interfaces\\callback\\IUniswapV3SwapCallback.sol": {
       "lastModificationDate": 1705676899889,
@@ -532,20 +433,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        ">=0.5.0"
-      ],
-      "artifacts": [
-        "IUniswapV3SwapCallback"
-      ]
+      "versionPragmas": [">=0.5.0"],
+      "artifacts": ["IUniswapV3SwapCallback"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract.sol": {
       "lastModificationDate": 1706037937486,
@@ -567,9 +462,7 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
@@ -583,12 +476,8 @@
         "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
         "./IColateralContract.sol"
       ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "ColateralContract"
-      ]
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["ColateralContract"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\Strings.sol": {
       "lastModificationDate": 1705676904169,
@@ -610,23 +499,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "./math/Math.sol",
-        "./math/SignedMath.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Strings"
-      ]
+      "imports": ["./math/Math.sol", "./math/SignedMath.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Strings"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\AccessControlEnumerableUpgradeable.sol": {
       "lastModificationDate": 1707884812318,
@@ -648,9 +528,7 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
@@ -661,12 +539,8 @@
         "../utils/structs/EnumerableSetUpgradeable.sol",
         "../proxy/utils/Initializable.sol"
       ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "AccessControlEnumerableUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["AccessControlEnumerableUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\security\\ReentrancyGuardUpgradeable.sol": {
       "lastModificationDate": 1707884813712,
@@ -688,22 +562,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../proxy/utils/Initializable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ReentrancyGuardUpgradeable"
-      ]
+      "imports": ["../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ReentrancyGuardUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\IERC20.sol": {
       "lastModificationDate": 1705676903646,
@@ -725,20 +591,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC20"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC20"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\utils\\SafeERC20.sol": {
       "lastModificationDate": 1707884813750,
@@ -760,24 +620,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../IERC20.sol",
-        "../extensions/IERC20Permit.sol",
-        "../../../utils/Address.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "SafeERC20"
-      ]
+      "imports": ["../IERC20.sol", "../extensions/IERC20Permit.sol", "../../../utils/Address.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SafeERC20"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\math\\SignedMath.sol": {
       "lastModificationDate": 1705676904154,
@@ -799,20 +649,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "SignedMath"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SignedMath"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\utils\\math\\Math.sol": {
       "lastModificationDate": 1705676903990,
@@ -834,20 +678,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "Math"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["Math"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\structs\\EnumerableSetUpgradeable.sol": {
       "lastModificationDate": 1705676902808,
@@ -869,20 +707,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "EnumerableSetUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["EnumerableSetUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol": {
       "lastModificationDate": 1705676903902,
@@ -904,22 +736,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../../utils/AddressUpgradeable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.2"
-      ],
-      "artifacts": [
-        "Initializable"
-      ]
+      "imports": ["../../utils/AddressUpgradeable.sol"],
+      "versionPragmas": ["^0.8.2"],
+      "artifacts": ["Initializable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\IAccessControlEnumerableUpgradeable.sol": {
       "lastModificationDate": 1705676903339,
@@ -941,22 +765,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "./IAccessControlUpgradeable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IAccessControlEnumerableUpgradeable"
-      ]
+      "imports": ["./IAccessControlUpgradeable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IAccessControlEnumerableUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\AccessControlUpgradeable.sol": {
       "lastModificationDate": 1707884812330,
@@ -978,9 +794,7 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
@@ -992,12 +806,8 @@
         "../utils/introspection/ERC165Upgradeable.sol",
         "../proxy/utils/Initializable.sol"
       ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "AccessControlUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["AccessControlUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\AddressUpgradeable.sol": {
       "lastModificationDate": 1705676902363,
@@ -1019,20 +829,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.1"
-      ],
-      "artifacts": [
-        "AddressUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.1"],
+      "artifacts": ["AddressUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\access\\IAccessControlUpgradeable.sol": {
       "lastModificationDate": 1705676903348,
@@ -1054,20 +858,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IAccessControlUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IAccessControlUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\ContextUpgradeable.sol": {
       "lastModificationDate": 1707884812417,
@@ -1089,22 +887,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "../proxy/utils/Initializable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ContextUpgradeable"
-      ]
+      "imports": ["../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ContextUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\StringsUpgradeable.sol": {
       "lastModificationDate": 1705676904123,
@@ -1126,23 +916,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "./math/MathUpgradeable.sol",
-        "./math/SignedMathUpgradeable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "StringsUpgradeable"
-      ]
+      "imports": ["./math/MathUpgradeable.sol", "./math/SignedMathUpgradeable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["StringsUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\introspection\\ERC165Upgradeable.sol": {
       "lastModificationDate": 1707884812848,
@@ -1164,23 +945,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "./IERC165Upgradeable.sol",
-        "../../proxy/utils/Initializable.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "ERC165Upgradeable"
-      ]
+      "imports": ["./IERC165Upgradeable.sol", "../../proxy/utils/Initializable.sol"],
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["ERC165Upgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\math\\MathUpgradeable.sol": {
       "lastModificationDate": 1705676903960,
@@ -1202,20 +974,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "MathUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["MathUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\math\\SignedMathUpgradeable.sol": {
       "lastModificationDate": 1705676904107,
@@ -1237,20 +1003,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "SignedMathUpgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["SignedMathUpgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts-upgradeable\\utils\\introspection\\IERC165Upgradeable.sol": {
       "lastModificationDate": 1705676903553,
@@ -1272,20 +1032,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC165Upgradeable"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC165Upgradeable"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@openzeppelin\\contracts\\token\\ERC20\\extensions\\IERC20Permit.sol": {
       "lastModificationDate": 1707884813427,
@@ -1307,20 +1061,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
       "imports": [],
-      "versionPragmas": [
-        "^0.8.0"
-      ],
-      "artifacts": [
-        "IERC20Permit"
-      ]
+      "versionPragmas": ["^0.8.0"],
+      "artifacts": ["IERC20Permit"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralProxyAdmin.sol": {
       "lastModificationDate": 1706039625352,
@@ -1342,22 +1090,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol"
-      ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "ColateralProxyAdmin"
-      ]
+      "imports": ["@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol"],
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["ColateralProxyAdmin"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralProxy.sol": {
       "lastModificationDate": 1706039623916,
@@ -1379,22 +1119,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol"
-      ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "ColateralProxy"
-      ]
+      "imports": ["@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol"],
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["ColateralProxy"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContractOper.sol": {
       "lastModificationDate": 1706622033462,
@@ -1416,22 +1148,14 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
       },
-      "imports": [
-        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"
-      ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "IColateralContractOper"
-      ]
+      "imports": ["@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"],
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["IColateralContractOper"]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContractOper.sol": {
       "lastModificationDate": 1706622038250,
@@ -1453,9 +1177,7 @@
                 "evm.methodIdentifiers",
                 "metadata"
               ],
-              "": [
-                "ast"
-              ]
+              "": ["ast"]
             }
           }
         }
@@ -1469,12 +1191,8 @@
         "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
         "./IColateralContractOper.sol"
       ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "ColateralContractOper"
-      ]
+      "versionPragmas": ["0.8.18"],
+      "artifacts": ["ColateralContractOper"]
     }
   }
 }
