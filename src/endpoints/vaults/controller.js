@@ -1313,6 +1313,8 @@ const markVaultsToEvaluate = async function () {
   const batch = db.batch();
   const vaults = await getVaultsToEvaluate();
 
+  console.log('Lista de vaults a evaluar es ', vaults);
+
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
 
