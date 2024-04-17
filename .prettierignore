@@ -5,3 +5,5 @@ dist
 lib
 node_modules
 artifacts
+scripts/maint
+cache/solidity-files-cache.json
