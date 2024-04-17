@@ -2127,7 +2127,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swapsParams);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
-    console.log(`swapVaultExactInputs - swapsGasEstimation: ${swapsGasEstimation}`);
+    console.log(`swapVaultExactInputs - swapsParams: ${swapsParams}`);
 
     // const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
     // console.log(`swapVaultExactInputs - Listo estimateGas`);
