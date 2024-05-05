@@ -24,7 +24,6 @@ export const swapOptions = {
 
 // Default quotes
 export const quoteAmounts = {
-  weth: 10,
   wbtc: 2,
 };
 
@@ -40,7 +39,7 @@ export const stableCoins = {
 };
 
 // TokenOut: quotations and swaps depending on paths relies on.
-export const tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
+export const tokenOut = new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether');
 
 export const staticPaths =
   PROVIDER_NETWORK_NAME === 'matic'

@@ -50,5 +50,6 @@ export const ALIQ2_ADDRESS = Config.getEnvConfig('ALIQ2_ADDRESS');
 
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
+export const KRAKEN_URL = Config.getEnvConfig('KRAKEN_URL');
 export const BINANCE_URL = Config.getEnvConfig('BINANCE_URL');
 export const API_PATH_QUOTES = Config.getEnvConfig('API_PATH_QUOTES');

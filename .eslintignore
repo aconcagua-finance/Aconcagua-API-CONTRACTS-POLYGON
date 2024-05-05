@@ -16,3 +16,5 @@ prettier.config.js
 jest.config.js
 hardhat.config.js
 hardhat.accounts.js
+scripts/maint
+cache/solidity-files-cache.json
