@@ -47,7 +47,7 @@ export const staticPaths =
         // Prod
         wbtc: {
           tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.LOW, FeeAmount.LOW],
+          fees: [FeeAmount.LOW],
         },
       }
     : {
