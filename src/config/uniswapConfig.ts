@@ -35,11 +35,11 @@ export const tokens = {
 export const stableCoins = {
   usdc: new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin'),
   usdt: new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether'),
-  usdm: new Token(chainId, USDM_TOKEN_ADDRESS, 6, 'usdm', 'USD Mountain'),
+  usdm: new Token(chainId, USDM_TOKEN_ADDRESS, 18, 'usdm', 'USD Mountain'),
 };
 
 // TokenOut: quotations and swaps depending on paths relies on.
-export const tokenOut = new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether');
+export const tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
 
 export const staticPaths =
   PROVIDER_NETWORK_NAME === 'matic'
