@@ -346,63 +346,54 @@ const sendNotificationsEmails = async (emailMsgs) => {
 };
 
 const evaluateQuotations = async (quotations) => {
+  console.log('evaluateQuotations');
   const { uniswap: uniswapQuotes, kraken: krakenQuotes, coingecko: coingeckoQuotes } = quotations;
-  const emailMsgs = [];
-  console.log(`Evalúo cotizaciones solicitadas`);
-  // Si hay al menos una fuente centralizada se evalua
-  if (coingeckoQuotes || krakenQuotes) {
-    const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
 
-    for (const token in TokenTypes) {
-      if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
-        const symbol = TokenTypes[token];
-
-        // Calculo las diferencias entre Uniswap y las centralizadas.
-        const uniXKrakenDiffPercent = krakenQuotes
-          ? (uniswapQuotes[symbol] / krakenQuotes[symbol] - 1).toFixed(3) * 100
-          : null;
-        const uniXCoingeckoDiffPercent = coingeckoQuotes
-          ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1).toFixed(3) * 100
-          : null;
-
-        // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces armo msg de mail.
-        if (uniXKrakenDiffPercent == null || uniXKrakenDiffPercent <= DIFF_THRESHOLD_PERCENT) {
-          if (
-            uniXCoingeckoDiffPercent == null ||
-            uniXCoingeckoDiffPercent <= DIFF_THRESHOLD_PERCENT
-          ) {
-            const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD_PERCENT}%\nUniswap: $${
-              uniswapQuotes[symbol]
-            }\n${
-              uniXKrakenDiffPercent
-                ? `Kraken: $${krakenQuotes[symbol]}, ${uniXKrakenDiffPercent}% diff`
-                : null
-            }\n${
-              uniXCoingeckoDiffPercent
-                ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingeckoDiffPercent}% diff`
-                : null
-            }`;
-            console.log(msg);
-            emailMsgs.push({
-              subject: 'Alerta: Cotizaciones tokens - Diferencia entre Uniswap y Centralizadas',
-              msg,
-            });
-          }
-        }
-      }
-    }
-  } else {
-    // Si no se pudo evaluar porque fallaron las consultas centralizadas armo mensaje mail.
-    const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
-    console.log(msg);
-    emailMsgs.push({
-      subject: 'Alerta: Cotizaciones tokens - Cotizaciones centralizadas faltantes',
-      msg,
-    });
+  function isValidPrice(price) {
+    return typeof price === 'number' && price > 0;
   }
 
-  // Si hay mensajes para mandar mails entonces notifico.
-  if (emailMsgs && emailMsgs.length > 0) sendNotificationsEmails(emailMsgs);
+  function averageValidPrices(prices) {
+    const validPrices = prices.filter(isValidPrice);
+    if (validPrices.length === 0) return NaN;
+    return validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
+  }
+
+  function processQuotes(symbol) {
+    const uniswapPrice = uniswapQuotes.find(([sym]) => sym === symbol)[1];
+    const krakenPrice = krakenQuotes.find(([sym]) => sym === symbol)[1];
+    const coingeckoPrice = coingeckoQuotes.find(([sym]) => sym === symbol)[1];
+
+    const prices = [uniswapPrice, krakenPrice, coingeckoPrice];
+
+    if (prices.every(isValidPrice)) {
+      const maxPrice = Math.max(...prices);
+      const minPrice = Math.min(...prices);
+      if ((maxPrice - minPrice) / minPrice < 0.02) {
+        return averageValidPrices(prices);
+      }
+    }
+
+    const filteredPrices = prices.filter((price, index, arr) => {
+      if (!isValidPrice(price)) return false;
+      const otherPrices = arr.filter((_, i) => i !== index && isValidPrice(arr[i]));
+      if (otherPrices.length < 2) return true;
+      const [otherPrice1, otherPrice2] = otherPrices;
+      return (
+        Math.abs(price - otherPrice1) / otherPrice1 < 0.02 ||
+        Math.abs(price - otherPrice2) / otherPrice2 < 0.02
+      );
+    });
+
+    return averageValidPrices(filteredPrices);
+  }
+
+  const results = [
+    ['WBTC', processQuotes('WBTC')],
+    ['WETH', processQuotes('WETH')],
+  ];
+
+  console.log(results);
 };
 
 exports.getTokensQuotes = async function (req, res) {
@@ -412,9 +403,10 @@ exports.getTokensQuotes = async function (req, res) {
     const quotations = await getQuotations(quoteAmounts);
 
     // Evaluo las cotizaciones y notifico.
-    await evaluateQuotations(quotations);
+    const results = await evaluateQuotations(quotations);
 
-    return res.status(200).send(quotations.uniswap);
+    //  MRM Acá debo cambiar la lógica para que mande otra
+    return res.status(200).send(results);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
