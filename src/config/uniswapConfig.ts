@@ -9,6 +9,7 @@ const {
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
+  WETH_TOKEN_ADDRESS,
 } = require('./appConfig');
 
 export const chainId =
@@ -39,6 +40,7 @@ export const stableCoins = {
 };
 
 // TokenOut: quotations and swaps depending on paths relies on.
+export const tokenWETH = new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ether');
 export const tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
 
 export const staticPaths =
@@ -46,8 +48,8 @@ export const staticPaths =
     ? {
         // Prod
         wbtc: {
-          tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.LOW],
+          tokens: [tokens.wbtc.address, tokenWETH.address, tokenOut.address],
+          fees: [FeeAmount.LOW, FeeAmount.LOW],
         },
       }
     : {

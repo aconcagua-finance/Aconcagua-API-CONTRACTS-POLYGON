@@ -33,6 +33,7 @@ export const USDC_TOKEN_ADDRESS = Config.getEnvConfig('USDC_TOKEN_ADDRESS');
 export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS');
 export const USDM_TOKEN_ADDRESS = Config.getEnvConfig('USDM_TOKEN_ADDRESS');
 export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS');
+export const WETH_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS');
 export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS');
 export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS');
 export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS');
