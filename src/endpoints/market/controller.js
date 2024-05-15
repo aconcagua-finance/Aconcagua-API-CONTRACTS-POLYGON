@@ -365,12 +365,11 @@ const evaluateQuotations = async (quotations) => {
     return validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
   }
 
-  function processQuotes(symbol) {
-    const uniswapPrice = uniswapQuotes.find(([sym]) => sym === symbol)[1];
-    const krakenPrice = krakenQuotes.find(([sym]) => sym === symbol)[1];
-    const coingeckoPrice = coingeckoQuotes.find(([sym]) => sym === symbol)[1];
-
-    const prices = [uniswapPrice, krakenPrice, coingeckoPrice];
+  function processQuotes(symbol, quotes) {
+    const prices = quotes.map((source) => {
+      const quote = source.value.quotes.find(([sym]) => sym === symbol);
+      return quote ? quote[1] : NaN;
+    });
 
     if (prices.every(isValidPrice)) {
       const maxPrice = Math.max(...prices);
@@ -395,11 +394,11 @@ const evaluateQuotations = async (quotations) => {
   }
 
   const results = [
-    ['WBTC', processQuotes('WBTC')],
-    ['WETH', processQuotes('WETH')],
+    ['WBTC', processQuotes('WBTC', quotations)],
+    ['WETH', processQuotes('WETH', quotations)],
   ];
-
   console.log(results);
+  return results;
 };
 
 exports.getTokensQuotes = async function (req, res) {
