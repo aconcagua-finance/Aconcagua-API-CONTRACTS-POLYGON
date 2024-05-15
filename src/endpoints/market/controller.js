@@ -284,8 +284,13 @@ const getQuotations = async (quoteAmounts) => {
   ];
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
+  console.log('getQuotations - quoters vale');
+  console.log(quoters);
+
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters);
+  console.log('getQuotations - quotations vale');
+  console.log(quotations);
 
   // Logueo consultas fallidas
   quotations.forEach((result, index) => {
@@ -346,7 +351,8 @@ const sendNotificationsEmails = async (emailMsgs) => {
 };
 
 const evaluateQuotations = async (quotations) => {
-  console.log('evaluateQuotations');
+  console.log('evaluateQuotations ');
+  console.log(quotations);
   const { uniswap: uniswapQuotes, kraken: krakenQuotes, coingecko: coingeckoQuotes } = quotations;
 
   function isValidPrice(price) {
