@@ -292,12 +292,6 @@ const getQuotations = async (quoteAmounts) => {
     if (result.status === 'rejected') {
       const error = `Error fetching quotes from ${providers[index].name} provider: `;
       console.error(`${error}${result.reason.message}`);
-
-      // Si Uniswap falla entonces detengo la ejecución (no se actualizará la cotización)
-      if (index === 0) {
-        result.reason.message = `${error}${result.reason.message}`;
-        throw new Error(result.reason);
-      }
     }
   });
 
