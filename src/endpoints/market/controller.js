@@ -365,10 +365,13 @@ const evaluateQuotations = async (quotations) => {
     return validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
   }
 
-  function processQuotes(symbol, quotes) {
-    const prices = quotes.map((source) => {
-      const quote = source.value.quotes.find(([sym]) => sym === symbol);
-      return quote ? quote[1] : NaN;
+  function processQuotes(symbol, quotations) {
+    const sources = ['uniswap', 'coingecko', 'kraken'];
+    const prices = sources.map((source) => {
+      const quote = quotations[source];
+      if (!quote) return NaN;
+      const price = quote[symbol.toLowerCase()] || quote[symbol.toUpperCase()];
+      return isValidPrice(price) ? price : NaN;
     });
 
     if (prices.every(isValidPrice)) {
@@ -394,9 +397,10 @@ const evaluateQuotations = async (quotations) => {
   }
 
   const results = [
-    ['WBTC', processQuotes('WBTC', quotations)],
-    ['WETH', processQuotes('WETH', quotations)],
+    ['WBTC', processQuotes('wbtc', quotations)],
+    ['WETH', processQuotes('weth', quotations)],
   ];
+  console.log('evaluateQuotations - results');
   console.log(results);
   return results;
 };
