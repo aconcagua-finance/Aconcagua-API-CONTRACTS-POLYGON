@@ -289,8 +289,6 @@ const getQuotations = async (quoteAmounts) => {
 
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters);
-  console.log('getQuotations - quotations vale');
-  console.log(quotations);
 
   // Logueo consultas fallidas
   quotations.forEach((result, index) => {
@@ -397,8 +395,8 @@ const evaluateQuotations = async (quotations) => {
   }
 
   const results = [
-    ['WBTC', processQuotes('wbtc', quotations)],
-    ['WETH', processQuotes('weth', quotations)],
+    ['wbtc', processQuotes('wbtc', quotations)],
+    ['weth', processQuotes('weth', quotations)],
   ];
   console.log('evaluateQuotations - results');
   console.log(results);
