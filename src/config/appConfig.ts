@@ -29,24 +29,25 @@ export const HARDHAT_NETWORK_NAME = Config.getEnvConfig('HARDHAT_NETWORK_NAME');
 export const PROVIDER_NETWORK_NAME = Config.getEnvConfig('PROVIDER_NETWORK_NAME');
 export const POLYGONSCAN_API_KEY = Config.getEnvConfig('POLYGONSCAN_API_KEY');
 export const ETHERSCAN_API_KEY = Config.getEnvConfig('ETHERSCAN_API_KEY');
-export const USDC_TOKEN_ADDRESS = Config.getEnvConfig('USDC_TOKEN_ADDRESS');
-export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS');
-export const USDM_TOKEN_ADDRESS = Config.getEnvConfig('USDM_TOKEN_ADDRESS');
-export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS');
-export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS');
-export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS');
-export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS');
-export const OPERATOR1_ADDRESS = Config.getEnvConfig('OPERATOR1_ADDRESS');
-export const OPERATOR2_ADDRESS = Config.getEnvConfig('OPERATOR2_ADDRESS');
-export const OPERATOR3_ADDRESS = Config.getEnvConfig('OPERATOR3_ADDRESS');
-export const DEFAULT_RESCUE_WALLET_ADDRESS = Config.getEnvConfig('DEFAULT_RESCUE_WALLET_ADDRESS');
+// We use ?.toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+export const USDC_TOKEN_ADDRESS = Config.getEnvConfig('USDC_TOKEN_ADDRESS')?.toLowerCase();
+export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS')?.toLowerCase();
+export const USDM_TOKEN_ADDRESS = Config.getEnvConfig('USDM_TOKEN_ADDRESS')?.toLowerCase();
+export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS')?.toLowerCase();
+export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS')?.toLowerCase();
+export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS')?.toLowerCase();
+export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS')?.toLowerCase();
+export const OPERATOR1_ADDRESS = Config.getEnvConfig('OPERATOR1_ADDRESS')?.toLowerCase();
+export const OPERATOR2_ADDRESS = Config.getEnvConfig('OPERATOR2_ADDRESS')?.toLowerCase();
+export const OPERATOR3_ADDRESS = Config.getEnvConfig('OPERATOR3_ADDRESS')?.toLowerCase();
+export const DEFAULT_RESCUE_WALLET_ADDRESS = Config.getEnvConfig('DEFAULT_RESCUE_WALLET_ADDRESS')?.toLowerCase();
 export const DEFAULT_WITHDRAW_WALLET_ADDRESS = Config.getEnvConfig(
   'DEFAULT_WITHDRAW_WALLET_ADDRESS'
-);
+)?.toLowerCase();
 
 // Mumbai Safe account creation (QA only)
-export const ALIQ1_ADDRESS = Config.getEnvConfig('ALIQ1_ADDRESS');
-export const ALIQ2_ADDRESS = Config.getEnvConfig('ALIQ2_ADDRESS');
+export const ALIQ1_ADDRESS = Config.getEnvConfig('ALIQ1_ADDRESS')?.toLowerCase();
+export const ALIQ2_ADDRESS = Config.getEnvConfig('ALIQ2_ADDRESS')?.toLowerCase();
 
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');

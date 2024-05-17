@@ -5,7 +5,11 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import {Commands} from '@uniswap/universal-router/contracts/libraries/Commands.sol';
+import '@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol';
 import './IColateralContract.sol';
+import './IWETH.sol';
+import './IPermit2.sol';
 
 pragma solidity 0.8.18;
 
@@ -30,6 +34,9 @@ contract ColateralContract is
   using EnumerableSetUpgradeable for EnumerableSetUpgradeable.Bytes32Set;
   EnumerableSetUpgradeable.Bytes32Set private _rolesSet;
 
+  // Network
+  uint constant RSK_ID = 30;
+  address RSK_PERMIT2 = 0xFcf5986450E4A014fFE7ad4Ae24921B589D039b5;
   // Supported Tokens
   string public constant USDC = 'USDC';
   string public constant USDT = 'USDT';
@@ -122,7 +129,7 @@ contract ColateralContract is
 
   // Version
   function version() external pure override returns (string memory) {
-    return '1.1.0';
+    return '1.1.1';
   }
 
   function setWithdrawWalletAddress(
@@ -149,25 +156,42 @@ contract ColateralContract is
       require(swapParams.params.recipient == address(this), 'Err recipient');
       require(swapParams.params.amountOutMinimum > 0, 'Err Slipp');
       require(
-        swapParams.tokenOut == tokenAddress['USDC'] || swapParams.tokenOut == tokenAddress['USDT'] || swapParams.tokenOut == tokenAddress['USDM'],
+        swapParams.tokenOut == tokenAddress[USDC] || swapParams.tokenOut == tokenAddress[USDT] || swapParams.tokenOut == tokenAddress[USDM],
         'Err TokenOut'
       );
 
       // Get token and approve amount
-      IERC20 token = IERC20(address(swapParams.tokenIn));
+      IERC20 token = IERC20(swapParams.tokenIn);
       require(
         swapParams.params.amountIn > 0 &&
           swapParams.params.amountIn <= token.balanceOf(address(this)),
         'Err AmountIn'
       );
-      require(token.approve(address(swapRouter), swapParams.params.amountIn), 'Err Approval');
 
-      // Execute swap and revoke approval.
-      try swapRouter.exactInput(swapParams.params) returns (uint256 amountOut) {
-        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, amountOut);
-        require(token.approve(address(swapRouter), 0), 'Err Approval0');
-      } catch Error(string memory errorMsg) {
-        emit SwapError(swapParams.tokenIn, errorMsg);
+      // If its RSK network
+      if (block.chainid == RSK_ID) {
+        uint256 originalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+        // Send tokens to universal router
+        SafeERC20.safeTransfer(token, address(swapRouter), swapParams.params.amountIn);
+        // Execute swap with universalRouter
+        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V3_SWAP_EXACT_IN)));
+        bytes[] memory inputs = new bytes[](1);
+        // https://docs.uniswap.org/contracts/universal-router/technical-reference#v3_swap_exact_in
+        inputs[0] = abi.encode(swapParams.params.recipient, swapParams.params.amountIn, swapParams.params.amountOutMinimum, swapParams.params.path, false);
+        try IUniversalRouter(address(swapRouter)).execute(commands, inputs, swapParams.params.deadline) {
+          uint256 resultAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+          emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount - originalAmount);
+        } catch Error(string memory errorMsg) {
+          emit SwapError(swapParams.tokenIn, errorMsg);
+        }
+      } else {
+        require(token.approve(address(swapRouter), swapParams.params.amountIn), 'Err Approval');
+        // Execute swap with swapRouter and revoke approval.
+        try swapRouter.exactInput(swapParams.params) returns (uint256 amountOut) {
+          emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, amountOut);
+        } catch Error(string memory errorMsg) {
+          emit SwapError(swapParams.tokenIn, errorMsg);
+        }
         require(token.approve(address(swapRouter), 0), 'Err Approval0');
       }
     }
@@ -230,5 +254,15 @@ contract ColateralContract is
    */
   function getRoleByIndex(uint index) external view virtual override returns (bytes32) {
     return _rolesSet.at(index);
+  }
+
+  receive() external payable {
+    // If its RSK network
+    if (block.chainid == RSK_ID) {
+      IWETH(tokenAddress[WBTC]).deposit{value:msg.value}();
+    } else {
+      revert("Not payable on this chain");
+    }
+
   }
 }
