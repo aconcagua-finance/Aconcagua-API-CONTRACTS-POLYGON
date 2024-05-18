@@ -42,15 +42,10 @@ export const stableCoins = {
 // TokenOut: quotations and swaps depending on paths relies on.
 export const tokenWETH = new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ether');
 
-let tokenOut;
-
-if (PROVIDER_NETWORK_NAME === 'matic') {
-  tokenOut = new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin');
-} else {
-  tokenOut = new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether');
-}
-
-export { tokenOut };
+export const tokenOut =
+  PROVIDER_NETWORK_NAME === 'matic'
+    ? new Token(chainId, USDC_TOKEN_ADDRESS, 6, 'usdc', 'USD Coin')
+    : new Token(chainId, USDT_TOKEN_ADDRESS, 6, 'usdt', 'USD Tether');
 
 export const staticPaths =
   PROVIDER_NETWORK_NAME === 'matic'
