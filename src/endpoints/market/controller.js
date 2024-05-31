@@ -141,9 +141,9 @@ const getUniPathQuotes = async (quoteAmounts) => {
     console.log('quoter2Result es ', quoter2Result);
 
     const amountOutFormatted = Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals);
-    const quotation = (
-      amountOutFormatted / ethers.utils.formatUnits(amountIn, tokens.wbtc.decimals)
-    ).toFixed(2);
+    const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
+      2
+    );
 
     console.log(`Uniswap Quote for pair ${'wbtc'}/${tokenOut.symbol}: ${quotation}`);
 
