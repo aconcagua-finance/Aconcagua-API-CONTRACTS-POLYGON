@@ -133,7 +133,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
-    console.log('staticPaths para ', tokenIn, ' es ', encodedPathstaticPaths[symbol]);
+    console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
     console.log('amountIn es ', amountIn);
