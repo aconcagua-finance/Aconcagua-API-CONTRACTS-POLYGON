@@ -133,6 +133,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
+    console.log('staticPaths para ', tokenIn, ' es ', encodedPathstaticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
     console.log('amountIn es ', amountIn);
@@ -283,9 +284,6 @@ const getQuotations = async (quoteAmounts) => {
     { name: 'Kraken', getQuotes: getKrakenQuotes },
   ];
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
-
-  console.log('getQuotations - quoters vale');
-  console.log(quoters);
 
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters);
