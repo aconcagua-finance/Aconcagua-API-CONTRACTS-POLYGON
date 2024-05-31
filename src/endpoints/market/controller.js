@@ -146,7 +146,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
       2
     );
 
-    console.log(`Uniswap Quote for pair ${'wbtc'}/${tokenOut.symbol}: ${quotation}`);
+    console.log(`Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${quotation}`);
 
     quotes[symbol] = quotation;
   }
