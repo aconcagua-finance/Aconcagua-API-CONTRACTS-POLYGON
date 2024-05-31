@@ -140,12 +140,12 @@ const getUniPathQuotes = async (quoteAmounts) => {
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
     console.log('quoter2Result es ', quoter2Result);
 
-    const quotation = Number(
-      (
-        Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
-      ).toFixed(2)
-    );
-    console.log(`Uniswap Quote for pair ${symbol}/${tokenOut.symbol}: ${quotation.toFixed(2)}`);
+    const amountOutFormatted = Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals);
+    const quotation = (
+      amountOutFormatted / ethers.utils.formatUnits(amountIn, tokens.wbtc.decimals)
+    ).toFixed(2);
+
+    console.log(`Uniswap Quote for pair ${'wbtc'}/${tokenOut.symbol}: ${quotation}`);
 
     quotes[symbol] = quotation;
   }
