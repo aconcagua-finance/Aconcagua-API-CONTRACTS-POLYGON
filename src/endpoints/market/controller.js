@@ -133,6 +133,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
+    console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
     console.log('amountIn es ', amountIn);
@@ -145,7 +146,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
       2
     );
 
-    console.log(`Uniswap Quote for pair ${'wbtc'}/${tokenOut.symbol}: ${quotation}`);
+    console.log(`Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${quotation}`);
 
     quotes[symbol] = quotation;
   }
@@ -283,9 +284,6 @@ const getQuotations = async (quoteAmounts) => {
     { name: 'Kraken', getQuotes: getKrakenQuotes },
   ];
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
-
-  console.log('getQuotations - quoters vale');
-  console.log(quoters);
 
   console.log(`Ejecuto llamadas de cotización`);
   const quotations = await Promise.allSettled(quoters);
