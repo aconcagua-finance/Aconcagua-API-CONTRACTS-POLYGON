@@ -2220,7 +2220,7 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       const amountOutMinimumRaw =
-        quote * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
+        amountIn * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
       const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
 
       return {
