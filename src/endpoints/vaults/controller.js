@@ -2124,16 +2124,22 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
-      const paramsArray = Object.values(swap.params);
+      const swapTest = {
+        path: '0x1e94bc717d52b5f8aeeb40f4e74687a3fd34c38f0001f402b1d825d3ff7a3cc51c3d3df5a8de749df609ae',
+        recipient: '0xE693a38013122C6E2aBe0eC308C4C30f931Ca31a',
+        deadline: 1717393555,
+        amountIn: '0x0bebc200',
+        amountOutMinimum: 1,
+      };
       console.log(
         `swapVaultExactInputs - JSON.stringify(paramsArray, null, 2): ${JSON.stringify(
-          paramsArray,
+          swapTest,
           null,
           2
         )}`
       );
       console.log('swapVaultExactInputs - Tomando gasEstimate con callstatic');
-      const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(paramsArray);
+      const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swapTest);
       console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
