@@ -2132,11 +2132,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
         amountOutMinimum: 1,
       };
       console.log(
-        `swapVaultExactInputs - JSON.stringify(paramsArray, null, 2): ${JSON.stringify(
-          swapTest,
-          null,
-          2
-        )}`
+        `swapVaultExactInputs - JSON.stringify(swapTest,
+          , null, 2): ${JSON.stringify(swapTest, null, 2)}`
       );
       console.log('swapVaultExactInputs - Tomando gasEstimate con callstatic');
       const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swapTest);
@@ -2233,9 +2230,8 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       const amountOutMinimumRaw =
-        amountIn * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
-      // const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
-      const amountOutMinimum = 1;
+        quote * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
+      const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
 
       return {
         params: {
