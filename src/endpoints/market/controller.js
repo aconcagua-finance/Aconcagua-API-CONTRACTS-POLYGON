@@ -120,10 +120,6 @@ const getUniPathQuotes = async (quoteAmounts) => {
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
-  // Router contract
-  // console.log('QUOTER2_CONTRACT_ADDRESS es ', QUOTER2_CONTRACT_ADDRESS);
-  // console.log('Quoter2ABI es ', Quoter2ABI);
-
   const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
 
   // Quote data

@@ -2137,9 +2137,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     let swap;
     try {
       swap = await blockchainContract.swapExactInputs(swapsParams, {
-        swapsGasEstimation,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
+        gasLimit: 3000000,
       });
     } catch (error) {
       const tx = await swap.wait();
@@ -2220,7 +2218,7 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       const amountOutMinimumRaw =
-        quote * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
+        amountIn * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
       const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
 
       return {
