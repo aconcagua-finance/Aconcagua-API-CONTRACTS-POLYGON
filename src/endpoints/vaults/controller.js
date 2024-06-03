@@ -2137,9 +2137,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     let swap;
     try {
       swap = await blockchainContract.swapExactInputs(swapsParams, {
-        swapsGasEstimation,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
+        gasLimit: 3000000,
       });
     } catch (error) {
       const tx = await swap.wait();
