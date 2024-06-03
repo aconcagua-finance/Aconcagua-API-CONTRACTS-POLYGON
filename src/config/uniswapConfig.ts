@@ -41,7 +41,7 @@ export const stableCoins = {
   usdm: new Token(chainId, USDM_TOKEN_ADDRESS, 18, 'usdm', 'USD Mountain'),
 };
 
-export const tokenOut = stableCoins.usdc;
+export const tokenOut = PROVIDER_NETWORK_NAME === 'matic' ? stableCoins.usdc : stableCoins.usdt;
 
 export const staticPaths =
   PROVIDER_NETWORK_NAME === 'matic'
