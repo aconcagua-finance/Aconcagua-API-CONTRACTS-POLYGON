@@ -28,7 +28,7 @@ async function main() {
   const gasLimit = 3000000; // Adjust the gas limit accordingly
 
   // Deploy the contract using the specified signer, gas price, and gas limit
-  const token = await ethers.deployContract('ColateralContractOper', [], {
+  const token = await ethers.deployContract('ColateralContract', [], {
     from: deployer,
     gasPrice,
     gasLimit,

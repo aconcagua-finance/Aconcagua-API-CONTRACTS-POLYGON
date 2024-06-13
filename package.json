@@ -91,6 +91,7 @@
     "nodemailer": "^4.7.0",
     "npm": "^8.5.3",
     "raw-body": "^2.5.1",
+    "solmate": "^6.2.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

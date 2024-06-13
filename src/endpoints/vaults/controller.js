@@ -81,6 +81,7 @@ const {
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
+  WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
   QUOTER2_CONTRACT_ADDRESS,
@@ -450,7 +451,7 @@ exports.create = async function (req, res) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_ARGS',
         null,
-        'Invalids args creating contract',
+        'Invalid args creating contract',
         null
       );
     }
@@ -473,7 +474,7 @@ exports.create = async function (req, res) {
     // Deploy ColateralContract
     const colateralContractDeploy = await deployContract(colateralContractName);
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-    const colateralContractSignerAddress = lender.safeLiq1; // colateralContractDeploy.contractDeployment.signerAddress;
+    const colateralContractSignerAddress = lender.safeLiq1;
 
     if (!colateralContractAddress) {
       throw new CustomError.TechnicalError(
@@ -503,17 +504,7 @@ exports.create = async function (req, res) {
       '.json');
     const colateralAbi = contractJson.abi;
 
-    // aca michel
-    console.log('Hola la API URL ES ', HARDHAT_API_URL);
-    console.log('Instanciando alchemy provider with: ' + PROVIDER_NETWORK_NAME);
-    /*
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-    */
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-    console.log('Wallet');
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
     const colateralBlockchainContract = new hre.ethers.Contract(
@@ -523,18 +514,23 @@ exports.create = async function (req, res) {
     );
 
     const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+
+    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+    const tokenAddresses = [
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
       USDM_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
+      WETH_TOKEN_ADDRESS,
+    ];
 
+    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+      tokenNames,
+      tokenAddresses,
       operators,
-
       DEFAULT_RESCUE_WALLET_ADDRESS,
       DEFAULT_WITHDRAW_WALLET_ADDRESS,
-
-      colateralContractSignerAddress, // lender.safeLiq1,
+      colateralContractSignerAddress,
       lender.safeLiq2,
       SWAP_ROUTER_V3_ADDRESS,
       SWAPPER_ADDRESS
@@ -718,6 +714,10 @@ const fetchVaultBalances = async (vault) => {
     {
       currency: Types.CurrencyTypes.WBTC,
       balance: parseFloat(Utils.formatUnits(contractBalances[4], 8)), // 8 decimales
+    },
+    {
+      currency: Types.CurrencyTypes.WETH,
+      balance: parseFloat(Utils.formatUnits(contractBalances[5], 18)), // 8 decimales
     },
   ];
 
@@ -907,6 +907,8 @@ exports.withdraw = async function (req, res) {
         ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
+        : token === Types.CurrencyTypes.WETH
+        ? Utils.parseUnits(amount, 18)
         : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
@@ -931,6 +933,12 @@ exports.withdraw = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
       const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1123,6 +1131,8 @@ exports.rescue = async function (req, res) {
         ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
+        : token === Types.CurrencyTypes.WETH
+        ? Utils.parseUnits(amount, 18)
         : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
@@ -1147,6 +1157,12 @@ exports.rescue = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
       const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.rescue(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1192,6 +1208,8 @@ exports.rescue = async function (req, res) {
       currency = 'USDM';
     } else if (token === Types.CurrencyTypes.WBTC) {
       currency = 'WBTC';
+    } else if (token === Types.CurrencyTypes.WETH) {
+      currency = 'WETH';
     }
 
     await EmailSender.send({
