@@ -218,10 +218,10 @@ contract ColateralContract is
 
   function getBalances() external view override returns (uint256[] memory) {
     uint256[] memory balances = new uint256[](tokenNames.length + 1);
-    for (uint i = 0; i < tokenNames.length; i++) {
+    balances[0] = address(this).balance;
+    for (uint i = 1; i < tokenNames.length; i++) {
       balances[i] = balanceOf(tokenNames[i]);
     }
-    balances[tokenNames.length] = address(this).balance;
     return balances;
   }
 

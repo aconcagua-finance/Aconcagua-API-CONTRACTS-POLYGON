@@ -717,7 +717,7 @@ const fetchVaultBalances = async (vault) => {
     },
     {
       currency: Types.CurrencyTypes.WETH,
-      balance: parseFloat(Utils.formatUnits(contractBalances[5], 18)), // 8 decimales
+      balance: parseFloat(Utils.formatUnits(contractBalances[5], 18)), // 18 decimales
     },
   ];
 
