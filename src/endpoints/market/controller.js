@@ -15,7 +15,7 @@ const { encodePath } = require('../../helpers/uniswapHelper');
 const { ErrorHelper, LoggerHelper, EmailSender } = require('../../vs-core-firebase');
 const { CustomError } = require('../../vs-core');
 const { getParsedEthersError } = require('../vaults/errorParser');
-const { BinanceTypes } = require('../../types/binanceTypes');
+const { KrakenTypes } = require('../../types/krakenTypes');
 const { CoingeckoTypes } = require('../../types/coingeckoTypes');
 const { TokenTypes } = require('../../types/tokenTypes');
 const { Collections } = require('../../types/collectionsTypes');
@@ -43,7 +43,6 @@ const {
   findWithRelationship,
   getWithRelationshipById,
   MULTIPLE_RELATIONSHIP_SUFFIX,
-
   findWithUserRelationship,
   getWithUserRelationshipById,
   listByProp,
@@ -60,7 +59,7 @@ const {
   PROVIDER_NETWORK_NAME,
   QUOTER2_CONTRACT_ADDRESS,
   COINGECKO_URL,
-  BINANCE_URL,
+  KRAKEN_URL,
 } = require('../../config/appConfig');
 
 const getUniswapQuotes = async (tokens) => {
@@ -117,10 +116,10 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
   // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
+
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
-  // Router contract
   const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
 
   // Quote data
@@ -130,16 +129,20 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
+    console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
+    console.log('encodedPath es ', encodedPath);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
-
+    console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
     console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
-    const quotation = Number(
-      (
-        Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals) / quoteAmounts[symbol]
-      ).toFixed(2)
+    console.log('quoter2Result es ', quoter2Result);
+
+    const amountOutFormatted = Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals);
+    const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
+      2
     );
-    console.log(`Uniswap Quote for pair ${symbol}/${tokenOut.symbol}: ${quotation.toFixed(2)}`);
+
+    console.log(`Uniswap Quote for pair ${tokenIn.symbol}/${tokenOut.symbol}: ${quotation}`);
 
     quotes[symbol] = quotation;
   }
@@ -183,6 +186,9 @@ const getCoingeckoQuotes = async (tokens) => {
       const apiResponse = await invoke_get_api({
         endpoint: `${COINGECKO_URL}/simple/price?ids=${type}&vs_currencies=usd`,
       });
+
+      console.log('Coingecko Quote apiResponse es ', apiResponse);
+
       if (!apiResponse.data[type]) {
         throw new CustomError.TechnicalError(
           'ERROR_COINGECKO_QUOTES_INVALID_RESPONSE',
@@ -207,37 +213,48 @@ const getCoingeckoQuotes = async (tokens) => {
   return result;
 };
 
-const getBinanceQuotes = async (tokens) => {
-  console.log(`LLamada quotes Binances`);
+const getKrakenQuotes = async (tokens) => {
+  console.log(`getKrakenQuotes LLamada quotes Kraken`);
+  console.log(`getKrakenQuotes KRAKEN_URL es ${KRAKEN_URL}`);
+  console.log('getKrakenQuotes tokens es ', tokens);
 
   // TODO: Refactor config file
-  const provider = 'binance';
+  const provider = 'kraken';
   const quotes = {};
 
   const tokensSymbols = Object.keys(tokens);
   for (const token of tokensSymbols) {
     const symbol = token.toUpperCase();
-    if (Object.prototype.hasOwnProperty.call(BinanceTypes, symbol)) {
-      const pair = BinanceTypes[symbol];
+    if (Object.prototype.hasOwnProperty.call(KrakenTypes, symbol)) {
+      const pair = KrakenTypes[symbol];
       // MRM Busco cada token
+
       const apiResponse = await invoke_get_api({
-        endpoint: `${BINANCE_URL}/ticker/price?symbol=${pair}`,
+        endpoint: `${KRAKEN_URL}/Ticker?pair=${pair}`,
       });
+
+      console.log('getKrakenQuotes Kraken Quote apiResponse es ', apiResponse);
+
+      console.log(
+        'getKrakenQuotes Kraken Quote apiResponse.data.result[pair].c[0] es ',
+        apiResponse.data.result[pair].c[0]
+      );
+
       if (!apiResponse || !apiResponse.data || apiResponse.data.length == 0) {
         throw new CustomError.TechnicalError(
-          'ERROR_BINANCE_QUOTES_INVALID_RESPONSE',
+          'ERROR_KRAKEN_QUOTES_INVALID_RESPONSE',
           null,
-          `Respuesta inválida del servicio de valuacion Binance para ${pair}`,
+          `Respuesta inválida del servicio de valuacion Kraken para ${pair}`,
           null
         );
       }
-      //
 
-      const quote = apiResponse.data.find((ticker) => ticker.symbol === pair);
-      quotes[token] = Number(quote.price);
-      console.log(`Quote Binance para token ${symbol}: ${quote.price}`);
+      const quote = parseFloat(apiResponse.data.result[pair].c[0]);
+      quotes[symbol] = Number(quote);
+
+      console.log(`getKrakenQuotes Quote Kraken para token ${symbol}: ${quote}`);
     } else {
-      console.log(`Token ${symbol} no posee configuración Binance para quotear.`);
+      console.log(`getKrakenQuotes Token ${symbol} no posee configuración Kraken para quotear.`);
     }
   }
 
@@ -260,7 +277,7 @@ const getQuotations = async (quoteAmounts) => {
   const providers = [
     { name: 'Uniswap', getQuotes: getUniswapQuotes },
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
-    { name: 'Binance', getQuotes: getBinanceQuotes },
+    { name: 'Kraken', getQuotes: getKrakenQuotes },
   ];
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
@@ -272,12 +289,6 @@ const getQuotations = async (quoteAmounts) => {
     if (result.status === 'rejected') {
       const error = `Error fetching quotes from ${providers[index].name} provider: `;
       console.error(`${error}${result.reason.message}`);
-
-      // Si Uniswap falla entonces detengo la ejecución (no se actualizará la cotización)
-      if (index === 0) {
-        result.reason.message = `${error}${result.reason.message}`;
-        throw new Error(result.reason);
-      }
     }
   });
 
@@ -332,63 +343,58 @@ const sendNotificationsEmails = async (emailMsgs) => {
 };
 
 const evaluateQuotations = async (quotations) => {
-  const { uniswap: uniswapQuotes, binance: binanceQuotes, coingecko: coingeckoQuotes } = quotations;
-  const emailMsgs = [];
-  console.log(`Evalúo cotizaciones solicitadas`);
-  // Si hay al menos una fuente centralizada se evalua
-  if (coingeckoQuotes || binanceQuotes) {
-    const DIFF_THRESHOLD_PERCENT = -2; // TODO: Refactor config file
+  console.log('evaluateQuotations ');
+  console.log(quotations);
+  const { uniswap: uniswapQuotes, kraken: krakenQuotes, coingecko: coingeckoQuotes } = quotations;
 
-    for (const token in TokenTypes) {
-      if (Object.prototype.hasOwnProperty.call(TokenTypes, token)) {
-        const symbol = TokenTypes[token];
-
-        // Calculo las diferencias entre Uniswap y las centralizadas.
-        const uniXBinanceDiffPercent = binanceQuotes
-          ? (uniswapQuotes[symbol] / binanceQuotes[symbol] - 1).toFixed(3) * 100
-          : null;
-        const uniXCoingeckoDiffPercent = coingeckoQuotes
-          ? (uniswapQuotes[symbol] / coingeckoQuotes[symbol] - 1).toFixed(3) * 100
-          : null;
-
-        // Si la diferencia porcentual entre las cotizaciones Uniswap y centralizados supera el umbral para algún token entonces armo msg de mail.
-        if (uniXBinanceDiffPercent == null || uniXBinanceDiffPercent <= DIFF_THRESHOLD_PERCENT) {
-          if (
-            uniXCoingeckoDiffPercent == null ||
-            uniXCoingeckoDiffPercent <= DIFF_THRESHOLD_PERCENT
-          ) {
-            const msg = `Differencia entre cotizaciones Uniswap y centralizadas supera el umbral para token: ${token}.\nUmbral: ${DIFF_THRESHOLD_PERCENT}%\nUniswap: $${
-              uniswapQuotes[symbol]
-            }\n${
-              uniXBinanceDiffPercent
-                ? `Binance: $${binanceQuotes[symbol]}, ${uniXBinanceDiffPercent}% diff`
-                : null
-            }\n${
-              uniXCoingeckoDiffPercent
-                ? `Coingecko: $${coingeckoQuotes[symbol]}, ${uniXCoingeckoDiffPercent}% diff`
-                : null
-            }`;
-            console.log(msg);
-            emailMsgs.push({
-              subject: 'Alerta: Cotizaciones tokens - Diferencia entre Uniswap y Centralizadas',
-              msg,
-            });
-          }
-        }
-      }
-    }
-  } else {
-    // Si no se pudo evaluar porque fallaron las consultas centralizadas armo mensaje mail.
-    const msg = `No se logró evaluar las cotizaciones Uniswap: no se obtuvieron las cotizaciones centralizadas.\nCotización Uniswap: ${uniswapQuotes}`;
-    console.log(msg);
-    emailMsgs.push({
-      subject: 'Alerta: Cotizaciones tokens - Cotizaciones centralizadas faltantes',
-      msg,
-    });
+  function isValidPrice(price) {
+    return typeof price === 'number' && price > 0;
   }
 
-  // Si hay mensajes para mandar mails entonces notifico.
-  if (emailMsgs && emailMsgs.length > 0) sendNotificationsEmails(emailMsgs);
+  function averageValidPrices(prices) {
+    const validPrices = prices.filter(isValidPrice);
+    if (validPrices.length === 0) return NaN;
+    return validPrices.reduce((acc, price) => acc + price, 0) / validPrices.length;
+  }
+
+  function processQuotes(symbol, quotations) {
+    const sources = ['uniswap', 'coingecko', 'kraken'];
+    const prices = sources.map((source) => {
+      const quote = quotations[source];
+      if (!quote) return NaN;
+      const price = quote[symbol.toLowerCase()] || quote[symbol.toUpperCase()];
+      return isValidPrice(price) ? price : NaN;
+    });
+
+    if (prices.every(isValidPrice)) {
+      const maxPrice = Math.max(...prices);
+      const minPrice = Math.min(...prices);
+      if ((maxPrice - minPrice) / minPrice < 0.02) {
+        return averageValidPrices(prices);
+      }
+    }
+
+    const filteredPrices = prices.filter((price, index, arr) => {
+      if (!isValidPrice(price)) return false;
+      const otherPrices = arr.filter((_, i) => i !== index && isValidPrice(arr[i]));
+      if (otherPrices.length < 2) return true;
+      const [otherPrice1, otherPrice2] = otherPrices;
+      return (
+        Math.abs(price - otherPrice1) / otherPrice1 < 0.02 ||
+        Math.abs(price - otherPrice2) / otherPrice2 < 0.02
+      );
+    });
+
+    return averageValidPrices(filteredPrices);
+  }
+
+  const results = [
+    ['wbtc', processQuotes('wbtc', quotations)],
+    ['weth', processQuotes('weth', quotations)],
+  ];
+  console.log('evaluateQuotations - results');
+  console.log(results);
+  return results;
 };
 
 exports.getTokensQuotes = async function (req, res) {
@@ -398,9 +404,10 @@ exports.getTokensQuotes = async function (req, res) {
     const quotations = await getQuotations(quoteAmounts);
 
     // Evaluo las cotizaciones y notifico.
-    await evaluateQuotations(quotations);
+    const results = await evaluateQuotations(quotations);
 
-    return res.status(200).send(quotations.uniswap);
+    //  MRM Acá debo cambiar la lógica para que mande otra
+    return res.status(200).send(results);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }

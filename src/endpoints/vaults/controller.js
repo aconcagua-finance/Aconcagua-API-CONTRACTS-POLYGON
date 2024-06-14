@@ -81,6 +81,7 @@ const {
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
+  WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
   QUOTER2_CONTRACT_ADDRESS,
@@ -450,7 +451,7 @@ exports.create = async function (req, res) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_ARGS',
         null,
-        'Invalids args creating contract',
+        'Invalid args creating contract',
         null
       );
     }
@@ -473,7 +474,7 @@ exports.create = async function (req, res) {
     // Deploy ColateralContract
     const colateralContractDeploy = await deployContract(colateralContractName);
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-    const colateralContractSignerAddress = lender.safeLiq1; // colateralContractDeploy.contractDeployment.signerAddress;
+    const colateralContractSignerAddress = lender.safeLiq1;
 
     if (!colateralContractAddress) {
       throw new CustomError.TechnicalError(
@@ -503,17 +504,7 @@ exports.create = async function (req, res) {
       '.json');
     const colateralAbi = contractJson.abi;
 
-    // aca michel
-    console.log('Hola la API URL ES ', HARDHAT_API_URL);
-    console.log('Instanciando alchemy provider with: ' + PROVIDER_NETWORK_NAME);
-    /*
-    const alchemy = new hre.ethers.providers.AlchemyProvider(
-      PROVIDER_NETWORK_NAME,
-      ALCHEMY_API_KEY
-    );
-    */
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-    console.log('Wallet');
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
     const colateralBlockchainContract = new hre.ethers.Contract(
@@ -523,18 +514,23 @@ exports.create = async function (req, res) {
     );
 
     const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+
+    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+    const tokenAddresses = [
       USDC_TOKEN_ADDRESS,
       USDT_TOKEN_ADDRESS,
       USDM_TOKEN_ADDRESS,
       WBTC_TOKEN_ADDRESS,
+      WETH_TOKEN_ADDRESS,
+    ];
 
+    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+      tokenNames,
+      tokenAddresses,
       operators,
-
       DEFAULT_RESCUE_WALLET_ADDRESS,
       DEFAULT_WITHDRAW_WALLET_ADDRESS,
-
-      colateralContractSignerAddress, // lender.safeLiq1,
+      colateralContractSignerAddress,
       lender.safeLiq2,
       SWAP_ROUTER_V3_ADDRESS,
       SWAPPER_ADDRESS
@@ -644,10 +640,21 @@ exports.create = async function (req, res) {
   }
 };
 
-const getGasPrice = async () => {
+const getGasPrice = async (provider) => {
   // TODO: add fallback source
   const maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
   const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
+
+  console.log('Estimación de gas de Alchemy');
+
+  provider.getGasPrice().then((maxFeePerGasAlchemy) => {
+    console.log(`Current gas price: ${maxFeePerGasAlchemy}`);
+  });
+
+  provider.getFeeData().then((feeData) => {
+    console.log(`Max priority fee: ${feeData.maxPriorityFeePerGas}`);
+  });
+
   // try {
   //   const { data } = await axios({
   //     method: 'get',
@@ -707,6 +714,10 @@ const fetchVaultBalances = async (vault) => {
     {
       currency: Types.CurrencyTypes.WBTC,
       balance: parseFloat(Utils.formatUnits(contractBalances[4], 8)), // 8 decimales
+    },
+    {
+      currency: Types.CurrencyTypes.WETH,
+      balance: parseFloat(Utils.formatUnits(contractBalances[5], 18)), // 18 decimales
     },
   ];
 
@@ -896,6 +907,8 @@ exports.withdraw = async function (req, res) {
         ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
+        : token === Types.CurrencyTypes.WETH
+        ? Utils.parseUnits(amount, 18)
         : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
@@ -920,6 +933,12 @@ exports.withdraw = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
       const wd = await blockchainContract.withdraw(ethAmount, 'WBTC', {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.withdraw(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1112,6 +1131,8 @@ exports.rescue = async function (req, res) {
         ? Utils.parseUnits(amount, 18)
         : token === Types.CurrencyTypes.WBTC
         ? Utils.parseUnits(amount, 8)
+        : token === Types.CurrencyTypes.WETH
+        ? Utils.parseUnits(amount, 18)
         : Utils.parseEther(amount);
 
     const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
@@ -1136,6 +1157,12 @@ exports.rescue = async function (req, res) {
       await wd.wait();
     } else if (token === Types.CurrencyTypes.WBTC) {
       const wd = await blockchainContract.rescue(ethAmount, 'WBTC', {
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+      });
+      await wd.wait();
+    } else if (token === Types.CurrencyTypes.WETH) {
+      const wd = await blockchainContract.rescue(ethAmount, 'WETH', {
         maxFeePerGas,
         maxPriorityFeePerGas,
       });
@@ -1181,6 +1208,8 @@ exports.rescue = async function (req, res) {
       currency = 'USDM';
     } else if (token === Types.CurrencyTypes.WBTC) {
       currency = 'WBTC';
+    } else if (token === Types.CurrencyTypes.WETH) {
+      currency = 'WETH';
     }
 
     await EmailSender.send({
@@ -1301,6 +1330,8 @@ const markVaultsToEvaluate = async function () {
   const db = admin.firestore();
   const batch = db.batch();
   const vaults = await getVaultsToEvaluate();
+
+  console.log('Lista de vaults a evaluar es ', vaults);
 
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
@@ -2079,6 +2110,9 @@ const sendVaultEvaluationEmail = async (evalVault) => {
 const swapVaultExactInputs = async (vault, swapsParams) => {
   try {
     // V1 internal swap function.
+    console.log(`Entro a swapVaultExactInputs`);
+    console.log(`swapVaultExactInputs - swapsParams`);
+    console.log(swapsParams);
 
     // Preparo contrato
     const contractJson = require('../../../artifacts/contracts/' +
@@ -2092,33 +2126,41 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
+    // Gas price
+    // MRM nuevo calculo de gas price
+    // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
+    const feeData = await alchemy.getFeeData();
+    const gasPrice = feeData.gasPrice;
+    const maxFeePerGas = feeData.maxFeePerGas;
+    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+    console.log(`gasPrice: ${gasPrice}`);
+    console.log(
+      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
+    );
+
     // Gas estimation
     const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
-      const { gasEstimate } = await quoter2Contract.callStatic.quoteExactInput(
-        swap.params.path,
-        swap.params.amountIn
+      console.log(
+        `swapVaultExactInputs - JSON.stringify(swap,
+          , null, 2): ${JSON.stringify(swap, null, 2)}`
       );
+      console.log('swapVaultExactInputs - Tomando gasEstimate con callstatic');
+      const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swap);
+      console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
     }
 
-    const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
-    const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice();
-
-    console.log(`gasLimit: ${gasLimit}`);
-    console.log(
-      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
-    );
-    console.log(JSON.stringify(swapsParams));
+    // const gasLimit = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
+    // console.log(`swapVaultExactInputs - Listo estimateGas`);
+    // console.log(`gasLimit: ${gasLimit}`);
 
     // Execute swaps.
     let swap;
     try {
-      swap = await blockchainContract.swapExactInputs(swapsParams, {
-        gasLimit,
-        maxFeePerGas,
-        maxPriorityFeePerGas,
+      swap = await blockchainContract.swapExactInputs(swapsParams[0].params, {
+        gasLimit: 1000000,
       });
     } catch (error) {
       const tx = await swap.wait();

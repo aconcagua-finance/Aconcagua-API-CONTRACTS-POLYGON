@@ -7,17 +7,15 @@ interface IColateralContract {
   // Emitted when the `ColateralContract` is initialized
   event Initialize(
     address sender,
-    address usdcTokenAddress,
-    address usdtTokenAddress,
-    address usdmTokenAddress,
-    address wbtcTokenAddress,
-    address[3] admins,
-    address rescueWalletAddress,
-    address withdrawWalletAddress,
-    address firstlenderLiq,
-    address secondLenderLiq,
-    address swapRouterAddress,
-    address swapper
+    string[] _tokenNames,
+    address[] _tokenAddresses,
+    address[3] _aconcagua,
+    address _rescueWalletAddress,
+    address _withdrawWalletAddress,
+    address _firstLenderLiq,
+    address _secondLenderLiq,
+    address _swapRouterAddress,
+    address _swapper
   );
   // Emitted when token address is changed
   event TokenAddressChange(
