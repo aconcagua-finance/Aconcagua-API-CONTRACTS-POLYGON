@@ -13,6 +13,7 @@ export const CurrencyDecimals = new Map([
   [CurrencyTypes.USDT, PROVIDER_NETWORK_NAME === 'rsk' ? 18 : 6],
   [CurrencyTypes.USDM, 18],
   [CurrencyTypes.WBTC, PROVIDER_NETWORK_NAME === 'rsk' ? 18 : 8],
+  [CurrencyTypes.WETH, PROVIDER_NETWORK_NAME === 'rsk' ? 18 : 18],
 ]);
 
 
@@ -34,6 +35,8 @@ export const getTokenReference = (token: Types.CurrencyTypes): string => {
         return 'USDM';
       case Types.CurrencyTypes.WBTC:
         return 'WBTC';
+      case Types.CurrencyTypes.WETH:
+        return 'WETH';
       default:
         throw new CustomError.TechnicalError(
           'ERROR_INVALID_TOKEN',
@@ -63,13 +66,14 @@ export const swapOptions = {
 
 // Default quotes
 export const quoteAmounts = {
-  weth: 10,
   wbtc: 2,
+  weth: 2,
 };
 
 // Supported tokens
 export const tokens = {
   wbtc: new Token(chainId, WBTC_TOKEN_ADDRESS, CurrencyDecimals.get(CurrencyTypes.WBTC), 'wbtc', 'Wrapped Bitcoin'),
+    weth: new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ether'),
 };
 
 export const stableCoins = {
@@ -86,14 +90,22 @@ export const staticPaths =
     ? {
         // Prod
         wbtc: {
-          tokens: [tokens.wbtc.address, tokenOut.address],
+          tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
           fees: [FeeAmount.LOW, FeeAmount.LOW],
+        },
+        weth: {
+          tokens: [tokens.weth.address, tokenOut.address],
+          fees: [FeeAmount.LOW],
         },
       }
     : PROVIDER_NETWORK_NAME === 'rsk'
     ? {
       // RSK
       wbtc: {
+        tokens: [tokens.wbtc.address, tokenOut.address],
+        fees: [FeeAmount.LOW],
+      },
+      weth: {
         tokens: [tokens.wbtc.address, tokenOut.address],
         fees: [FeeAmount.LOW],
       },
@@ -104,4 +116,9 @@ export const staticPaths =
           tokens: [tokens.wbtc.address, tokenOut.address],
           fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli
         },
+        wbtc: {
+          tokens: [tokens.weth.address, tokenOut.address],
+          fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli
+        },
     };
+

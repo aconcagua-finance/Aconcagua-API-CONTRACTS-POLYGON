@@ -3,19 +3,21 @@ import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
 
 pragma solidity 0.8.18;
 
-interface IColateralContract {
+interface IColateralContractOper {
   // Emitted when the `ColateralContract` is initialized
   event Initialize(
     address sender,
-    string[] _tokenNames,
-    address[] _tokenAddresses,
-    address[3] _aconcagua,
-    address _rescueWalletAddress,
-    address _withdrawWalletAddress,
-    address _firstLenderLiq,
-    address _secondLenderLiq,
-    address _swapRouterAddress,
-    address _swapper
+    address usdcTokenAddress,
+    address usdtTokenAddress,
+    address usdmTokenAddress,
+    address wbtcTokenAddress,
+    address[3] admins,
+    address rescueWalletAddress,
+    address withdrawWalletAddress,
+    address firstlenderLiq,
+    address secondLenderLiq,
+    address swapRouterAddress,
+    address swapper
   );
   // Emitted when token address is changed
   event TokenAddressChange(
@@ -32,7 +34,7 @@ interface IColateralContract {
     uint256 newWithdrawalLimit
   );
   // Emitted when withdraw
-  event Withdraw(address sender, string token, uint256 amount);
+  event Withdraw(address sender, address token, uint256 amount);
   // Emitted when rescue
   event Rescue(address sender, string token, uint256 amount, address to);
   // Emitted when swap is done
@@ -52,11 +54,9 @@ interface IColateralContract {
 
   function setRescueWalletAddress(address _rescueWalletAddress) external;
 
-  function withdraw(uint256 _amount, string calldata _tokenSymbol) external;
+  function withdrawX(uint256 _amount, address _tokenSymbol) external;
 
   function balanceOf(string memory _tokenSymbol) external view returns (uint256);
-
-  function rescue(uint256 _amount, string calldata _tokenSymbol) external;
 
   function getBalances() external view returns (uint256[] memory);
 

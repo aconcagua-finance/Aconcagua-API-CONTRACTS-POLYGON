@@ -34,6 +34,7 @@ export const USDC_TOKEN_ADDRESS = Config.getEnvConfig('USDC_TOKEN_ADDRESS')?.toL
 export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS')?.toLowerCase();
 export const USDM_TOKEN_ADDRESS = Config.getEnvConfig('USDM_TOKEN_ADDRESS')?.toLowerCase();
 export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS')?.toLowerCase();
+export const WETH_TOKEN_ADDRESS = Config.getEnvConfig('WETH_TOKEN_ADDRESS')?.toLowerCase();
 export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS')?.toLowerCase();
 export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS')?.toLowerCase();
 export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS')?.toLowerCase();
@@ -51,5 +52,6 @@ export const ALIQ2_ADDRESS = Config.getEnvConfig('ALIQ2_ADDRESS')?.toLowerCase()
 
 export const GAS_STATION_URL = Config.getEnvConfig('GAS_STATION_URL');
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
+export const KRAKEN_URL = Config.getEnvConfig('KRAKEN_URL');
 export const BINANCE_URL = Config.getEnvConfig('BINANCE_URL');
 export const API_PATH_QUOTES = Config.getEnvConfig('API_PATH_QUOTES');

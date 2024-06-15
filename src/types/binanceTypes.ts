@@ -1,3 +1,4 @@
 export enum BinanceTypes {
-  WBTC = 'BTCUSDT',
+  WBTC = 'WBTCUSDT',
+  WETH = 'WETHUSDT',
 }
