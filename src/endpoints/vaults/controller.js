@@ -2,6 +2,10 @@
 /* eslint-disable no-console */
 /* eslint-disable no-unused-vars */
 
+// require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
+// require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
+import { Pool, FeeAmount } from '@uniswap/v3-sdk';
+
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
 
@@ -38,9 +42,6 @@ const {
 const {
   abi: SwapRouterABI,
 } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
-// require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
-// require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
-import { Pool, FeeAmount } from '@uniswap/v3-sdk'
 const {
   abi: ERC20ABI,
 } = require('../../../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json');
@@ -486,7 +487,6 @@ exports.create = async function (req, res) {
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
     const colateralContractSignerAddress = lender.safeLiq1.toLowerCase(); // colateralContractDeploy.contractDeployment.signerAddress;
 
-
     if (!colateralContractAddress) {
       throw new CustomError.TechnicalError(
         'ERROR_CREATE_COLATERAL_CONTRACT',
@@ -553,7 +553,7 @@ exports.create = async function (req, res) {
       lender.vaultAdminAddress.toLowerCase(),
       initializeData.data || '0x',
     ];
-    console.log('proxyContractArgs', proxyContractArgs)
+    console.log('proxyContractArgs', proxyContractArgs);
     const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
     const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
@@ -653,13 +653,12 @@ exports.create = async function (req, res) {
 };
 
 const getGasPriceAndLimit = async (gasLimit) => {
-
   // TODO: add fallback source
   const maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
   const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
 
   console.log('Estimación de gas de Alchemy');
-
+  const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   provider.getGasPrice().then((maxFeePerGasAlchemy) => {
     console.log(`Current gas price: ${maxFeePerGasAlchemy}`);
   });
@@ -686,9 +685,8 @@ const getGasPriceAndLimit = async (gasLimit) => {
   // }
   const gasPrice = hre.ethers.BigNumber.from(60000000); // fallback to 0.6 gwei
 
-  const networkConfig = PROVIDER_NETWORK_NAME == 'rsk' 
-    ? { gasPrice }
-    : { maxFeePerGas, maxPriorityFeePerGas };
+  const networkConfig =
+    PROVIDER_NETWORK_NAME == 'rsk' ? { gasPrice } : { maxFeePerGas, maxPriorityFeePerGas };
 
   if (gasLimit) {
     networkConfig.gasLimit = gasLimit;
@@ -705,7 +703,10 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
 
   const networkConfig = await getGasPriceAndLimit();
 
-  const setTx1 = await blockchainContract.setRescueWalletAddress(rescueWalletAccount, networkConfig);
+  const setTx1 = await blockchainContract.setRescueWalletAddress(
+    rescueWalletAccount,
+    networkConfig
+  );
   await setTx1.wait();
   console.log('after: ' + (await blockchainContract.rescueWalletAddress()));
 };
@@ -723,22 +724,30 @@ const fetchVaultBalances = async (vault) => {
     {
       currency: Types.CurrencyTypes.USDC,
       // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(Utils.formatUnits(contractBalances[1], CurrencyDecimals.get(Types.CurrencyTypes.USDC))), // 6 decimales 
+      balance: parseFloat(
+        Utils.formatUnits(contractBalances[1], CurrencyDecimals.get(Types.CurrencyTypes.USDC))
+      ), // 6 decimales
     },
     {
       currency: Types.CurrencyTypes.USDT,
       // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(Utils.formatUnits(contractBalances[2], CurrencyDecimals.get(Types.CurrencyTypes.USDT))), // 6 decimales
+      balance: parseFloat(
+        Utils.formatUnits(contractBalances[2], CurrencyDecimals.get(Types.CurrencyTypes.USDT))
+      ), // 6 decimales
     },
     {
       currency: Types.CurrencyTypes.USDM,
       // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(Utils.formatUnits(contractBalances[3], CurrencyDecimals.get(Types.CurrencyTypes.USDM))), // 18 decimales
+      balance: parseFloat(
+        Utils.formatUnits(contractBalances[3], CurrencyDecimals.get(Types.CurrencyTypes.USDM))
+      ), // 18 decimales
     },
     {
       currency: Types.CurrencyTypes.WBTC,
       // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(Utils.formatUnits(contractBalances[4], CurrencyDecimals.get(Types.CurrencyTypes.WBTC))), // 8 decimales
+      balance: parseFloat(
+        Utils.formatUnits(contractBalances[4], CurrencyDecimals.get(Types.CurrencyTypes.WBTC))
+      ), // 8 decimales
     },
     {
       currency: Types.CurrencyTypes.WETH,
@@ -882,13 +891,14 @@ exports.withdraw = async function (req, res) {
       );
     }
 
-    // TODO this was added to test the swap directly, we should take this to a new endpoint
+    /* TODO this was added to test the swap directly, we should take this to a new endpoint
     const db = admin.firestore();
     const doc = await db.collection(COLLECTION_NAME).doc(id).get();
     swapVaultTokenBalances(doc.data());
 
-    return
-    // Here is how the code worked before
+    return;
+     Here is how the code worked before
+     */
     const smartContract = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
     secureDataArgsValidation({
@@ -931,10 +941,8 @@ exports.withdraw = async function (req, res) {
     // Get the deployed contract.
     const blockchainContract = getDeployedContract(smartContract);
     const decimals = CurrencyDecimals.get(token); // decimales
-    const ethAmount = decimals
-        ? Utils.parseUnits(amount, decimals) 
-        : Utils.parseEther(amount);
-    const networkConfig =  await getGasPriceAndLimit();
+    const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
+    const networkConfig = await getGasPriceAndLimit();
     const tokenReference = getTokenReference(token);
 
     // dry run so if it fails it gives a reason, also transaction is not launch to avoid unnecesart money spending
@@ -1116,18 +1124,16 @@ exports.rescue = async function (req, res) {
 
     const decimals = CurrencyDecimals.get(token); // decimales
     const ethAmount =
-      token === decimals
-        ? Utils.parseUnits(amount, decimals)
-        : Utils.parseEther(amount);
+      token === decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
 
     const networkConfig = await getGasPriceAndLimit();
     const tokenReference = getTokenReference(token);
 
-    //Dry run it helps gettint the error reason and fails without spending money
+    // Dry run it helps gettint the error reason and fails without spending money
     await blockchainContract.callStatic.rescue(ethAmount, tokenReference, networkConfig);
     const wd = await blockchainContract.rescue(ethAmount, tokenReference, networkConfig);
     await wd.wait();
-    
+
     const rescueTotalAmountARS = smartContract.rescueTotalAmountARS
       ? smartContract.rescueTotalAmountARS
       : 0;
@@ -1152,7 +1158,6 @@ exports.rescue = async function (req, res) {
 
     // Guardo en que moneda estaba guardada en la boveda
     const currency = getTokenReference(token);
-
 
     await EmailSender.send({
       to: borrower.email,
@@ -2093,13 +2098,15 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swap);
       console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
-      
+
       if (swap.params.recipient.toLowerCase() !== vault.id.toLowerCase()) {
-        throw new Error(`Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`);
+        throw new Error(
+          `Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`
+        );
       }
     }
 
-    const gasLimitEstimation = await blockchainContract.estimateGas.swapExactInputs(swapsParams)
+    const gasLimitEstimation = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
     const gasLimit = PROVIDER_NETWORK_NAME == 'rsk' ? 250000 : gasLimitEstimation;
     const networkConfig = await getGasPriceAndLimit(gasLimit);
 
@@ -2109,7 +2116,9 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const balance = await alchemy.getBalance(swaperAddress);
     const maxGasToPay = hre.ethers.BigNumber.from(networkConfig.gasLimit * networkConfig.gasPrice);
     if (hre.ethers.BigNumber.from(balance).lt(maxGasToPay)) {
-      throw new Error(`Swapper Address ${swaperAddress} does not have enough balance to pay ${maxGasToPay.toString()} wei for gas`);
+      throw new Error(
+        `Swapper Address ${swaperAddress} does not have enough balance to pay ${maxGasToPay.toString()} wei for gas`
+      );
     }
 
     // Execute swaps
@@ -2119,7 +2128,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       throw new Error('Transaction expired, old deadline');
     }
 
-    // Do a dry run 
+    // Do a dry run
     await blockchainContract.callStatic.swapExactInputs(swapsParams, networkConfig);
 
     // Send transaction to the blockchain
@@ -2287,8 +2296,10 @@ exports.createVaultAdmin = async (req, res) => {
 
     const contractName = 'ColateralProxyAdmin';
     // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
-    const { deploymentResponse, contractDeployment } = await deployContract(contractName, owner.toLowerCase());
-
+    const { deploymentResponse, contractDeployment } = await deployContract(
+      contractName,
+      owner.toLowerCase()
+    );
 
     await deploymentResponse.deployed();
     console.log('Deployment success');
