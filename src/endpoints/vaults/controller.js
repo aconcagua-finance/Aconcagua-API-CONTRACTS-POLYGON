@@ -433,6 +433,15 @@ const deployContract = async (contractName, args = null) => {
 };
 
 const getDeployedContract = (vault) => {
+  console.log('Dentro de getDeployedContract');
+  console.log(
+    'Dentro de getDeployedContract - Vault id ',
+    vault.id,
+    ' Contractname ',
+    vault.contractName,
+    ' Contract Version ',
+    vault.contractVersion
+  );
   const smartContract = vault;
 
   const contractJson = require('../../../artifacts/contracts/' +
@@ -479,7 +488,7 @@ exports.create = async function (req, res) {
 
     const networkName = hre.network.name;
 
-    const colateralContractName = 'ColateralContract';
+    const colateralContractName = 'ColateralContract2';
     const proxyContractName = 'ColateralProxy';
 
     // Deploy ColateralContract
@@ -712,49 +721,94 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
 };
 
 const fetchVaultBalances = async (vault) => {
+  console.log('fetchVaultBalances- Dentro de fetchVaultBalances ' + vault.id);
+  console.log('fetchVaultBalances- Vault version vale ' + vault.contractVersion);
+
   // Get the deployed contract.
   const blockchainContract = getDeployedContract(vault);
-
-  console.log('Get the deployed contract done');
   const contractBalances = await blockchainContract.getBalances();
+  console.log('BALANCES FOR ' + vault.id + ': ' + JSON.stringify(contractBalances));
+  let balancesWithCurrencies = [];
 
-  console.log('BALANCES FOR' + vault.id + ': ' + JSON.stringify(contractBalances));
+  let isMultiToken = vault.contractVersion === '2.0.0';
 
-  const balancesWithCurrencies = [
-    {
-      currency: Types.CurrencyTypes.USDC,
-      // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(
-        Utils.formatUnits(contractBalances[1], CurrencyDecimals.get(Types.CurrencyTypes.USDC))
-      ), // 6 decimales
-    },
-    {
-      currency: Types.CurrencyTypes.USDT,
-      // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(
-        Utils.formatUnits(contractBalances[2], CurrencyDecimals.get(Types.CurrencyTypes.USDT))
-      ), // 6 decimales
-    },
-    {
-      currency: Types.CurrencyTypes.USDM,
-      // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(
-        Utils.formatUnits(contractBalances[3], CurrencyDecimals.get(Types.CurrencyTypes.USDM))
-      ), // 18 decimales
-    },
-    {
-      currency: Types.CurrencyTypes.WBTC,
-      // TODO we should have a different type for RSK tokens instead of re using the polygon ones
-      balance: parseFloat(
-        Utils.formatUnits(contractBalances[4], CurrencyDecimals.get(Types.CurrencyTypes.WBTC))
-      ), // 8 decimales
-    },
-    {
-      currency: Types.CurrencyTypes.WETH,
-      balance: parseFloat(Utils.formatUnits(contractBalances[5], 18)), // 18 decimales
-    },
-  ];
+  if (isMultiToken) {
+    // Handle new version of the contract
+    console.log('fetchVaultBalances- Vault ' + vault.id + ' es multitoken');
 
+    try {
+      // Fetch the tokenNames array
+      const tokenNames = await blockchainContract.getTokenNames();
+      console.log('fetchVaultBalances- tokenNames length: ' + tokenNames.length);
+      console.log('fetchVaultBalances- tokenNames: ' + JSON.stringify(tokenNames));
+
+      // Fetch the contract balances (assuming this is needed for the new version as well)
+      const contractBalances = await blockchainContract.getBalances();
+
+      // Loop through tokenNames and fetch balances
+      for (let i = 0; i < tokenNames.length; i++) {
+        const tokenName = tokenNames[i];
+        const tokenBalance = contractBalances[i + 1];
+
+        const currencyType = Types.CurrencyTypes[tokenName];
+        const formattedBalance = parseFloat(
+          Utils.formatUnits(tokenBalance, CurrencyDecimals.get(currencyType))
+        );
+
+        console.log(
+          'fetchVaultBalances - Balance de ',
+          tokenName,
+          ' es ',
+          tokenBalance,
+          'que formateado es ',
+          formattedBalance
+        );
+
+        balancesWithCurrencies.push({
+          currency: currencyType,
+          balance: formattedBalance,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching token names or balances:', error);
+      throw error;
+    }
+  } else {
+    // Handle old version of the contract
+    balancesWithCurrencies = [
+      {
+        currency: Types.CurrencyTypes.USDC,
+        balance: parseFloat(
+          Utils.formatUnits(contractBalances[1], CurrencyDecimals.get(Types.CurrencyTypes.USDC))
+        ), // 6 decimales
+      },
+      {
+        currency: Types.CurrencyTypes.USDT,
+        balance: parseFloat(
+          Utils.formatUnits(contractBalances[2], CurrencyDecimals.get(Types.CurrencyTypes.USDT))
+        ), // 6 decimales
+      },
+      {
+        currency: Types.CurrencyTypes.USDM,
+        balance: parseFloat(
+          Utils.formatUnits(contractBalances[3], CurrencyDecimals.get(Types.CurrencyTypes.USDM))
+        ), // 18 decimales
+      },
+      {
+        currency: Types.CurrencyTypes.WBTC,
+        balance: parseFloat(
+          Utils.formatUnits(contractBalances[4], CurrencyDecimals.get(Types.CurrencyTypes.WBTC))
+        ), // 8 decimales
+      },
+    ];
+  }
+
+  console.log(
+    'fetchVaultBalances - vault ',
+    vault.id,
+    ' - balancesWithCurrencies es ',
+    JSON.stringify(balancesWithCurrencies)
+  );
   const valuations = await getCurrenciesValuations();
 
   console.log('Valuations response:' + JSON.stringify(valuations));
@@ -770,8 +824,9 @@ const fetchVaultBalances = async (vault) => {
         return item.currency === valuation.currency;
       });
 
-      if (sumarizedBalance) sumarizedBalance.balance += valuation.value;
-      else {
+      if (sumarizedBalance) {
+        sumarizedBalance.balance += valuation.value;
+      } else {
         sumarizedBalances.push({ ...valuation, balance: valuation.value, isValuation: true });
       }
     });
@@ -813,7 +868,7 @@ exports.getVaultBalances = async function (req, res) {
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
     const allBalances = await fetchVaultBalances(vault);
     console.log('La vault que estoy procesando es');
-    console.log(vault);
+    console.log(vault.id);
 
     // actualizo
     await updateSingleItem({
@@ -1277,9 +1332,6 @@ const markVaultsToEvaluate = async function () {
   const db = admin.firestore();
   const batch = db.batch();
   const vaults = await getVaultsToEvaluate();
-
-  console.log('Lista de vaults a evaluar es ', vaults);
-
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
 

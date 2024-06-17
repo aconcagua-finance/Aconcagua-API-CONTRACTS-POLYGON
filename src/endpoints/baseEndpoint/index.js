@@ -204,6 +204,7 @@ const fetchItems = async function ({
 
 const fetchSingleItem = async function ({ collectionName, id }) {
   try {
+    console.log('Dentro de fetchSingleItem ' + id);
     const db = admin.firestore();
     const doc = await db.collection(collectionName).doc(id).get();
 

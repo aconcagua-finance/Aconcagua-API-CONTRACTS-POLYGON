@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract.sol": {
-      "lastModificationDate": 1718449057349,
-      "contentHash": "d56d692739be523d724174a11987be39",
+      "lastModificationDate": 1718634314870,
+      "contentHash": "4b51cdb1c0e48e8b1c97b66ec90bfdef",
       "sourceName": "contracts/ColateralContract.sol",
       "solcConfig": {
         "version": "0.8.18",
@@ -35,10 +35,7 @@
         "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
         "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
         "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
-        "@uniswap/universal-router/contracts/libraries/Commands.sol",
-        "@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol",
-        "./IColateralContract.sol",
-        "./IWETH.sol"
+        "./IColateralContract.sol"
       ],
       "versionPragmas": [
         "0.8.18"
@@ -83,8 +80,8 @@
       ]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContract.sol": {
-      "lastModificationDate": 1718449057354,
-      "contentHash": "954937b08ea0903f4eb9cc7313980a66",
+      "lastModificationDate": 1718634337916,
+      "contentHash": "a9dce3ab28802fa58be59df46993b78f",
       "sourceName": "contracts/IColateralContract.sol",
       "solcConfig": {
         "version": "0.8.18",
@@ -1800,6 +1797,89 @@
       ],
       "artifacts": [
         "IPermit2"
+      ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContract2.sol": {
+      "lastModificationDate": 1718634268369,
+      "contentHash": "d34b949b25b5e213f88fd2e97925457f",
+      "sourceName": "contracts/IColateralContract2.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"
+      ],
+      "versionPragmas": [
+        "0.8.18"
+      ],
+      "artifacts": [
+        "IColateralContract2"
+      ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract2.sol": {
+      "lastModificationDate": 1718640862657,
+      "contentHash": "273e9924816ce10d86ece42f8d45b5e1",
+      "sourceName": "contracts/ColateralContract2.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/utils/Strings.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
+        "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
+        "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
+        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
+        "@uniswap/universal-router/contracts/libraries/Commands.sol",
+        "@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol",
+        "./IColateralContract2.sol",
+        "./IWETH.sol"
+      ],
+      "versionPragmas": [
+        "0.8.18"
+      ],
+      "artifacts": [
+        "ColateralContract2"
       ]
     }
   }
