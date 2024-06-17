@@ -730,7 +730,7 @@ const fetchVaultBalances = async (vault) => {
   console.log('BALANCES FOR ' + vault.id + ': ' + JSON.stringify(contractBalances));
   let balancesWithCurrencies = [];
 
-  let isMultiToken = vault.contractVersion === '2.0.0';
+  const isMultiToken = vault.contractVersion === '2.0.0';
 
   if (isMultiToken) {
     // Handle new version of the contract
