@@ -14,56 +14,68 @@
         },
         {
           "indexed": false,
-          "internalType": "string[]",
-          "name": "_tokenNames",
-          "type": "string[]"
+          "internalType": "address",
+          "name": "usdcTokenAddress",
+          "type": "address"
         },
         {
           "indexed": false,
-          "internalType": "address[]",
-          "name": "_tokenAddresses",
-          "type": "address[]"
+          "internalType": "address",
+          "name": "usdtTokenAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "usdmTokenAddress",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "wbtcTokenAddress",
+          "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address[3]",
-          "name": "_aconcagua",
+          "name": "admins",
           "type": "address[3]"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_rescueWalletAddress",
+          "name": "rescueWalletAddress",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_withdrawWalletAddress",
+          "name": "withdrawWalletAddress",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_firstLenderLiq",
+          "name": "firstlenderLiq",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_secondLenderLiq",
+          "name": "secondLenderLiq",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_swapRouterAddress",
+          "name": "swapRouterAddress",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_swapper",
+          "name": "swapper",
           "type": "address"
         }
       ],
