@@ -37,8 +37,8 @@ const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
 
 const {
-  abi: Quoter2ABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json');
+  abi: QuoterABI,
+} = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const {
   abi: SwapRouterABI,
 } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
@@ -2160,9 +2160,11 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     );
 
     // Gas estimation
-    const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+
+    const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, QuoterABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
+      /* Gas estimation taken from network config MRM Jun 2024
       console.log(
         `swapVaultExactInputs - JSON.stringify(swap,
           , null, 2): ${JSON.stringify(swap, null, 2)}`
@@ -2171,7 +2173,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swap);
       console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
-
+      */
       if (swap.params.recipient.toLowerCase() !== vault.id.toLowerCase()) {
         throw new Error(
           `Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`
