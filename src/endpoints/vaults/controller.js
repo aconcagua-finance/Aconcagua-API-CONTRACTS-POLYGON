@@ -2149,8 +2149,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
     // Gas limit estimation
 
-    let swapsGasEstimation = 0;
-    const gasEstimateFallback = 3000000;
+    let swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    const gasEstimateFallback = hre.ethers.BigNumber.from('3000000');
 
     for (const swap of swapsParams) {
       try {
