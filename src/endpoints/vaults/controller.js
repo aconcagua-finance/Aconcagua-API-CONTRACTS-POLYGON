@@ -703,9 +703,7 @@ const getGasPriceAndLimit = async (gasLimit) => {
       'getGasPriceAndLimit - Error fetching gas price data, using fallback values:',
       error
     );
-    gasPrice = hre.ethers.BigNumber.from(60000000); // fallback to 0.6 gwei
-    maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
-    maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
+    gasPrice = hre.ethers.utils.parseUnits('35', 'gwei'); // fallback to 35 gwei
   }
 
   const networkConfig = { gasPrice, maxFeePerGas, maxPriorityFeePerGas };
@@ -2149,22 +2147,10 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const swaperAddress = await signer.getAddress();
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
-    /* Gas price
-    // MRM nuevo calculo de gas price
-    // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
-    const feeData = await alchemy.getFeeData();
-    const gasPrice = feeData.gasPrice;
-    const maxFeePerGas = feeData.maxFeePerGas;
-    const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-    console.log(`gasPrice: ${gasPrice}`);
-    console.log(
-      `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
-    );
-    */
-    // Gas estimation
+    // Gas limit estimation
 
-    let swapsGasEstimation = hre.ethers.BigNumber.from('0');
-    const gasEstimateFallback = hre.ethers.BigNumber.from('40000000'); // 40 gwei
+    let swapsGasEstimation = 0;
+    const gasEstimateFallback = 3000000;
 
     for (const swap of swapsParams) {
       try {
@@ -2205,18 +2191,21 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       }
     }
 
-    console.log('Final total gas estimation for all swaps:', swapsGasEstimation.toString());
+    console.log(
+      'swapVaultExactInputs - Final total gas estimation for all swaps:',
+      swapsGasEstimation.toString()
+    );
 
     const networkConfig = await getGasPriceAndLimit(swapsGasEstimation);
 
-    console.log('swapsParams', JSON.stringify(swapsParams));
+    console.log('swapVaultExactInputs - swapsParams', JSON.stringify(swapsParams));
 
     // Check swapper has enough balance
     const balance = await alchemy.getBalance(swaperAddress);
-    const maxGasToPay = hre.ethers.BigNumber.from(networkConfig.gasLimit * networkConfig.gasPrice);
+    const maxGasToPay = networkConfig.gasLimit;
     if (hre.ethers.BigNumber.from(balance).lt(maxGasToPay)) {
       throw new Error(
-        `Swapper Address ${swaperAddress} does not have enough balance to pay ${maxGasToPay.toString()} wei for gas`
+        `Swapper Address ${swaperAddress} does not have enough balance ( ${balance} ) to pay ${maxGasToPay.toString()} wei for gas`
       );
     }
 
