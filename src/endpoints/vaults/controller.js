@@ -2163,33 +2163,51 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     */
     // Gas estimation
 
-    let swapsGasEstimation;
-    swapsGasEstimation = hre.ethers.BigNumber.from('0');
-    for (const swap of swapsParams) {
-      // Gas estimation taken from network config MRM Jun 2024
-      console.log(
-        `swapVaultExactInputs - JSON.stringify(swap,
-          , null, 2): ${JSON.stringify(swap, null, 2)}`
-      );
-      console.log('swapVaultExactInputs - Tomando gasEstimate con callstatic');
-      const { gasEstimate } = await blockchainContract.estimateGas.swapExactInputs(swap);
-      console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
-      swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
-      console.log(
-        'swapVaultExactInputs - Y el total acumulado de los swaps va ',
-        swapsGasEstimation
-      );
+    let swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    const gasEstimateFallback = hre.ethers.BigNumber.from('40000000'); // 40 gwei
 
-      if (swap.params.recipient.toLowerCase() !== vault.id.toLowerCase()) {
-        throw new Error(
-          `Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`
+    for (const swap of swapsParams) {
+      try {
+        // Log swap details
+        console.log(`swapVaultExactInputs - Swap details: ${JSON.stringify(swap, null, 2)}`);
+
+        // Check recipient
+        if (swap.params.recipient.toLowerCase() !== vault.id.toLowerCase()) {
+          throw new Error(
+            `Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`
+          );
+        }
+
+        // Estimate gas
+        console.log('swapVaultExactInputs - Estimating gas with estimateGas');
+        const gasEstimate = await blockchainContract.estimateGas.swapExactInputs(swap);
+        console.log('swapVaultExactInputs - Gas estimate:', gasEstimate.toString());
+
+        // Accumulate gas estimate
+        swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
+        console.log(
+          'swapVaultExactInputs - Total accumulated gas estimate:',
+          swapsGasEstimation.toString()
+        );
+      } catch (error) {
+        console.error(
+          `Error estimating gas for swap: ${
+            error.message
+          }. Using fallback gas estimate of ${gasEstimateFallback.toString()}`
+        );
+
+        // Use fallback gas estimate for the failed operation
+        swapsGasEstimation = swapsGasEstimation.add(gasEstimateFallback);
+        console.log(
+          'swapVaultExactInputs - Total accumulated gas estimate with fallback:',
+          swapsGasEstimation.toString()
         );
       }
     }
 
-    // const gasLimitEstimation = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
-    const gasLimit = PROVIDER_NETWORK_NAME == 'rsk' ? 250000 : swapsGasEstimation;
-    const networkConfig = await getGasPriceAndLimit(gasLimit);
+    console.log('Final total gas estimation for all swaps:', swapsGasEstimation.toString());
+
+    const networkConfig = await getGasPriceAndLimit(swapsGasEstimation);
 
     console.log('swapsParams', JSON.stringify(swapsParams));
 
