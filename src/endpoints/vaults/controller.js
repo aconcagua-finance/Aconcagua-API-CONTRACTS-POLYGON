@@ -544,7 +544,7 @@ exports.create = async function (req, res) {
     ];
 
     const contractKeys = ['router', 'swapper', 'quoter'];
-    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_ADDRESS];
+    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
 
     // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
     const args = [
