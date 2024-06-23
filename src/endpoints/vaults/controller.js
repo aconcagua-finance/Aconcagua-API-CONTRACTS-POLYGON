@@ -683,57 +683,48 @@ exports.create = async function (req, res) {
 };
 
 const getGasPriceAndLimit = async (gasLimit) => {
-  // TODO: add fallback source
-  const maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
-  const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
+  let gasPrice;
+  let maxFeePerGas;
+  let maxPriorityFeePerGas;
 
-  console.log('getGasPriceAndLimit - Estimación de gas de Alchemy');
-  const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-  provider.getGasPrice().then((maxFeePerGasAlchemy) => {
-    console.log(`getGasPriceAndLimit - Current gas price: ${maxFeePerGasAlchemy}`);
-  });
+  try {
+    console.log('getGasPriceAndLimit - Estimación de gas');
+    const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
 
-  provider.getFeeData().then((feeData) => {
-    console.log(`getGasPriceAndLimit - Max priority fee: ${feeData.maxPriorityFeePerGas}`);
-  });
+    gasPrice = await provider.getGasPrice();
+    console.log(`getGasPriceAndLimit - Current gas price: ${gasPrice}`);
 
-  // try {
-  //   const { data } = await axios({
-  //     method: 'get',
-  //     url: GAS_STATION_URL,
-  //     // url: isProd
-  //     //   ? 'https://gasstation-mainnet.matic.network/v2'
-  //     //   : 'https://gasstation-mumbai.matic.today/v2',
-  //   });
-  //   maxFeePerGas = hre.ethers.utils.parseUnits(Math.ceil(data.fast.maxFee) + '', 'gwei');
-  //   maxPriorityFeePerGas = hre.ethers.utils.parseUnits(
-  //     Math.ceil(data.fast.maxPriorityFee) + '',
-  //     'gwei'
-  //   );
-  // } catch (e) {
-  //   console.error('ERROR FETCHING PRICE FOR GAS CALC', e);
-  // }
-  const gasPrice = hre.ethers.BigNumber.from(60000000); // fallback to 0.6 gwei
+    const feeData = await provider.getFeeData();
+    maxFeePerGas = feeData.maxFeePerGas;
+    maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+    console.log(`getGasPriceAndLimit - Max priority fee: ${maxPriorityFeePerGas}`);
+  } catch (error) {
+    console.error(
+      'getGasPriceAndLimit - Error fetching gas price data, using fallback values:',
+      error
+    );
+    gasPrice = hre.ethers.BigNumber.from(60000000); // fallback to 0.6 gwei
+    maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
+    maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
+  }
 
-  const networkConfig =
-    PROVIDER_NETWORK_NAME == 'rsk'
-      ? { gasPrice }
-      : { gasPrice, gasLimit, maxFeePerGas, maxPriorityFeePerGas };
+  const networkConfig = { gasPrice, maxFeePerGas, maxPriorityFeePerGas };
 
   if (gasLimit) {
     networkConfig.gasLimit = gasLimit;
   } else {
     networkConfig.gasLimit = 500000;
   }
+
   console.log(
-    'getGasPriceAndLimit - networkConfig.gasPrice ',
-    networkConfig.gasPrice,
-    'getGasPriceAndLimit -  networkConfig.gasLimit ',
-    networkConfig.gasLimit,
-    'getGasPriceAndLimit -  networkConfig.maxFeePerGas ',
-    networkConfig.maxFeePerGas,
-    'getGasPriceAndLimit -  networkConfig.maxPriorityFeePerGas ',
-    networkConfig.maxPriorityFeePerGas
+    'getGasPriceAndLimit - networkConfig.gasPrice:',
+    networkConfig.gasPrice.toString(),
+    'getGasPriceAndLimit - networkConfig.gasLimit:',
+    networkConfig.gasLimit.toString(),
+    'getGasPriceAndLimit - networkConfig.maxFeePerGas:',
+    networkConfig.maxFeePerGas.toString(),
+    'getGasPriceAndLimit - networkConfig.maxPriorityFeePerGas:',
+    networkConfig.maxPriorityFeePerGas.toString()
   );
   return networkConfig;
 };
@@ -2158,7 +2149,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const swaperAddress = await signer.getAddress();
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer); // vault.proxyContractAddress
 
-    // Gas price
+    /* Gas price
     // MRM nuevo calculo de gas price
     // const { maxFeePerGas, maxPriorityFeePerGas } = await getGasPrice(alchemy);
     const feeData = await alchemy.getFeeData();
@@ -2169,22 +2160,26 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     console.log(
       `gasPrice: maxFeePerGas ${maxFeePerGas}, maxPriorityFeePerGas ${maxPriorityFeePerGas}`
     );
-
+    */
     // Gas estimation
 
-    const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, QuoterABI, alchemy);
-    const swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    let swapsGasEstimation;
+    swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
-      /* Gas estimation taken from network config MRM Jun 2024
+      // Gas estimation taken from network config MRM Jun 2024
       console.log(
         `swapVaultExactInputs - JSON.stringify(swap,
           , null, 2): ${JSON.stringify(swap, null, 2)}`
       );
       console.log('swapVaultExactInputs - Tomando gasEstimate con callstatic');
-      const { gasEstimate } = await blockchainContract.callStatic.swapExactInputs(swap);
+      const { gasEstimate } = await blockchainContract.estimateGas.swapExactInputs(swap);
       console.log('swapVaultExactInputs - Gas estimate es ', gasEstimate);
       swapsGasEstimation = swapsGasEstimation.add(gasEstimate);
-      */
+      console.log(
+        'swapVaultExactInputs - Y el total acumulado de los swaps va ',
+        swapsGasEstimation
+      );
+
       if (swap.params.recipient.toLowerCase() !== vault.id.toLowerCase()) {
         throw new Error(
           `Swapper Params recipient ${swap.params.recipient} is not the vault ${vault.id}`
@@ -2192,8 +2187,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       }
     }
 
-    const gasLimitEstimation = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
-    const gasLimit = PROVIDER_NETWORK_NAME == 'rsk' ? 250000 : gasLimitEstimation;
+    // const gasLimitEstimation = await blockchainContract.estimateGas.swapExactInputs(swapsParams);
+    const gasLimit = PROVIDER_NETWORK_NAME == 'rsk' ? 250000 : swapsGasEstimation;
     const networkConfig = await getGasPriceAndLimit(gasLimit);
 
     console.log('swapsParams', JSON.stringify(swapsParams));
