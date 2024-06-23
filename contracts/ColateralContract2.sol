@@ -203,9 +203,8 @@ contract ColateralContract2 is
       }
 
       // Get the quote for the swap
-      // Declare four separate variables to capture the return values
+
       uint256 quotedAmountOut;
-      
       try quoter.quoteExactInput(swapParams.params.path, swapParams.params.amountIn) returns (uint256 amountOut) {
             quotedAmountOut = amountOut;
             emit Quote(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, quotedAmountOut);
@@ -213,7 +212,6 @@ contract ColateralContract2 is
             emit QuoteError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, errorMsg);
         }
       
-
       // Check if amountOutMinimum is more than zero and at least 98% of quotedAmountOut
       if (swapParams.params.amountOutMinimum <= 0 || swapParams.params.amountOutMinimum < (quotedAmountOut * 98) / 100) {
         revert AmountOutMinimumTooLow();
@@ -284,26 +282,10 @@ contract ColateralContract2 is
     emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
   }
 
-  /**
-   * @dev Returns the number `roles`. Can be used
-   * together with {getRoleByIndex} to enumerate all bearers of a role.
-   */
   function getRoleCount() external view virtual override returns (uint256) {
     return _rolesSet.length();
   }
 
-  /**
-   * @dev Returns one of the `roles`. `index` must be a
-   * value between 0 and {getRoleCount}, non-inclusive.
-   *
-   * Role are not sorted in any particular way, and their ordering may
-   * change at any point.
-   *
-   * WARNING: When using {getRoleByIndex} and {getRoleCount}, make sure
-   * you perform all queries on the same block. See the following
-   * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-   * for more information.
-   */
   function getRoleByIndex(uint index) external view virtual override returns (bytes32) {
     return _rolesSet.at(index);
   }
