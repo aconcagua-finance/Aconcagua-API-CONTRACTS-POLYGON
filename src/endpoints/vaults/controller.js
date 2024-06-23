@@ -88,6 +88,7 @@ const {
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
   HARDHAT_API_URL,
+  ETHERSCAN_API_KEY,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
@@ -423,11 +424,9 @@ const deployContract = async (contractName, args = null) => {
   } else {
     deploymentResponse = await contract.deploy(args);
   }
-  console.log('colateralContract deploymentResponse:', JSON.stringify(deploymentResponse));
 
   // Parse
   const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
-  console.log('Contract deployment:', JSON.stringify(contractDeployment));
 
   return { deploymentResponse, contractDeployment };
 };
@@ -544,7 +543,8 @@ exports.create = async function (req, res) {
       WETH_TOKEN_ADDRESS,
     ];
 
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+    const args = [
       tokenNames,
       tokenAddresses,
       operators,
@@ -553,16 +553,18 @@ exports.create = async function (req, res) {
       colateralContractSignerAddress, // lender.safeLiq1,
       lender.safeLiq2.toLowerCase(),
       SWAP_ROUTER_V3_ADDRESS,
-      SWAPPER_ADDRESS
+      SWAPPER_ADDRESS,
+    ];
+
+    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+      ...args
     );
 
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
     const proxyContractArgs = [
       colateralContractAddress,
       lender.vaultAdminAddress.toLowerCase(),
       initializeData.data || '0x',
     ];
-    console.log('proxyContractArgs', proxyContractArgs);
     const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
     const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
@@ -575,6 +577,22 @@ exports.create = async function (req, res) {
         null
       );
     }
+
+    // Log the ABI encoded constructor arguments
+    const abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+      [
+        'string[]',
+        'address[]',
+        'address[]',
+        'address',
+        'address',
+        'address',
+        'address',
+        'address',
+        'address',
+      ],
+      args
+    );
 
     // Build entity
     const collectionName = COLLECTION_NAME;
@@ -590,6 +608,7 @@ exports.create = async function (req, res) {
     body.contractAddress = colateralContractAddress;
     body.contractSignerAddress = colateralContractSignerAddress;
     body.contractDeployment = colateralContractDeploy.contractDeployment;
+    body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
     body.contractStatus = contractStatus;
     body.contractNetwork = networkName;
@@ -603,8 +622,6 @@ exports.create = async function (req, res) {
     body.proxyContractStatus = 'pending-deployment-verification';
     body.proxyContractVersion = 'TransparentUpgradeable';
 
-    console.log('Create args (' + collectionName + '):', body);
-
     // Store entity and response
     const itemData = await sanitizeData({ data: body, validationSchema });
     const dbItemData = await createFirestoreDocument({
@@ -613,7 +630,6 @@ exports.create = async function (req, res) {
       auditUid,
       documentId: proxyContractAddress,
     });
-    console.log('Create data: (' + collectionName + ')', dbItemData);
 
     res.status(201).send(dbItemData);
 

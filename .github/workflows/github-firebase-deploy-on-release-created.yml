@@ -41,7 +41,7 @@ env:
   WBTC_TOKEN_ADDRESS: '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6'
   WETH_TOKEN_ADDRESS: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619'
   QUOTER2_CONTRACT_ADDRESS: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e'
-  SWAP_ROUTER_V3_ADDRESS: '0xE592427A0AEce92De3Edee1F18E0157C05861564'
+  SWAP_ROUTER_V3_ADDRESS: '0xec7BE89e9d109e7e3Fec59c222CF297125FEFda2'
   SWAPPER_ADDRESS: '0x6cE4d134398bE95A3B225af46Ffc69BB309383CA'
   OPERATOR1_ADDRESS: '0xdE3b1e924342e6b2722241a7d0472F4162952833'
   OPERATOR2_ADDRESS: '0xb52799a331c5820E4a6de739236C80FBAB02e532'
@@ -67,10 +67,6 @@ jobs:
           node-version: 18.19.0
           registry-url: https://npm.pkg.github.com/
       - run: npm ci --force --legacy-peer-deps
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
-          # NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}} este no tiee permisos en otro repo
-          VS_GITHUB_NPM_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
       - run: npm run prettier-ci
       - run: npm run lint-ci
       - run: npm run test-ci
@@ -80,8 +76,6 @@ jobs:
 
       - run: npm run deploy-ci
         env:
-          NODE_AUTH_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
-          VS_GITHUB_NPM_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{secrets.FIREBASE_SERVICE_ACCOUNT_KEY}}
 
   # publish-gpr:

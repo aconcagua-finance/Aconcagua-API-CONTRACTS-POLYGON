@@ -14,15 +14,15 @@
         },
         {
           "indexed": false,
-          "internalType": "string[]",
+          "internalType": "string[5]",
           "name": "_tokenNames",
-          "type": "string[]"
+          "type": "string[5]"
         },
         {
           "indexed": false,
-          "internalType": "address[]",
+          "internalType": "address[5]",
           "name": "_tokenAddresses",
-          "type": "address[]"
+          "type": "address[5]"
         },
         {
           "indexed": false,
@@ -56,18 +56,80 @@
         },
         {
           "indexed": false,
+          "internalType": "string[3]",
+          "name": "_contractKeys",
+          "type": "string[3]"
+        },
+        {
+          "indexed": false,
+          "internalType": "address[3]",
+          "name": "_contractAddresses",
+          "type": "address[3]"
+        }
+      ],
+      "name": "Initialize",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
           "internalType": "address",
-          "name": "_swapRouterAddress",
+          "name": "tokenIn",
           "type": "address"
         },
         {
           "indexed": false,
           "internalType": "address",
-          "name": "_swapper",
+          "name": "tokenOut",
           "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "quotedAmountOut",
+          "type": "uint256"
         }
       ],
-      "name": "Initialize",
+      "name": "Quote",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "msg",
+          "type": "string"
+        }
+      ],
+      "name": "QuoteError",
       "type": "event"
     },
     {
@@ -168,74 +230,12 @@
         },
         {
           "indexed": false,
-          "internalType": "address",
-          "name": "oldTokenAddress",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "newTokenAddress",
-          "type": "address"
-        }
-      ],
-      "name": "TokenAddressChange",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token",
-          "type": "string"
-        },
-        {
-          "indexed": false,
           "internalType": "uint256",
           "name": "amount",
           "type": "uint256"
         }
       ],
       "name": "Withdraw",
-      "type": "event"
-    },
-    {
-      "anonymous": false,
-      "inputs": [
-        {
-          "indexed": false,
-          "internalType": "address",
-          "name": "sender",
-          "type": "address"
-        },
-        {
-          "indexed": false,
-          "internalType": "string",
-          "name": "token",
-          "type": "string"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "oldWithdrawalLimit",
-          "type": "uint256"
-        },
-        {
-          "indexed": false,
-          "internalType": "uint256",
-          "name": "newWithdrawalLimit",
-          "type": "uint256"
-        }
-      ],
-      "name": "WithdrawalLimitChange",
       "type": "event"
     },
     {
