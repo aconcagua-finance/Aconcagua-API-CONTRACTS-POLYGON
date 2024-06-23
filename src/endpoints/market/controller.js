@@ -3,8 +3,8 @@ const { Alchemy, Network, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
 const {
-  abi: Quoter2ABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json');
+  abi: QuoterABI,
+} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/Quoter.json');
 const hre = require('hardhat');
 const axios = require('axios');
 const JSBI = require('jsbi');
@@ -120,7 +120,8 @@ const getUniPathQuotes = async (quoteAmounts) => {
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
-  const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+  // Cambie a QuoterABI en lugar de Quoter2ABI
+  const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, QuoterABI, alchemy);
 
   // Quote data
   const quotes = {};
@@ -134,10 +135,19 @@ const getUniPathQuotes = async (quoteAmounts) => {
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
     console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
     console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
+
+    /* Si uso QuoterV2
     const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
     console.log('quoter2Result es ', quoter2Result);
-
     const amountOutFormatted = Utils.formatUnits(quoter2Result.amountOut, tokenOut.decimals);
+    const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
+      2
+    );
+    */
+    // Si uso quoter
+    const quoter2Result = await quoter2Contract.callStatic.quoteExactInput(encodedPath, amountIn);
+    console.log('quoter2Result es ', quoter2Result);
+    const amountOutFormatted = Utils.formatUnits(quoter2Result, tokenOut.decimals);
     const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
       2
     );
