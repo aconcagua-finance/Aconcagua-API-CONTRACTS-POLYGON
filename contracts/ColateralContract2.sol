@@ -5,8 +5,10 @@ import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
+import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
 import {Commands} from '@uniswap/universal-router/contracts/libraries/Commands.sol';
 import '@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol';
+
 import './IColateralContract2.sol';
 import './IWETH.sol';
 
@@ -25,8 +27,6 @@ contract ColateralContract2 is
   bytes32 public constant LENDER_LIQ_ROLE = keccak256('LENDER_LIQ');
   // Rescuer role
   bytes32 public constant RESCUER_ROLE = keccak256('RESCUER');
-  // Pause role
-  bytes32 public constant PAUSER_ROLE = keccak256('PAUSER');
   // Swap role
   bytes32 public constant SWAPPER_ROLE = keccak256('SWAPPER');
 
@@ -35,57 +35,89 @@ contract ColateralContract2 is
 
   // Network
   uint constant RSK_ID = 30;
-  address RSK_PERMIT2 = 0xFcf5986450E4A014fFE7ad4Ae24921B589D039b5;
 
   // Token management
-  string[] public tokenNames;
+  string[5] public tokenNames;
   mapping(string => address) public tokenTable;
 
   address public rescueWalletAddress;
   address public withdrawWalletAddress;
 
+  string[3] public contractKeys;
+  mapping(string => address) public contractAddresses;
+
+
   ISwapRouter internal swapRouter;
+  IQuoter internal quoter; 
+
+  // Custom Errors
+  error AdminAddressInvalid();
+  error RescueAddressInvalid();
+  error WithdrawAddressInvalid();
+  error FirstLenderLiqAddressInvalid();
+  error SecondLenderLiqAddressInvalid();
+  error TokenNameAndAddressLengthMismatch();
+  error TokenInError();
+  error RecipientError();
+  error TokenOutError();
+  error AmountInError();
+  error AmountOutMinimumTooLow();
 
   constructor() {
     _disableInitializers();
   }
 
   function initialize(
-    string[] calldata _tokenNames,
-    address[] calldata _tokenAddresses,
+    string[5] calldata _tokenNames,
+    address[5] calldata _tokenAddresses,
     address[3] calldata _aconcagua,
     address _rescueWalletAddress,
     address _withdrawWalletAddress,
     address _firstLenderLiq,
     address _secondLenderLiq,
-    address _swapRouterAddress,
-    address _swapper
+    string[3] calldata _contractKeys,
+    address[3] calldata _contractAddresses
   ) external initializer {
-    require(
-      _aconcagua[0] != address(0) || _aconcagua[1] != address(0) || _aconcagua[2] != address(0),
-      'AdminAddr'
-    );
-    require(_rescueWalletAddress != address(0), 'RescueAddr');
-    require(_withdrawWalletAddress != address(0), 'WithdrawAddr');
-    require(_firstLenderLiq != address(0), 'FirstLenderLiqAddr');
-    require(_secondLenderLiq != address(0), 'SecondLenderLiqAddr');
-    require(_swapRouterAddress != address(0), 'SwapRouterAddr');
-    require(_swapper != address(0), 'SwapperAddr');
+    if (_aconcagua[0] == address(0) && _aconcagua[1] == address(0) && _aconcagua[2] == address(0)) {
+      revert AdminAddressInvalid();
+    }
+    if (_rescueWalletAddress == address(0)) {
+      revert RescueAddressInvalid();
+    }
+    if (_withdrawWalletAddress == address(0)) {
+      revert WithdrawAddressInvalid();
+    }
+    if (_firstLenderLiq == address(0)) {
+      revert FirstLenderLiqAddressInvalid();
+    }
+    if (_secondLenderLiq == address(0)) {
+      revert SecondLenderLiqAddressInvalid();
+    }
 
     __AccessControl_init_unchained();
     __ReentrancyGuard_init_unchained();
 
-    require(_tokenNames.length == _tokenAddresses.length, 'Token name and address array lengths must match');
+    if (_tokenNames.length != _tokenAddresses.length) {
+      revert TokenNameAndAddressLengthMismatch();
+    }
+
 
     for (uint i = 0; i < _tokenNames.length; i++) {
       tokenTable[_tokenNames[i]] = _tokenAddresses[i];
-      tokenNames.push(_tokenNames[i]);
+      tokenNames[i] = _tokenNames[i];
     }
 
     withdrawWalletAddress = _withdrawWalletAddress;
     rescueWalletAddress = _rescueWalletAddress;
 
-    swapRouter = ISwapRouter(_swapRouterAddress);
+    // Set the contract keys
+    for (uint i = 0; i < _contractKeys.length; i++) {
+      contractKeys[i] = _contractKeys[i];
+      contractAddresses[contractKeys[i]] = _contractAddresses[i];
+    }
+
+    swapRouter = ISwapRouter(contractAddresses['router']);
+    quoter = IQuoter(contractAddresses['quoter']); 
 
     // Add roles to the set of Roles for later tracking
     _rolesSet.add(ACONCAGUA_ROLE);
@@ -100,7 +132,7 @@ contract ColateralContract2 is
     _grantRole(LENDER_LIQ_ROLE, _secondLenderLiq);
     _grantRole(RESCUER_ROLE, _firstLenderLiq);
     _grantRole(RESCUER_ROLE, _secondLenderLiq);
-    _grantRole(SWAPPER_ROLE, _swapper);
+    _grantRole(SWAPPER_ROLE, contractAddresses['swapper']);
 
     _setRoleAdmin(ACONCAGUA_ROLE, ACONCAGUA_ROLE);
     _setRoleAdmin(LENDER_LIQ_ROLE, LENDER_LIQ_ROLE);
@@ -117,12 +149,11 @@ contract ColateralContract2 is
       _withdrawWalletAddress,
       _firstLenderLiq,
       _secondLenderLiq,
-      _swapRouterAddress,
-      _swapper
+      contractKeys,
+      _contractAddresses
     );
   }
 
-  // Version
   function version() external pure override returns (string memory) {
     return '2.0.0';
   }
@@ -130,52 +161,82 @@ contract ColateralContract2 is
   function setWithdrawWalletAddress(
     address _withdrawWalletAddress
   ) external override onlyRole(ACONCAGUA_ROLE) {
-    require(_withdrawWalletAddress != address(0x0), 'Withdraw0Addr');
+    if (_withdrawWalletAddress == address(0x0)) {
+      revert WithdrawAddressInvalid();
+    }
     withdrawWalletAddress = _withdrawWalletAddress;
   }
 
   function setRescueWalletAddress(
     address _rescueWalletAddress
   ) external override onlyRole(ACONCAGUA_ROLE) {
-    require(_rescueWalletAddress != address(0x0), 'Rescue0Addr');
+    if (_rescueWalletAddress == address(0x0)) {
+      revert RescueAddressInvalid();
+    }
     rescueWalletAddress = _rescueWalletAddress;
   }
 
   function swapExactInputs(
     SwapParams[] calldata swapsParams
   ) external override onlyRole(SWAPPER_ROLE) {
+    // Define the allowed tokens
+    address WETH = tokenTable['WETH'];
+    address WBTC = tokenTable['WBTC'];
+    address USDC = tokenTable['USDC'];
+    address USDT = tokenTable['USDT'];
+
     for (uint256 i = 0; i < swapsParams.length; i++) {
       SwapParams calldata swapParams = swapsParams[i];
 
       // Input validations
-      require(swapParams.params.recipient == address(this), 'Err recipient');
-      require(swapParams.params.amountOutMinimum > 0, 'Err Slipp');
-      require(
-        tokenTableContains(swapParams.tokenOut),
-        'Err TokenOut'
-      );
+      if (swapParams.params.recipient != address(this)) {
+        revert RecipientError();
+      }
 
-      // Get token and approve amount
-      IERC20 token = IERC20(swapParams.tokenIn);
-      require(
-        swapParams.params.amountIn > 0 &&
-        swapParams.params.amountIn <= token.balanceOf(address(this)),
-        'Err AmountIn'
-      );
-        uint256 originalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
-        // Send tokens to universal router
-        SafeERC20.safeTransfer(token, address(swapRouter), swapParams.params.amountIn);
-        // Execute swap with universalRouter
-        bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V3_SWAP_EXACT_IN)));
-        bytes[] memory inputs = new bytes[](1);
-        // https://docs.uniswap.org/contracts/universal-router/technical-reference#v3_swap_exact_in
-        inputs[0] = abi.encode(swapParams.params.recipient, swapParams.params.amountIn, swapParams.params.amountOutMinimum, swapParams.params.path, false);
-        try IUniversalRouter(address(swapRouter)).execute(commands, inputs, swapParams.params.deadline) {
-          uint256 resultAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
-          emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount - originalAmount);
+      if (swapParams.tokenOut != USDC && swapParams.tokenOut != USDT) {
+        revert TokenOutError();
+      }
+
+      // Check if tokenIn is either WETH or WBTC
+      if (swapParams.tokenIn != WETH && swapParams.tokenIn != WBTC) {
+        revert TokenInError();
+      }
+
+      // Get the quote for the swap
+
+      uint256 quotedAmountOut;
+      try quoter.quoteExactInput(swapParams.params.path, swapParams.params.amountIn) returns (uint256 amountOut) {
+            quotedAmountOut = amountOut;
+            emit Quote(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, quotedAmountOut);
         } catch Error(string memory errorMsg) {
-          emit SwapError(swapParams.tokenIn, errorMsg);
+            emit QuoteError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, errorMsg);
         }
+      
+      // Check if amountOutMinimum is more than zero and at least 98% of quotedAmountOut
+      if (swapParams.params.amountOutMinimum <= 0 || swapParams.params.amountOutMinimum < (quotedAmountOut * 98) / 100) {
+        revert AmountOutMinimumTooLow();
+      }
+
+      // Get token
+      IERC20 token = IERC20(swapParams.tokenIn);
+      if (swapParams.params.amountIn <= 0 || swapParams.params.amountIn > token.balanceOf(address(this))) {
+        revert AmountInError();
+      }
+
+      uint256 originalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+      // Send tokens to universal router
+      SafeERC20.safeTransfer(token, contractAddresses['router'], swapParams.params.amountIn);
+      // Execute swap with universalRouter
+      bytes memory commands = abi.encodePacked(bytes1(uint8(Commands.V3_SWAP_EXACT_IN)));
+      bytes[] memory inputs = new bytes[](1);
+      // https://docs.uniswap.org/contracts/universal-router/technical-reference#v3_swap_exact_in
+      inputs[0] = abi.encode(swapParams.params.recipient, swapParams.params.amountIn, swapParams.params.amountOutMinimum, swapParams.params.path, false);
+      try IUniversalRouter(contractAddresses['router']).execute(commands, inputs, swapParams.params.deadline) {
+        uint256 resultAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount - originalAmount);
+      } catch Error(string memory errorMsg) {
+        emit SwapError(swapParams.tokenIn, errorMsg);
+      }
     }
   }
 
@@ -221,33 +282,17 @@ contract ColateralContract2 is
     emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
   }
 
-  /**
-   * @dev Returns the number `roles`. Can be used
-   * together with {getRoleByIndex} to enumerate all bearers of a role.
-   */
   function getRoleCount() external view virtual override returns (uint256) {
     return _rolesSet.length();
   }
 
-  /**
-   * @dev Returns one of the `roles`. `index` must be a
-   * value between 0 and {getRoleCount}, non-inclusive.
-   *
-   * Role are not sorted in any particular way, and their ordering may
-   * change at any point.
-   *
-   * WARNING: When using {getRoleByIndex} and {getRoleCount}, make sure
-   * you perform all queries on the same block. See the following
-   * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-   * for more information.
-   */
   function getRoleByIndex(uint index) external view virtual override returns (bytes32) {
     return _rolesSet.at(index);
   }
 
-function getTokenNames() external view returns (string[] memory) {
+  function getTokenNames() external view returns (string[5] memory) {
     return tokenNames;
-}
+  }
 
   receive() external payable {
     // If its RSK network

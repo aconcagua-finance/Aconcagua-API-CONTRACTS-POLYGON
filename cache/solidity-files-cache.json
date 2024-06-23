@@ -1685,8 +1685,8 @@
       ]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContractOper.sol": {
-      "lastModificationDate": 1716826250919,
-      "contentHash": "1c192fd63cb85280a0f6b792f519e78c",
+      "lastModificationDate": 1718834348605,
+      "contentHash": "e4915549f69adbb2aecbc0fc232b93a5",
       "sourceName": "contracts/ColateralContractOper.sol",
       "solcConfig": {
         "version": "0.8.18",
@@ -1712,13 +1712,10 @@
         }
       },
       "imports": [
-        "@openzeppelin/contracts/utils/Strings.sol",
         "@openzeppelin/contracts/token/ERC20/IERC20.sol",
         "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol",
         "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
-        "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
-        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
-        "./IColateralContractOper.sol"
+        "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol"
       ],
       "versionPragmas": [
         "0.8.18"
@@ -1727,81 +1724,9 @@
         "ColateralContractOper"
       ]
     },
-    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContractOper.sol": {
-      "lastModificationDate": 1716826250923,
-      "contentHash": "2bd0b67e35f0ba3dcb6e025d33300116",
-      "sourceName": "contracts/IColateralContractOper.sol",
-      "solcConfig": {
-        "version": "0.8.18",
-        "settings": {
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol"
-      ],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "IColateralContractOper"
-      ]
-    },
-    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IPermit2.sol": {
-      "lastModificationDate": 1718449057355,
-      "contentHash": "86f3efd8d7c3708e3acd5604278dbc7f",
-      "sourceName": "contracts/IPermit2.sol",
-      "solcConfig": {
-        "version": "0.8.18",
-        "settings": {
-          "optimizer": {
-            "enabled": false,
-            "runs": 200
-          },
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [],
-      "versionPragmas": [
-        "0.8.18"
-      ],
-      "artifacts": [
-        "IPermit2"
-      ]
-    },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IColateralContract2.sol": {
-      "lastModificationDate": 1718634268369,
-      "contentHash": "d34b949b25b5e213f88fd2e97925457f",
+      "lastModificationDate": 1719105318731,
+      "contentHash": "3b1c298ca0bc00ebb994f4f348be1646",
       "sourceName": "contracts/IColateralContract2.sol",
       "solcConfig": {
         "version": "0.8.18",
@@ -1837,8 +1762,8 @@
       ]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract2.sol": {
-      "lastModificationDate": 1718640862657,
-      "contentHash": "273e9924816ce10d86ece42f8d45b5e1",
+      "lastModificationDate": 1719106275148,
+      "contentHash": "dc3624a074d30b0c304c040ca5cd5fda",
       "sourceName": "contracts/ColateralContract2.sol",
       "solcConfig": {
         "version": "0.8.18",
@@ -1870,6 +1795,7 @@
         "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol",
         "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol",
         "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
+        "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol",
         "@uniswap/universal-router/contracts/libraries/Commands.sol",
         "@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol",
         "./IColateralContract2.sol",
@@ -1880,6 +1806,76 @@
       ],
       "artifacts": [
         "ColateralContract2"
+      ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@uniswap\\v3-periphery\\contracts\\interfaces\\IQuoter.sol": {
+      "lastModificationDate": 1718449929256,
+      "contentHash": "fe8b4279fc6b913c2b33c72db1ed3eb1",
+      "sourceName": "@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.7.5"
+      ],
+      "artifacts": [
+        "IQuoter"
+      ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\node_modules\\@uniswap\\v3-periphery\\contracts\\interfaces\\IQuoterV2.sol": {
+      "lastModificationDate": 1718449929272,
+      "contentHash": "d05ab58d7d5c927c5eb205eb7179d13a",
+      "sourceName": "@uniswap/v3-periphery/contracts/interfaces/IQuoterV2.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.7.5"
+      ],
+      "artifacts": [
+        "IQuoterV2"
       ]
     }
   }

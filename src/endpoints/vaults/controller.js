@@ -88,6 +88,7 @@ const {
   ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
   HARDHAT_API_URL,
+  ETHERSCAN_API_KEY,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
@@ -95,7 +96,7 @@ const {
   WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
-  QUOTER2_CONTRACT_ADDRESS,
+  QUOTER_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
   SWAPPER_ADDRESS,
   OPERATOR1_ADDRESS,
@@ -423,11 +424,9 @@ const deployContract = async (contractName, args = null) => {
   } else {
     deploymentResponse = await contract.deploy(args);
   }
-  console.log('colateralContract deploymentResponse:', JSON.stringify(deploymentResponse));
 
   // Parse
   const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
-  console.log('Contract deployment:', JSON.stringify(contractDeployment));
 
   return { deploymentResponse, contractDeployment };
 };
@@ -544,7 +543,11 @@ exports.create = async function (req, res) {
       WETH_TOKEN_ADDRESS,
     ];
 
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+    const contractKeys = ['router', 'swapper', 'quoter'];
+    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+
+    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+    const args = [
       tokenNames,
       tokenAddresses,
       operators,
@@ -552,17 +555,21 @@ exports.create = async function (req, res) {
       DEFAULT_WITHDRAW_WALLET_ADDRESS,
       colateralContractSignerAddress, // lender.safeLiq1,
       lender.safeLiq2.toLowerCase(),
-      SWAP_ROUTER_V3_ADDRESS,
-      SWAPPER_ADDRESS
+      contractKeys,
+      contractAddresses,
+    ];
+    console.log('Create - proxy args ');
+    console.log(args);
+
+    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
+      ...args
     );
 
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
     const proxyContractArgs = [
       colateralContractAddress,
       lender.vaultAdminAddress.toLowerCase(),
       initializeData.data || '0x',
     ];
-    console.log('proxyContractArgs', proxyContractArgs);
     const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
     const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
@@ -575,6 +582,22 @@ exports.create = async function (req, res) {
         null
       );
     }
+
+    // Log the ABI encoded constructor arguments
+    const abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+      [
+        'string[]',
+        'address[]',
+        'address[]',
+        'address',
+        'address',
+        'address',
+        'address',
+        'string[]',
+        'address[]',
+      ],
+      args
+    );
 
     // Build entity
     const collectionName = COLLECTION_NAME;
@@ -590,6 +613,7 @@ exports.create = async function (req, res) {
     body.contractAddress = colateralContractAddress;
     body.contractSignerAddress = colateralContractSignerAddress;
     body.contractDeployment = colateralContractDeploy.contractDeployment;
+    body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
     body.contractStatus = contractStatus;
     body.contractNetwork = networkName;
@@ -603,8 +627,6 @@ exports.create = async function (req, res) {
     body.proxyContractStatus = 'pending-deployment-verification';
     body.proxyContractVersion = 'TransparentUpgradeable';
 
-    console.log('Create args (' + collectionName + '):', body);
-
     // Store entity and response
     const itemData = await sanitizeData({ data: body, validationSchema });
     const dbItemData = await createFirestoreDocument({
@@ -613,7 +635,6 @@ exports.create = async function (req, res) {
       auditUid,
       documentId: proxyContractAddress,
     });
-    console.log('Create data: (' + collectionName + ')', dbItemData);
 
     res.status(201).send(dbItemData);
 
@@ -2139,7 +2160,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     );
 
     // Gas estimation
-    const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+    const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
       console.log(

@@ -38,8 +38,10 @@ env:
   WBTC_TOKEN_ADDRESS: '0x1E94bc717D52B5F8aEEB40f4E74687a3fd34c38f'
   WETH_TOKEN_ADDRESS: '0x629c60D10fADc5dd70fFB2F143BD5E3D79Db6dF8'
 
-  QUOTER2_CONTRACT_ADDRESS: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3'
-  SWAP_ROUTER_V3_ADDRESS: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E'
+  # Uso la dirección del 02, porque el QUOTER No tiene dirección en Sepolia Jun 2024
+  # https://docs.uniswap.org/contracts/v3/reference/deployments/ethereum-deployments
+  QUOTER_CONTRACT_ADDRESS: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3'
+  SWAP_ROUTER_V3_ADDRESS: '0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD'
 
   SWAPPER_ADDRESS: '0x0E8adC0975290Bb90A9fFC136A02C4721FbC371F'
   OPERATOR1_ADDRESS: '0x3Fd92265C0ee6790488Ff59c6c44bd8a1d593956' # Acon Operator 1 (deployer was used for transition)
@@ -71,10 +73,6 @@ jobs:
           node-version: 18.19.0
           registry-url: https://npm.pkg.github.com/
       - run: npm ci --force --legacy-peer-deps
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
-          # NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}} este no tiee permisos en otro repo
-          VS_GITHUB_NPM_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
       - run: npm run prettier-ci
       - run: npm run lint-ci
       - run: npm run test-ci
@@ -84,8 +82,6 @@ jobs:
 
       - run: npm run deploy-ci
         env:
-          NODE_AUTH_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
-          VS_GITHUB_NPM_TOKEN: ${{secrets.VS_GITHUB_NPM_TOKEN}}
           FIREBASE_SERVICE_ACCOUNT_KEY: ${{secrets.FIREBASE_SERVICE_ACCOUNT_KEY_QA}}
 
   # publish-gpr:

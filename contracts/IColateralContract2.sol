@@ -7,30 +7,17 @@ interface IColateralContract2 {
   // Emitted when the `ColateralContract` is initialized
   event Initialize(
     address sender,
-    string[] _tokenNames,
-    address[] _tokenAddresses,
+    string[5] _tokenNames,
+    address[5] _tokenAddresses,
     address[3] _aconcagua,
     address _rescueWalletAddress,
     address _withdrawWalletAddress,
     address _firstLenderLiq,
     address _secondLenderLiq,
-    address _swapRouterAddress,
-    address _swapper
+    string[3] _contractKeys,
+    address[3] _contractAddresses
   );
-  // Emitted when token address is changed
-  event TokenAddressChange(
-    address sender,
-    string token,
-    address oldTokenAddress,
-    address newTokenAddress
-  );
-  // Emitted when withdrawal limit is changed
-  event WithdrawalLimitChange(
-    address sender,
-    string token,
-    uint256 oldWithdrawalLimit,
-    uint256 newWithdrawalLimit
-  );
+
   // Emitted when withdraw
   event Withdraw(address sender, string token, uint256 amount);
   // Emitted when rescue
@@ -39,6 +26,10 @@ interface IColateralContract2 {
   event Swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
   // Emitted when swap fails
   event SwapError(address tokenIn, string msg);
+    // Emitted when Quote is done
+  event Quote(address tokenIn, address tokenOut, uint256 amountIn, uint256 quotedAmountOut);
+  // Emitted when Quote fails
+  event QuoteError(address tokenIn, address tokenOut, uint256 amountIn, string msg);
 
   struct SwapParams {
     ISwapRouter.ExactInputParams params;
