@@ -2162,7 +2162,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     // Gas estimation
 
     const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, QuoterABI, alchemy);
-    let swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    const swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
       /* Gas estimation taken from network config MRM Jun 2024
       console.log(
