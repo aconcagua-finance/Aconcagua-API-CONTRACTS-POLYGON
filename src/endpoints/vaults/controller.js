@@ -96,7 +96,7 @@ const {
   WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   GAS_STATION_URL,
-  QUOTER2_CONTRACT_ADDRESS,
+  QUOTER_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
   SWAPPER_ADDRESS,
   OPERATOR1_ADDRESS,
@@ -543,6 +543,9 @@ exports.create = async function (req, res) {
       WETH_TOKEN_ADDRESS,
     ];
 
+    const contractKeys = ['router', 'swapper', 'quoter'];
+    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_ADDRESS];
+
     // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
     const args = [
       tokenNames,
@@ -552,8 +555,8 @@ exports.create = async function (req, res) {
       DEFAULT_WITHDRAW_WALLET_ADDRESS,
       colateralContractSignerAddress, // lender.safeLiq1,
       lender.safeLiq2.toLowerCase(),
-      SWAP_ROUTER_V3_ADDRESS,
-      SWAPPER_ADDRESS,
+      contractKeys,
+      contractAddresses,
     ];
 
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
@@ -2155,7 +2158,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     );
 
     // Gas estimation
-    const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+    const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
       console.log(

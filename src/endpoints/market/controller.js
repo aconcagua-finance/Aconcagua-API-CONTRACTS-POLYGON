@@ -57,7 +57,7 @@ const {
   ALCHEMY_API_KEY,
   HARDHAT_API_URL,
   PROVIDER_NETWORK_NAME,
-  QUOTER2_CONTRACT_ADDRESS,
+  QUOTER_CONTRACT_ADDRESS,
   COINGECKO_URL,
   KRAKEN_URL,
 } = require('../../config/appConfig');
@@ -120,7 +120,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde quoter');
 
-  const quoter2Contract = new hre.ethers.Contract(QUOTER2_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
+  const quoter2Contract = new hre.ethers.Contract(QUOTER_CONTRACT_ADDRESS, Quoter2ABI, alchemy);
 
   // Quote data
   const quotes = {};

@@ -35,13 +35,16 @@ export const USDT_TOKEN_ADDRESS = Config.getEnvConfig('USDT_TOKEN_ADDRESS')?.toL
 export const USDM_TOKEN_ADDRESS = Config.getEnvConfig('USDM_TOKEN_ADDRESS')?.toLowerCase();
 export const WBTC_TOKEN_ADDRESS = Config.getEnvConfig('WBTC_TOKEN_ADDRESS')?.toLowerCase();
 export const WETH_TOKEN_ADDRESS = Config.getEnvConfig('WETH_TOKEN_ADDRESS')?.toLowerCase();
-export const QUOTER2_CONTRACT_ADDRESS = Config.getEnvConfig('QUOTER2_CONTRACT_ADDRESS')?.toLowerCase();
+export const QUOTER_CONTRACT_ADDRESS =
+  Config.getEnvConfig('QUOTER_CONTRACT_ADDRESS')?.toLowerCase();
 export const SWAP_ROUTER_V3_ADDRESS = Config.getEnvConfig('SWAP_ROUTER_V3_ADDRESS')?.toLowerCase();
 export const SWAPPER_ADDRESS = Config.getEnvConfig('SWAPPER_ADDRESS')?.toLowerCase();
 export const OPERATOR1_ADDRESS = Config.getEnvConfig('OPERATOR1_ADDRESS')?.toLowerCase();
 export const OPERATOR2_ADDRESS = Config.getEnvConfig('OPERATOR2_ADDRESS')?.toLowerCase();
 export const OPERATOR3_ADDRESS = Config.getEnvConfig('OPERATOR3_ADDRESS')?.toLowerCase();
-export const DEFAULT_RESCUE_WALLET_ADDRESS = Config.getEnvConfig('DEFAULT_RESCUE_WALLET_ADDRESS')?.toLowerCase();
+export const DEFAULT_RESCUE_WALLET_ADDRESS = Config.getEnvConfig(
+  'DEFAULT_RESCUE_WALLET_ADDRESS'
+)?.toLowerCase();
 export const DEFAULT_WITHDRAW_WALLET_ADDRESS = Config.getEnvConfig(
   'DEFAULT_WITHDRAW_WALLET_ADDRESS'
 )?.toLowerCase();
