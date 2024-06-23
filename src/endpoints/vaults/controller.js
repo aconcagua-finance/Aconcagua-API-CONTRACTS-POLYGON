@@ -2163,7 +2163,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     */
     // Gas estimation
 
-    const swapsGasEstimation = hre.ethers.BigNumber.from('0');
+    let swapsGasEstimation;
+    swapsGasEstimation = hre.ethers.BigNumber.from('0');
     for (const swap of swapsParams) {
       // Gas estimation taken from network config MRM Jun 2024
       console.log(
