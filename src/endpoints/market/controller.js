@@ -4,7 +4,7 @@ const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
 const {
   abi: QuoterABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/Quoter.json');
+} = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const hre = require('hardhat');
 const axios = require('axios');
 const JSBI = require('jsbi');
