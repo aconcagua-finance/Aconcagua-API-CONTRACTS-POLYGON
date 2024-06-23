@@ -687,14 +687,14 @@ const getGasPriceAndLimit = async (gasLimit) => {
   const maxFeePerGas = hre.ethers.BigNumber.from(300000000000); // fallback to 300 gwei
   const maxPriorityFeePerGas = hre.ethers.BigNumber.from(60000000000); // fallback to 60 gwei
 
-  console.log('Estimación de gas de Alchemy');
+  console.log('getGasPriceAndLimit - Estimación de gas de Alchemy');
   const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   provider.getGasPrice().then((maxFeePerGasAlchemy) => {
-    console.log(`Current gas price: ${maxFeePerGasAlchemy}`);
+    console.log(`getGasPriceAndLimit - Current gas price: ${maxFeePerGasAlchemy}`);
   });
 
   provider.getFeeData().then((feeData) => {
-    console.log(`Max priority fee: ${feeData.maxPriorityFeePerGas}`);
+    console.log(`getGasPriceAndLimit - Max priority fee: ${feeData.maxPriorityFeePerGas}`);
   });
 
   // try {
@@ -716,14 +716,25 @@ const getGasPriceAndLimit = async (gasLimit) => {
   const gasPrice = hre.ethers.BigNumber.from(60000000); // fallback to 0.6 gwei
 
   const networkConfig =
-    PROVIDER_NETWORK_NAME == 'rsk' ? { gasPrice } : { maxFeePerGas, maxPriorityFeePerGas };
+    PROVIDER_NETWORK_NAME == 'rsk'
+      ? { gasPrice }
+      : { gasPrice, gasLimit, maxFeePerGas, maxPriorityFeePerGas };
 
   if (gasLimit) {
     networkConfig.gasLimit = gasLimit;
   } else {
-    networkConfig.gasLimit = 100000;
+    networkConfig.gasLimit = 500000;
   }
-
+  console.log(
+    'getGasPriceAndLimit - networkConfig.gasPrice ',
+    networkConfig.gasPrice,
+    'getGasPriceAndLimit -  networkConfig.gasLimit ',
+    networkConfig.gasLimit,
+    'getGasPriceAndLimit -  networkConfig.maxFeePerGas ',
+    networkConfig.maxFeePerGas,
+    'getGasPriceAndLimit -  networkConfig.maxPriorityFeePerGas ',
+    networkConfig.maxPriorityFeePerGas
+  );
   return networkConfig;
 };
 
