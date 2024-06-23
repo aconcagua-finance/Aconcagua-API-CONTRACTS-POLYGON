@@ -558,6 +558,8 @@ exports.create = async function (req, res) {
       contractKeys,
       contractAddresses,
     ];
+    console.log('Create - proxy args ');
+    console.log(args);
 
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
@@ -591,8 +593,8 @@ exports.create = async function (req, res) {
         'address',
         'address',
         'address',
-        'address',
-        'address',
+        'string[]',
+        'address[]',
       ],
       args
     );
