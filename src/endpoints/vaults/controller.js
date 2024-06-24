@@ -2276,9 +2276,8 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       // Calculate amountOutMinimum considering slippage
-      const slippageTolerance = 100 - swapOptions.slippageTolerance;
-      const amountOutMinimum = amountIn.mul(quote).mul(slippageTolerance).div(100); // Dividing by 10000 to avoid double division by 100
-
+      const slippageTolerance = (100 - swapOptions.slippageTolerance) / 100;
+      const amountOutMinimumDecimal = swapData.amountIn * quote * slippageTolerance;
       console.log(
         'buildSwapsParams - swapData.amountIn - ',
         swapData.amountIn,
@@ -2287,7 +2286,12 @@ const buildSwapsParams = async (swapsData) => {
         ' slippageTolerance',
         slippageTolerance
       );
-      console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum.toString());
+      // Convert amountOutMinimumDecimal to BigNumber with tokenOut decimals
+      const amountOutMinimum = hre.ethers.BigNumber.from(
+        Utils.parseUnits(amountOutMinimumDecimal.toFixed(tokenOut.decimals), tokenOut.decimals)
+      );
+
+      console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
 
       return {
         params: {
