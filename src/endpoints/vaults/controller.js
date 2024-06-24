@@ -2279,7 +2279,7 @@ const buildSwapsParams = async (swapsData) => {
       const quoteBN = hre.ethers.BigNumber.from(Utils.parseUnits(quote, tokenIn.decimals));
 
       // Calculate amountOutMinimum considering slippage
-      const slippageTolerance = 1 - swapOptions.slippageTolerance.toSignificant(4);
+      const slippageTolerance = 100 - swapOptions.slippageTolerance.toSignificant(4);
 
       console.log(
         'buildSwapsParams - swapData.amountIn - ',
@@ -2289,7 +2289,8 @@ const buildSwapsParams = async (swapsData) => {
         ' slippageTolerance',
         slippageTolerance
       );
-      const amountOutMinimum = swapData.amountIn * quote * slippageTolerance;
+      const amountOutMinimumLong = swapData.amountIn * quote * slippageTolerance;
+      const amountOutMinimum = amountOutMinimumLong.toFixed(4);
       console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
 
       return {
@@ -2298,7 +2299,7 @@ const buildSwapsParams = async (swapsData) => {
           recipient: swapData.recipient,
           deadline: swapOptions.deadline(),
           amountIn,
-          amountOutMinimum,
+          amountOutMinimum: hre.ethers.BigNumber.from(amountOutMinimum),
         },
         tokenIn: tokenIn.address,
         tokenOut: tokenOut.address,
