@@ -2279,7 +2279,7 @@ const buildSwapsParams = async (swapsData) => {
       const quoteBN = hre.ethers.BigNumber.from(Utils.parseUnits(quote, tokenIn.decimals));
 
       // Calculate amountOutMinimum considering slippage
-      const slippageTolerance = swapOptions.slippageTolerance.toSignificant(4) / 100;
+      const slippageTolerance = 1 - swapOptions.slippageTolerance.toSignificant(4);
 
       console.log(
         'buildSwapsParams - swapData.amountIn - ',
