@@ -683,56 +683,32 @@ exports.create = async function (req, res) {
 };
 
 const getGasPriceAndLimit = async (gasLimit) => {
-  let gasPrice;
-  let maxFeePerGas;
-  let maxPriorityFeePerGas;
+  // TODO: add fallback source
+  const gasLimitFallback = 300000;
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+  const feeData = await alchemy.getFeeData();
 
-  try {
-    console.log('getGasPriceAndLimit - Estimación de gas');
-    const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+  const maxFeePerGas = feeData.maxFeePerGas;
+  const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
+  const gasPrice = feeData.gasPrice;
 
-    gasPrice = await provider.getGasPrice();
-    console.log(`getGasPriceAndLimit - Current gas price: ${gasPrice}`);
-
-    const feeData = await provider.getFeeData();
-    maxFeePerGas = feeData.maxFeePerGas;
-    maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-    console.log(`getGasPriceAndLimit - Max priority fee: ${maxPriorityFeePerGas}`);
-  } catch (error) {
-    console.error(
-      'getGasPriceAndLimit - Error fetching gas price data, using fallback values:',
-      error
-    );
-    gasPrice = hre.ethers.utils.parseUnits('35', 'gwei'); // fallback to 35 gwei
-  }
-
-  const networkConfig = { gasPrice, maxFeePerGas, maxPriorityFeePerGas };
+  const networkConfig =
+    PROVIDER_NETWORK_NAME == 'rsk'
+      ? { gasPrice }
+      : { gasPrice, maxFeePerGas, maxPriorityFeePerGas };
 
   if (gasLimit) {
     networkConfig.gasLimit = gasLimit;
   } else {
-    networkConfig.gasLimit = 500000;
+    networkConfig.gasLimit = gasLimitFallback;
   }
 
-  console.log(
-    'getGasPriceAndLimit - networkConfig.gasPrice:',
-    networkConfig.gasPrice.toString(),
-    'getGasPriceAndLimit - networkConfig.gasLimit:',
-    networkConfig.gasLimit.toString(),
-    'getGasPriceAndLimit - networkConfig.maxFeePerGas:',
-    networkConfig.maxFeePerGas.toString(),
-    'getGasPriceAndLimit - networkConfig.maxPriorityFeePerGas:',
-    networkConfig.maxPriorityFeePerGas.toString()
-  );
   return networkConfig;
 };
-
 // Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const blockchainContract = getDeployedContract(vault);
-
-  const networkConfig = await getGasPriceAndLimit();
-
+  const networkConfig = getGasPriceAndLimit();
   const setTx1 = await blockchainContract.setRescueWalletAddress(
     rescueWalletAccount,
     networkConfig
@@ -2131,6 +2107,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
   try {
     // V1 internal swap function.
     console.log(`Entro a swapVaultExactInputs`);
+    console.log(`swapVaultExactInputs - vault.id ${vault.id}`);
     console.log(`swapVaultExactInputs - swapsParams`);
     console.log(swapsParams);
 
@@ -2150,7 +2127,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     // Gas limit estimation
 
     let swapsGasEstimation = hre.ethers.BigNumber.from('0');
-    const gasEstimateFallback = hre.ethers.BigNumber.from('3000000');
+    const gasEstimateFallback = hre.ethers.BigNumber.from('500000');
+    // Sample gas usage taken from https://polygonscan.com/tx/0xbf635b017861ff40302fcd8ca0dcf3e02759d046ff7555992625a45ca4cd3b9d
 
     for (const swap of swapsParams) {
       try {
@@ -2195,17 +2173,16 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       'swapVaultExactInputs - Final total gas estimation for all swaps:',
       swapsGasEstimation.toString()
     );
-
-    const networkConfig = await getGasPriceAndLimit(swapsGasEstimation);
-
+    const networkConfig = getGasPriceAndLimit(swapsGasEstimation);
     console.log('swapVaultExactInputs - swapsParams', JSON.stringify(swapsParams));
+    console.log('swapVaultExactInputs - networkConfig', JSON.stringify(networkConfig));
 
     // Check swapper has enough balance
     const balance = await alchemy.getBalance(swaperAddress);
     const maxGasToPay = networkConfig.gasLimit;
     if (hre.ethers.BigNumber.from(balance).lt(maxGasToPay)) {
       throw new Error(
-        `Swapper Address ${swaperAddress} does not have enough balance ( ${balance} ) to pay ${maxGasToPay.toString()} wei for gas`
+        `swapVaultExactInputs - Swapper Address ${swaperAddress} does not have enough balance ( ${balance} ) to pay ${maxGasToPay.toString()} wei for gas`
       );
     }
 
@@ -2213,7 +2190,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
     const deadline = swapsParams[0].params.deadline;
     const blockTimestamp = (await hre.ethers.provider.getBlock('latest')).timestamp;
     if (blockTimestamp > deadline) {
-      throw new Error('Transaction expired, old deadline');
+      throw new Error('swapVaultExactInputs - ransaction expired, old deadline');
     }
 
     // Do a dry run
@@ -2221,19 +2198,21 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
     // Send transaction to the blockchain
     const swap = await blockchainContract.swapExactInputs(swapsParams, networkConfig);
-    // wait for the transaction receipt
-    const tx = await swap.wait();
-    if (!tx.status) {
-      console.log('Swap failed tx: ', JSON.stringify(tx));
-      const errEvents = tx.events?.filter((event) => event.event === 'SwapError');
-      throw new Error(`Swap Error Events: ${JSON.stringify(errEvents)}`);
-    } else {
-      console.log('Swap tx: ', JSON.stringify(tx));
-    }
+    console.log('swapVaultExactInputs - Transaction Hash:', swap.hash);
 
+    // Wait for the transaction receipt
+    const tx = await swap.wait();
+
+    // Check transaction status
+    if (!tx.status) {
+      console.log('swapVaultExactInputs - Swap failed tx:', JSON.stringify(tx));
+      const errEvents = tx.events?.filter((event) => event.event === 'SwapError');
+      throw new Error(`swapVaultExactInputs - Swap Error Events: ${JSON.stringify(errEvents)}`);
+    } else {
+      console.log('swapVaultExactInputs - Swap tx:', JSON.stringify(tx));
+    }
     // Returns swaps results
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
-
     const swapsResults = swapEvents.map((event) => {
       const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
       const token = Object.values(tokens).find((token) => token.address === tokenIn);
@@ -2299,8 +2278,9 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       // TODO quote is in ethers decimal, we should convert it to WEI here before apliying slippage
+      // Calculate amountOutMinimum considering slippage
       const amountOutMinimumRaw =
-        quote * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
+        (amountIn / quote) * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
       const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
 
       return {
