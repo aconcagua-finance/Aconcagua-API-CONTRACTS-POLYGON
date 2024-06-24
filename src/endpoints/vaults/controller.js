@@ -2231,8 +2231,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 };
 
 const buildSwapsParams = async (swapsData) => {
-  // V1 interal swap function builder.
-  // Quoteo tokenIn x amountIn de cada swap para amountOutMinimum (slippage).
+  // V1 internal swap function builder.
+  // Quote tokenIn x amountIn of each swap for amountOutMinimum (slippage).
   const quoteAmounts = JSON.stringify(
     swapsData.reduce((prev, curr) => {
       prev[curr.tokenIn.symbol] = curr.amountIn;
@@ -2248,34 +2248,41 @@ const buildSwapsParams = async (swapsData) => {
     throw new CustomError.TechnicalError(
       'ERROR_UNISWAP_PATH_QUOTES_INVALID_RESPONSE',
       null,
-      `Respuesta inválida del servicio de cotizaciones Uniswap Path para quoteAmounts ${quoteAmounts}`,
+      `Invalid response from Uniswap Path quotes service for quoteAmounts ${quoteAmounts}`,
       null
     );
   }
   const quotes = apiResponse.data;
 
-  // Armo objetos swap.
+  // Build swap objects.
   return swapsData
     .map((swapData) => {
       const tokenIn = swapData.tokenIn;
+      const tokenOut = swapData.tokenOut;
       const path = encodePath(staticPaths[tokenIn.symbol].tokens, staticPaths[tokenIn.symbol].fees);
-      const amountIn = Utils.parseUnits(swapData.amountIn.toString(), tokenIn.decimals);
+      const amountIn = hre.ethers.BigNumber.from(
+        Utils.parseUnits(swapData.amountIn.toString(), tokenIn.decimals)
+      );
 
-      // Aplico slippage.
+      // Apply slippage.
       const quote = quotes[tokenIn.symbol];
 
       if (quote <= 0) {
         console.log(
-          `Cotización para swapeo de token ${tokenIn.symbol} con monto ${swapData.amountIn} es 0. Se desestima el swap.`
+          `Quote for swapping token ${tokenIn.symbol} with amount ${swapData.amountIn} is 0. Swap disregarded.`
         );
         return;
       }
 
-      // TODO quote is in ethers decimal, we should convert it to WEI here before apliying slippage
+      // Convert quote to a BigNumber
+      const quoteBN = hre.ethers.BigNumber.from(Utils.parseUnits(quote.toString(), 18)); // Assuming quote is in 18 decimals
+
       // Calculate amountOutMinimum considering slippage
-      const amountOutMinimumRaw =
-        (amountIn / quote) * (1 - swapOptions.slippageTolerance.toSignificant(4) / 100);
-      const amountOutMinimum = hre.ethers.BigNumber.from(amountOutMinimumRaw.toFixed(0).toString());
+      const slippageTolerance = swapOptions.slippageTolerance.toSignificant(4) / 100;
+      const amountOutMinimum = amountIn
+        .mul(hre.ethers.BigNumber.from((1 - slippageTolerance) * 1e18))
+        .div(quoteBN)
+        .div(hre.ethers.BigNumber.from(1e18));
 
       return {
         params: {
