@@ -2276,22 +2276,20 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       // Convert quote to a BigNumber
-      const quoteBN = hre.ethers.BigNumber.from(
-        Utils.parseUnits(quote.toString(), tokenIn.decimals)
-      );
+      const quoteBN = hre.ethers.BigNumber.from(Utils.parseUnits(quote, tokenIn.decimals));
 
       // Calculate amountOutMinimum considering slippage
       const slippageTolerance = swapOptions.slippageTolerance.toSignificant(4) / 100;
 
       console.log(
-        'buildSwapsParams - amountIn - ',
-        amountIn,
+        'buildSwapsParams - swapData.amountIn - ',
+        swapData.amountIn,
         ' quote ',
         quote,
         ' slippageTolerance',
         slippageTolerance
       );
-      const amountOutMinimum = amountIn * quote * slippageTolerance;
+      const amountOutMinimum = swapData.amountIn * quote * slippageTolerance;
       console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
 
       return {
