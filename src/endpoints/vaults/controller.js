@@ -683,28 +683,40 @@ exports.create = async function (req, res) {
 };
 
 const getGasPriceAndLimit = async (gasLimit) => {
-  // TODO: add fallback source
-  const gasLimitFallback = 300000;
+  // Fallback values
+  const gasLimitFallback = 500000;
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-  const feeData = await alchemy.getFeeData();
 
-  const maxFeePerGas = feeData.maxFeePerGas;
-  const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
-  const gasPrice = feeData.gasPrice;
+  try {
+    const feeData = await alchemy.getFeeData();
+    // Not needed const maxFeePerGas = feeData.maxFeePerGas || null;
+    // Not needed const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || null;
 
-  const networkConfig =
-    PROVIDER_NETWORK_NAME == 'rsk'
-      ? { gasPrice }
-      : { gasPrice, maxFeePerGas, maxPriorityFeePerGas };
+    const gasPrice = feeData.gasPrice || null;
 
-  if (gasLimit) {
-    networkConfig.gasLimit = gasLimit;
-  } else {
-    networkConfig.gasLimit = gasLimitFallback;
+    console.log('feeData:', feeData);
+
+    const networkConfig = PROVIDER_NETWORK_NAME === 'rsk' ? { gasPrice } : { gasPrice };
+
+    if (gasLimit) {
+      networkConfig.gasLimit = gasLimit;
+    } else {
+      networkConfig.gasLimit = gasLimitFallback;
+    }
+
+    console.log('networkConfig:', networkConfig);
+    return networkConfig;
+  } catch (error) {
+    console.error('Error fetching feeData:', error);
+    return {
+      gasPrice: null,
+      maxFeePerGas: null,
+      maxPriorityFeePerGas: null,
+      gasLimit: gasLimit || gasLimitFallback,
+    };
   }
-
-  return networkConfig;
 };
+
 // Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const blockchainContract = getDeployedContract(vault);
@@ -2144,7 +2156,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 
         // Estimate gas
         console.log('swapVaultExactInputs - Estimating gas with estimateGas');
-        const gasEstimate = await blockchainContract.estimateGas.swapExactInputs(swap);
+        const gasEstimate = await blockchainContract.estimateGas.swapExactInputs([swap]);
         console.log('swapVaultExactInputs - Gas estimate:', gasEstimate.toString());
 
         // Accumulate gas estimate
