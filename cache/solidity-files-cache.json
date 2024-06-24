@@ -1877,6 +1877,43 @@
       "artifacts": [
         "IQuoterV2"
       ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\Swap_executor.sol": {
+      "lastModificationDate": 1719197016570,
+      "contentHash": "8f3dcb0eba8798bad1df156eaf8253ae",
+      "sourceName": "contracts/Swap_executor.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "IERC20",
+        "IUniversalRouter",
+        "SwapExecutor"
+      ]
     }
   }
 }
