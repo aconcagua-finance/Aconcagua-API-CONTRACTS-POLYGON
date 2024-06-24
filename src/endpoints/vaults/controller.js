@@ -2276,7 +2276,7 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       // Calculate amountOutMinimum considering slippage
-      const slippageTolerance = (100 - swapOptions.slippageTolerance) / 100;
+      const slippageTolerance = 0.995;
       const amountOutMinimumDecimal = swapData.amountIn * quote * slippageTolerance;
       console.log(
         'buildSwapsParams - swapData.amountIn - ',
