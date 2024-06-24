@@ -2233,6 +2233,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
 const buildSwapsParams = async (swapsData) => {
   // V1 internal swap function builder.
   // Quote tokenIn x amountIn of each swap for amountOutMinimum (slippage).
+  console.log('Dentro de buildSwapsParams - swapsData', swapsData);
   const quoteAmounts = JSON.stringify(
     swapsData.reduce((prev, curr) => {
       prev[curr.tokenIn.symbol] = curr.amountIn;
@@ -2275,7 +2276,9 @@ const buildSwapsParams = async (swapsData) => {
       }
 
       // Convert quote to a BigNumber
-      const quoteBN = hre.ethers.BigNumber.from(Utils.parseUnits(quote.toString(), 18)); // Assuming quote is in 18 decimals
+      const quoteBN = hre.ethers.BigNumber.from(
+        Utils.parseUnits(quote.toString(), tokenIn.decimals)
+      );
 
       // Calculate amountOutMinimum considering slippage
       const slippageTolerance = swapOptions.slippageTolerance.toSignificant(4) / 100;
