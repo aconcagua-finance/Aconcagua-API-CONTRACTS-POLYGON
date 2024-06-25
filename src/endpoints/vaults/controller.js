@@ -1282,7 +1282,11 @@ const getVaultsToUpdate = async function () {
       return { id, ...data };
     });
   }
-
+  // Extract vault IDs from the initial list for logging
+  const vaultIdsToUpdate = vaults.map((vault) => vault.id);
+  console.log(
+    `Initial list of vaults to update: ${vaults.length}, IDs: ${vaultIdsToUpdate.join(', ')}`
+  );
   return vaults;
 };
 
@@ -1307,9 +1311,9 @@ const getVaultsToEvaluate = async function () {
   // Extract vault IDs from the filtered list for logging
   const filteredVaultIds = vaults.map((vault) => vault.id);
   console.log(
-    `Filtered vaults con tokens volátiles a evaluar: ${vaults.length}, IDs: ${filteredVaultIds.join(
-      ', '
-    )}`
+    `Filtered list of vaults con tokens volátiles a evaluar: ${
+      vaults.length
+    }, IDs: ${filteredVaultIds.join(', ')}`
   );
 
   return vaults;
@@ -1317,15 +1321,17 @@ const getVaultsToEvaluate = async function () {
 
 const MAX_BALANCES_RETRIES = 5;
 const markVaultsToUpdate = async function () {
+  console.log('Starting markVaultsToUpdate');
   const db = admin.firestore();
 
-  // TODO MICHEL HACER LOTES
+  // Prepare batch operation
   const batch = db.batch();
 
+  // Retrieve vaults that potentially need updates
   const vaults = await getVaultsToUpdate();
 
-  // const boundaryStartDate = new Date(Date.now());
-  // boundaryStartDate.setDate(boundaryStartDate.getDate() - 45);
+  // Initialize an array to keep track of the operations for logging purposes
+  const batchOperations = [];
 
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
@@ -1344,12 +1350,19 @@ const markVaultsToUpdate = async function () {
       balancesUpdateCount: balancesUpdateRetries,
     };
 
-    const updates = { ...assistanceUpdateData };
+    // Log each batch operation
+    batchOperations.push({ vaultId: vault.id, ...assistanceUpdateData });
 
-    batch.update(ref, updates);
+    // Queue the update in the batch
+    batch.update(ref, assistanceUpdateData);
   });
 
+  // Log all batch operations before committing
+  console.log('Batch operations queued:', JSON.stringify(batchOperations));
+
+  // Commit the batch
   await batch.commit();
+  console.log('Batch commit successful');
 };
 
 const MAX_EVALUATE_RETRIES = 5;
