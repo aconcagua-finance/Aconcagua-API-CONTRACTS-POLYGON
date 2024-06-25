@@ -1289,12 +1289,28 @@ const getVaultsToUpdate = async function () {
 const getVaultsToEvaluate = async function () {
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
 
-  // Duplicar código de getVaultsToUpdate adaptado?
+  // Retrieve vaults that potentially need updates
   const vaultsToUpdate = await getVaultsToUpdate();
+
+  // Extract vault IDs from the initial list for logging
+  const initialVaultIds = vaultsToUpdate.map((vault) => vault.id);
+  console.log(
+    `Initial list of vaults to update: ${vaultsToUpdate.length}, IDs: ${initialVaultIds.join(', ')}`
+  );
+
+  // Filter the vaults to identify those with volatile token balances
+  // Duplicar código de getVaultsToUpdate adaptado?
   const vaults = vaultsToUpdate.filter((vault) =>
     vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)
   );
-  console.log(`Vaults con tokens volátiles a evaluar: ${vaults.length}`);
+
+  // Extract vault IDs from the filtered list for logging
+  const filteredVaultIds = vaults.map((vault) => vault.id);
+  console.log(
+    `Filtered vaults con tokens volátiles a evaluar: ${vaults.length}, IDs: ${filteredVaultIds.join(
+      ', '
+    )}`
+  );
 
   return vaults;
 };
@@ -1531,6 +1547,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       console.log(
         'transactionType:',
         transactionType,
+        'proxyContractAddress:',
+        JSON.stringify(after.proxyContractAddress),
         'before balances:',
         JSON.stringify(before.balances),
         'after balances:',
@@ -1673,7 +1691,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     if (!before.balances && !after.balances) return;
 
     if (before.balances.length !== after.balances.length) {
-      console.log('Son distintos por cantidad ' + docId);
+      console.log(
+        'onVaultUpdate_ThenCreateTransaction - Son distintos por cantidad de activos ' + docId
+      );
       await createVaultTransaction({
         docId,
         before,
@@ -1684,7 +1704,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
-      console.log('Son distintos por comparacion ' + docId);
+      console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
         docId,
