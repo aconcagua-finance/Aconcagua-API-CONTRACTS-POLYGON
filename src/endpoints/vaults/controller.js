@@ -1355,7 +1355,7 @@ const markVaultsToUpdate = async function () {
     };
 
     // Log each batch operation
-    console.log('markVaultsToUpdate - Adding to the bach ', vault.id, ...assistanceUpdateData);
+    console.log('markVaultsToUpdate - Adding to the bach ', vault.id, assistanceUpdateData);
     batchOperations.push({ vaultId: vault.id, ...assistanceUpdateData });
 
     // Queue the update in the batch
