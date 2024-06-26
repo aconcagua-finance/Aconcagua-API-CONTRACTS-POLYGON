@@ -36,6 +36,7 @@ const schemas = require('./schemas');
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
+const _ = require('@lodash');
 
 const {
   abi: QuoterABI,
@@ -879,8 +880,20 @@ exports.getVaultBalances = async function (req, res) {
     const allBalances = await fetchVaultBalances(vault);
     console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
-    console.log('getVaultBalances - Balances en la base es ', vault.balances);
-    console.log('getVaultBalances - Balances de la red es ', allBalances);
+    console.log(
+      'getVaultBalances - Balances en la base es: ',
+      JSON.stringify(vault.balances, null, 2)
+    );
+    console.log(
+      'getVaultBalances - Balances en la base es: ',
+      JSON.stringify(allBalances, null, 2)
+    );
+
+    if (_.isEqual(vault.balances, allBalances)) {
+      console.log('getVaultBalances - Balances unchanged');
+    } else {
+      console.log('getVaultBalances - Balances changed');
+    }
 
     // actualizo
     await updateSingleItem({
