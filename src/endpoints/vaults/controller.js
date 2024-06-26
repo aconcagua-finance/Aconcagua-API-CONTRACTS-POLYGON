@@ -877,8 +877,10 @@ exports.getVaultBalances = async function (req, res) {
     console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
     const allBalances = await fetchVaultBalances(vault);
-    console.log('La vault que estoy procesando es');
+    console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
+    console.log('getVaultBalances - Balances en la base es ', vault.balances);
+    console.log('getVaultBalances - Balances de la red es ', allBalances);
 
     // actualizo
     await updateSingleItem({
