@@ -889,16 +889,18 @@ exports.getVaultBalances = async function (req, res) {
       JSON.stringify(allBalances, null, 2)
     );
 
+    let balancesNeedUpdate;
     if (_.isEqual(vault.balances, allBalances)) {
       console.log('getVaultBalances - Balances unchanged');
+      balancesNeedUpdate = false;
     } else {
       console.log('getVaultBalances - Balances changed');
+      balancesNeedUpdate = true;
     }
-
-    // actualizo
+    // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
-      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      data: { balances: allBalances, mustUpdate: balancesNeedUpdate, balancesUpdateRetries: 0 },
       auditUid,
       id: vault.id,
     });
