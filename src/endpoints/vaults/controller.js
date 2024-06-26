@@ -36,7 +36,7 @@ const schemas = require('./schemas');
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
-const _ = require('@lodash');
+const _ = require('lodash');
 
 const {
   abi: QuoterABI,
