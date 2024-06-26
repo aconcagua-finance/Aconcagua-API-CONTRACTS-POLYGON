@@ -1258,7 +1258,7 @@ const getVaultsToUpdate = async function () {
   const db = admin.firestore();
   const ref = db.collection(COLLECTION_NAME);
 
-  console.log('Consultando vaults para actualizar');
+  console.log('getVaultsToUpdate - Consultando vaults para actualizar');
   const querySnapshot = await ref
     .where('state', '==', Types.StateTypes.STATE_ACTIVE)
 
@@ -1285,7 +1285,9 @@ const getVaultsToUpdate = async function () {
   // Extract vault IDs from the initial list for logging
   const vaultIdsToUpdate = vaults.map((vault) => vault.id);
   console.log(
-    `Initial list of vaults to update: ${vaults.length}, IDs: ${vaultIdsToUpdate.join(', ')}`
+    `getVaultsToUpdate - Initial list of vaults to update: ${
+      vaults.length
+    }, IDs: ${vaultIdsToUpdate.join(', ')}`
   );
   return vaults;
 };
@@ -1299,7 +1301,9 @@ const getVaultsToEvaluate = async function () {
   // Extract vault IDs from the initial list for logging
   const initialVaultIds = vaultsToUpdate.map((vault) => vault.id);
   console.log(
-    `Initial list of vaults to update: ${vaultsToUpdate.length}, IDs: ${initialVaultIds.join(', ')}`
+    `getVaultsToEvaluate - Initial list of vaults to Evaluate: ${
+      vaultsToUpdate.length
+    }, IDs: ${initialVaultIds.join(', ')}`
   );
 
   // Filter the vaults to identify those with volatile token balances
@@ -1311,7 +1315,7 @@ const getVaultsToEvaluate = async function () {
   // Extract vault IDs from the filtered list for logging
   const filteredVaultIds = vaults.map((vault) => vault.id);
   console.log(
-    `Filtered list of vaults con tokens volátiles a evaluar: ${
+    `getVaultsToEvaluate - Filtered list of vaults con tokens volátiles a evaluar: ${
       vaults.length
     }, IDs: ${filteredVaultIds.join(', ')}`
   );
@@ -1351,6 +1355,7 @@ const markVaultsToUpdate = async function () {
     };
 
     // Log each batch operation
+    console.log('markVaultsToUpdate - Adding to the bach ', vault.id, ...assistanceUpdateData);
     batchOperations.push({ vaultId: vault.id, ...assistanceUpdateData });
 
     // Queue the update in the batch
@@ -1427,6 +1432,12 @@ exports.cronFetchVaultsBalances = functions
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenUpdateBalances - after.mustUpdate ',
+      after.mustUpdate,
+      ' docId ',
+      docId
+    );
     if (!after.mustUpdate) return;
 
     const allBalances = await fetchVaultBalances({ ...after, id: docId });
@@ -1701,6 +1712,15 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenCreateTransaction - after.mustUpdate ',
+      after.mustUpdate,
+      ' after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
+
     if (!before.balances && !after.balances) return;
 
     if (before.balances.length !== after.balances.length) {
@@ -1755,6 +1775,12 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenEvaluateBalances - after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
     if (!after.mustEvaluate) return;
     console.log(`Evaluación contrato ${docId}`);
 
