@@ -1720,6 +1720,8 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       ' docId ',
       docId
     );
+    // MRM Junio 2024 para evitar CRYPTO_UPDATE duplicados
+    if (!after.mustUpdate) return;
 
     if (!before.balances && !after.balances) return;
 
@@ -2410,9 +2412,9 @@ const swapVaultTokenBalances = async (vault) => {
 
 exports.evaluate = async function (req, res) {
   try {
-    console.log('Pedido de evaluación de vaults entrante.');
+    console.log('evaluate - Pedido de evaluación de vaults entrante.');
     await markVaultsToEvaluate();
-    return res.status(200).send('Ok: vaults marcadas para evaluar');
+    return res.status(200).send('evaluate - Ok: vaults marcadas para evaluar');
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -2423,13 +2425,13 @@ exports.createVaultAdmin = async (req, res) => {
     const { owner } = req.params;
     if (!owner || typeof owner !== 'string' || owner.length !== 42) {
       throw new CustomError.TechnicalError(
-        'ERROR_INVALID_ARGS',
+        'createVaultAdmin - ERROR_INVALID_ARGS',
         null,
-        'Invalida args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalida args creating ProxyAdmin contract',
         null
       );
     }
-    console.log(`Pedido creacion ProxyAdmin con owner ${owner}`);
+    console.log(`createVaultAdmin - Pedido creacion ProxyAdmin con owner ${owner}`);
 
     const contractName = 'ColateralProxyAdmin';
     // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
