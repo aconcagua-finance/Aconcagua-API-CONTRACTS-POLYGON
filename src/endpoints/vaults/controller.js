@@ -124,6 +124,8 @@ const { TechnicalError } = require('../../vs-core/error');
 const COLLECTION_NAME = Collections.VAULTS;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
+const COLLECTION_NAME_USERS = Collections.USERS;
+
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
@@ -2612,5 +2614,83 @@ exports.amountToConversions = async (req, res) => {
     return res.status(200).send({ amountInUSD, amountInTargetToken });
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+exports.sendEmailBalance = async function () {
+  try {
+    // Filter vaults with vaultType "savings"
+    const savingsVaults = await fetchItems({
+      collectionName: COLLECTION_NAME,
+      filters: { vaultType: { $equal: 'savings' } },
+    });
+
+    if (savingsVaults.length === 0) {
+      console.log('No savings vaults found.');
+      return;
+    }
+
+    for (const vault of savingsVaults) {
+      const userId = vault.userId;
+
+      // Fetch user details
+      const userDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME_USERS, id: userId });
+      if (!userDoc) {
+        console.log(`No user found for ID: ${userId}`);
+        continue;
+      }
+
+      const firstName = userDoc.firstName;
+      const userEmail = userDoc.email;
+
+      // Extract balance details from vault.balances
+      const balances = vault.balances || [];
+      let usdValuation = 0;
+      let arsValuation = 0;
+      let tokenDetails = '';
+
+      balances.forEach((balanceData) => {
+        if (balanceData.isValuation) {
+          if (balanceData.currency === 'usd') {
+            usdValuation = balanceData.balance;
+          } else if (balanceData.currency === 'ars') {
+            arsValuation = balanceData.balance;
+          }
+        } else {
+          const usdValue = balanceData.valuations.find(
+            (valuation) => valuation.currency === 'usd'
+          ).value;
+          tokenDetails += `Tenés un total de ${balanceData.balance} de ${balanceData.currency} que valen ${usdValue} USD\n`;
+        }
+      });
+
+      // Send email
+      const emailContent = `
+        Hola ${firstName}, te mandamos el balance semanal de tu bóveda.
+        El total de tu bóveda valuado en USD es ${usdValuation}
+        El total de tu bóveda valuado en ARS es ${arsValuation}
+        El detalle de tus tokens es:
+        ${tokenDetails}
+        Gracias por trabajar con nosotros.
+      `;
+
+      EmailSender.send({
+        to: userEmail,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: firstName,
+            vaultId: vault.id,
+            value: arsValuation,
+            currency: 'ars',
+          },
+        },
+      });
+
+      console.log(`Email sent to ${userEmail}`);
+    }
+  } catch (error) {
+    console.error('Error sending email balance:', error);
   }
 };
