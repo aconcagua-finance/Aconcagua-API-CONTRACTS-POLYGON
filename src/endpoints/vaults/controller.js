@@ -2622,11 +2622,15 @@ exports.sendEmailBalance = functions.pubsub
   .timeZone('America/New_York')
   .onRun(async (context) => {
     try {
-      // Filter vaults with vaultType "savings"
-      const savingsVaults = await fetchItems({
-        collectionName: COLLECTION_NAME,
-        filters: { vaultType: { $equal: 'savings' } },
-      });
+      const db = admin.firestore();
+      const ref = db.collection(COLLECTION_NAME);
+
+      console.log('getVaultsToUpdate - Consultando vaults para actualizar');
+      const savingsVaults = await ref
+        .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+
+        .where('vaultType', 'in', [Types.VaultTypes.VAULT_TYPE_SAVINGS])
+        .get();
 
       if (savingsVaults.length === 0) {
         console.log('No savings vaults found.');
@@ -2679,12 +2683,12 @@ exports.sendEmailBalance = functions.pubsub
           ${tokenDetails}
           Gracias por trabajar con nosotros.
         `;
-
+        /*
         EmailSender.send({
           to: userEmail,
           message: null,
           template: {
-            name: 'mail-liberate',
+            name: 'mail-balance-semanal',
             data: {
               username: firstName,
               vaultId: vault.id,
@@ -2693,8 +2697,8 @@ exports.sendEmailBalance = functions.pubsub
             },
           },
         });
-
-        console.log(`Email sent to ${userEmail}`);
+      */
+        console.log(`Email sent to ${userEmail} for vault ${vault.vaultId}`);
       }
     } catch (error) {
       console.error('Error sending email balance:', error);
