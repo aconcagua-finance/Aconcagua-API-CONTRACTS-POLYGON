@@ -5,6 +5,7 @@
 // require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
 import { Pool, FeeAmount } from '@uniswap/v3-sdk';
+import { move } from 'fs-extra';
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -20,6 +21,10 @@ const { LoggerHelper } = require('../../vs-core-firebase');
 const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
+const {
+  areRebasingTokensEqualWithDiff,
+  areNonRebasingTokensEqual,
+} = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
 
@@ -27,6 +32,8 @@ const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
+const { RebasingTokens } = require('../../types/RebasingTokens');
+const { Valuation, Balance } = require('../../types/BalanceTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -35,6 +42,7 @@ const schemas = require('./schemas');
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
+const _ = require('lodash');
 
 const {
   abi: QuoterABI,
@@ -876,13 +884,42 @@ exports.getVaultBalances = async function (req, res) {
     console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
     const allBalances = await fetchVaultBalances(vault);
-    console.log('La vault que estoy procesando es');
+    console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
+    console.log(
+      'getVaultBalances - Balances en la base es: ',
+      JSON.stringify(vault.balances, null, 2)
+    );
+    console.log(
+      'getVaultBalances - Balances obtenidos del contrato: ',
+      JSON.stringify(allBalances, null, 2)
+    );
 
-    // actualizo
+    let balancesNeedUpdate = true;
+
+    if (
+      areNonRebasingTokensEqual(vault.balances, allBalances) &&
+      areRebasingTokensEqualWithDiff(vault.balances, allBalances, 1)
+    ) {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - All Non Rebasing tokens balances are the same and rebasing within allowable difference'
+      );
+      balancesNeedUpdate = false;
+    } else {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - Non Rebasing tokens are different, or rebasing tokens outside allowable difference'
+      );
+      balancesNeedUpdate = true;
+    }
+
+    // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
-      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      data: { balances: allBalances, mustUpdate: balancesNeedUpdate, balancesUpdateRetries: 0 },
       auditUid,
       id: vault.id,
     });
@@ -1681,6 +1718,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
+    console.log('Mail ingreso crypto ', after, '  ', movementAmount);
     await sendDepositEmails(after, movementAmount);
   }
 
