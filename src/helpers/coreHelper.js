@@ -125,16 +125,29 @@ const areRebasingTokensEqualWithDiff = (balances1, balances2, tolerancePercentag
 
 exports.areRebasingTokensEqualWithDiff = areRebasingTokensEqualWithDiff;
 
+// Helper function to extract non-rebasing tokens from a vault
+const getNonRebasingTokensWithBalances = (balances) => {
+  return balances
+    .filter((balance) => !Object.values(RebasingTokens).includes(balance.currency))
+    .map((balance) => ({
+      currency: balance.currency,
+      balance: balance.balance,
+    }));
+};
+
 // Function to compare non-rebasing tokens between two vaults
 const areNonRebasingTokensEqual = (balances1, balances2) => {
-  const nonRebasingTokens1 = getNonRebasingTokens(balances1);
-  const nonRebasingTokens2 = getNonRebasingTokens(balances2);
+  const nonRebasingTokens1 = getNonRebasingTokensWithBalances(balances1);
+  const nonRebasingTokens2 = getNonRebasingTokensWithBalances(balances2);
 
   if (nonRebasingTokens1.length !== nonRebasingTokens2.length) {
     return false;
   }
 
-  return nonRebasingTokens1.every((token) => nonRebasingTokens2.includes(token));
+  return nonRebasingTokens1.every((token1) => {
+    const token2 = nonRebasingTokens2.find((token) => token.currency === token1.currency);
+    return token2 && token1.balance === token2.balance;
+  });
 };
 
 exports.areNonRebasingTokensEqual = areNonRebasingTokensEqual;

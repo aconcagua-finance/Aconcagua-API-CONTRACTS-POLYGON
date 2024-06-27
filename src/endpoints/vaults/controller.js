@@ -1718,7 +1718,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
-    console.log('Mail ingreso crypto ', after, '  ', movementAmount);
+    console.log('Mail ingreso crypto ', after.balances, '  ', movementAmount);
     await sendDepositEmails(after, movementAmount);
   }
 
