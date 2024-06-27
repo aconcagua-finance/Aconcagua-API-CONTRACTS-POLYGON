@@ -6,6 +6,7 @@
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
 import { Pool, FeeAmount } from '@uniswap/v3-sdk';
 import { move } from 'fs-extra';
+import { RebasingTokens } from '../../types/RebasingTokens';
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -21,6 +22,10 @@ const { LoggerHelper } = require('../../vs-core-firebase');
 const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
+const {
+  areRebasingTokensEqualWithDiff,
+  areNonRebasingTokensEqual,
+} = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
 
@@ -28,6 +33,8 @@ const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
+const { RebasingTokens } = require('../../types/RebasingTokens');
+const { Valuation, Balance } = require('../../types/BalanceTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -885,18 +892,31 @@ exports.getVaultBalances = async function (req, res) {
       JSON.stringify(vault.balances, null, 2)
     );
     console.log(
-      'getVaultBalances - Balances en la base es: ',
+      'getVaultBalances - Balances obtenidos del contrato: ',
       JSON.stringify(allBalances, null, 2)
     );
 
-    let balancesNeedUpdate;
-    if (_.isEqual(vault.balances, allBalances)) {
-      console.log('getVaultBalances - Balances unchanged');
+    let balancesNeedUpdate = true;
+
+    if (
+      areNonRebasingTokensEqual(vault.balances, allBalances) &&
+      areRebasingTokensEqualWithDiff(vault.balances, allBalances, 1)
+    ) {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - All Non Rebasing tokens balances are the same and rebasing within allowable difference'
+      );
       balancesNeedUpdate = false;
     } else {
-      console.log('getVaultBalances - Balances changed');
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - Non Rebasing tokens are different, or rebasing tokens outside allowable difference'
+      );
       balancesNeedUpdate = true;
     }
+
     // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,

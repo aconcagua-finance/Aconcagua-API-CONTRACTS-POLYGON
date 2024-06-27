@@ -25,13 +25,12 @@ const areDeepEqualArrays = function (array1, array2) {
   if (!array1 && array2) return false;
   if (array1 && !array2) return false;
 
-  // TODO - Tiene sentido tmb recibir un array de keys a exluir ?
   return !_.isEqual(array1, array2);
 };
 
 exports.areDeepEqualArrays = areDeepEqualArrays;
 
-const areDeepEqual = function (element1, element2, exludeKeys) {
+const areDeepEqual = function (element1, element2, excludeKeys) {
   if (!element1 && !element2) return true;
   if (!element1 && element2) return false;
   if (element1 && !element2) return false;
@@ -43,13 +42,13 @@ const areDeepEqual = function (element1, element2, exludeKeys) {
   let element1Keys = Object.keys(element1);
   let element2Keys = Object.keys(element2);
 
-  if (exludeKeys) {
+  if (excludeKeys) {
     element1Keys = element1Keys.filter((key) => {
-      return !exludeKeys.includes(key);
+      return !excludeKeys.includes(key);
     });
 
     element2Keys = element2Keys.filter((key) => {
-      return !exludeKeys.includes(key);
+      return !excludeKeys.includes(key);
     });
   }
 
@@ -78,13 +77,6 @@ exports.toDateObject = function (dirtyDate) {
 
   if (dirtyDate._seconds) return new Date(dirtyDate._seconds * 1000);
   else if (typeof dirtyDate === 'string') return new Date(dirtyDate);
-
-  // .toLocaleDateString(
-  //     'en-ES'
-  //   );
-  // const createdAtString = new Date(userTask.createdAt._seconds * 1000).toLocaleDateString(
-  //   'en-ES'
-  // );
 };
 
 exports.enumValuesToArray = (enumType) => {
@@ -92,3 +84,56 @@ exports.enumValuesToArray = (enumType) => {
     return isNaN(Number(item));
   });
 };
+
+// Helper function to extract rebasing tokens from a vault
+const getRebasingTokens = (vault) => {
+  return vault.balances
+    .filter((balance) => Object.values(RebasingTokens).includes(balance.currency))
+    .map((balance) => ({
+      currency: balance.currency,
+      balance: balance.balance,
+    }));
+};
+
+// Helper function to extract non-rebasing tokens from a vault
+const getNonRebasingTokens = (vault) => {
+  return vault.balances
+    .filter((balance) => !Object.values(RebasingTokens).includes(balance.currency))
+    .map((balance) => balance.currency);
+};
+
+// Function to compare rebasing tokens between two vaults with a tolerance percentage
+const areRebasingTokensEqualWithDiff = (vault1, vault2, tolerancePercentage = 0) => {
+  const rebasingTokens1 = getRebasingTokens(vault1);
+  const rebasingTokens2 = getRebasingTokens(vault2);
+
+  if (rebasingTokens1.length !== rebasingTokens2.length) {
+    return false;
+  }
+
+  return rebasingTokens1.every((token1) => {
+    const token2 = rebasingTokens2.find((token) => token.currency === token1.currency);
+    if (!token2) {
+      return false;
+    }
+    const difference = Math.abs(token1.balance - token2.balance);
+    const allowableDifference = (token1.balance * tolerancePercentage) / 100;
+    return difference <= allowableDifference;
+  });
+};
+
+exports.areRebasingTokensEqualWithDiff = areRebasingTokensEqualWithDiff;
+
+// Function to compare non-rebasing tokens between two vaults
+const areNonRebasingTokensEqual = (vault1, vault2) => {
+  const nonRebasingTokens1 = getNonRebasingTokens(vault1);
+  const nonRebasingTokens2 = getNonRebasingTokens(vault2);
+
+  if (nonRebasingTokens1.length !== nonRebasingTokens2.length) {
+    return false;
+  }
+
+  return nonRebasingTokens1.every((token) => nonRebasingTokens2.includes(token));
+};
+
+exports.areNonRebasingTokensEqual = areNonRebasingTokensEqual;
