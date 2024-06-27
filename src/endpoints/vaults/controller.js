@@ -2626,18 +2626,18 @@ exports.sendEmailBalance = functions.pubsub
       const ref = db.collection(COLLECTION_NAME);
 
       console.log('getVaultsToUpdate - Consultando vaults para actualizar');
-      const savingsVaults = await ref
+      const savingsVaultsSnapshot = await ref
         .where('state', '==', Types.StateTypes.STATE_ACTIVE)
-
         .where('vaultType', 'in', [Types.VaultTypes.VAULT_TYPE_SAVINGS])
         .get();
 
-      if (savingsVaults.length === 0) {
+      if (savingsVaultsSnapshot.empty) {
         console.log('No savings vaults found.');
         return;
       }
 
-      for (const vault of savingsVaults) {
+      for (const vaultDoc of savingsVaultsSnapshot.docs) {
+        const vault = vaultDoc.data();
         const userId = vault.userId;
 
         // Fetch user details
@@ -2697,8 +2697,8 @@ exports.sendEmailBalance = functions.pubsub
             },
           },
         });
-      */
-        console.log(`Email sent to ${userEmail} for vault ${vault.vaultId}`);
+        */
+        console.log(`Email sent to ${userEmail} for vault ${vaultDoc.id}`);
       }
     } catch (error) {
       console.error('Error sending email balance:', error);
