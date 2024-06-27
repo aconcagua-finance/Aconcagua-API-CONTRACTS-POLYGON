@@ -87,8 +87,8 @@ exports.enumValuesToArray = (enumType) => {
 };
 
 // Helper function to extract rebasing tokens from a vault
-const getRebasingTokens = (vault) => {
-  return vault.balances
+const getRebasingTokens = (balances) => {
+  return balances
     .filter((balance) => Object.values(RebasingTokens).includes(balance.currency))
     .map((balance) => ({
       currency: balance.currency,
@@ -97,16 +97,16 @@ const getRebasingTokens = (vault) => {
 };
 
 // Helper function to extract non-rebasing tokens from a vault
-const getNonRebasingTokens = (vault) => {
-  return vault.balances
+const getNonRebasingTokens = (balances) => {
+  return balances
     .filter((balance) => !Object.values(RebasingTokens).includes(balance.currency))
     .map((balance) => balance.currency);
 };
 
 // Function to compare rebasing tokens between two vaults with a tolerance percentage
-const areRebasingTokensEqualWithDiff = (vault1, vault2, tolerancePercentage = 0) => {
-  const rebasingTokens1 = getRebasingTokens(vault1);
-  const rebasingTokens2 = getRebasingTokens(vault2);
+const areRebasingTokensEqualWithDiff = (balances1, balances2, tolerancePercentage = 0) => {
+  const rebasingTokens1 = getRebasingTokens(balances1);
+  const rebasingTokens2 = getRebasingTokens(balances2);
 
   if (rebasingTokens1.length !== rebasingTokens2.length) {
     return false;
@@ -126,9 +126,9 @@ const areRebasingTokensEqualWithDiff = (vault1, vault2, tolerancePercentage = 0)
 exports.areRebasingTokensEqualWithDiff = areRebasingTokensEqualWithDiff;
 
 // Function to compare non-rebasing tokens between two vaults
-const areNonRebasingTokensEqual = (vault1, vault2) => {
-  const nonRebasingTokens1 = getNonRebasingTokens(vault1);
-  const nonRebasingTokens2 = getNonRebasingTokens(vault2);
+const areNonRebasingTokensEqual = (balances1, balances2) => {
+  const nonRebasingTokens1 = getNonRebasingTokens(balances1);
+  const nonRebasingTokens2 = getNonRebasingTokens(balances2);
 
   if (nonRebasingTokens1.length !== nonRebasingTokens2.length) {
     return false;
