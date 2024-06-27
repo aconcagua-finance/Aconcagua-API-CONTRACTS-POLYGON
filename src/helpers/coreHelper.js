@@ -152,9 +152,6 @@ const areNonRebasingTokensEqual = (balances1, balances2) => {
   const nonRebasingTokens1 = getNonRebasingTokensWithBalances(balances1);
   const nonRebasingTokens2 = getNonRebasingTokensWithBalances(balances2);
 
-  console.log('nonRebasingTokens1:', JSON.stringify(nonRebasingTokens1, null, 2));
-  console.log('nonRebasingTokens2:', JSON.stringify(nonRebasingTokens2, null, 2));
-
   if (nonRebasingTokens1.length !== nonRebasingTokens2.length) {
     return false;
   }
