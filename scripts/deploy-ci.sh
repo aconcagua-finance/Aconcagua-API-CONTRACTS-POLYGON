@@ -70,6 +70,6 @@ echo "${FIREBASE_SERVICE_ACCOUNT_KEY}" > /tmp/serviceAccountKey.json
 export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceAccountKey.json
 echo "Deploy proyecto $FIREB_PROJECT_ID"
 
-firebase deploy --project $FIREB_PROJECT_ID --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market
+firebase deploy --project $FIREB_PROJECT_ID --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:market, functions:sendEmailBalance
 
 echo "deploy complete!"
