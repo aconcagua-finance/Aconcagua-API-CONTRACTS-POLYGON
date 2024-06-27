@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const { RebasingTokens } = require('../types/RebasingTokens');
 
 exports.areEqualStringLists = function (list1, list2) {
   let areEqual = true;
