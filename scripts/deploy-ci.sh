@@ -71,6 +71,6 @@ export GOOGLE_APPLICATION_CREDENTIALS=/tmp/serviceAccountKey.json
 echo "Deploy proyecto $FIREB_PROJECT_ID"
 
 # firebase deploy --project $FIREB_PROJECT_ID --only functions:vaultsPolygon,functions:cronFetchVaultsBalances,functions:onVaultUpdate,functions:onVaultCreate,functions:sendEmailBalance,functions:market
-firebase deploy --project $FIREB_PROJECT_ID --only functions
+firebase deploy --project $FIREB_PROJECT_ID --only  functions:sendEmailBalance
 
 echo "deploy complete!"

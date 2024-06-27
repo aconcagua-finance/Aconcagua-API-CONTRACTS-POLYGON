@@ -68,10 +68,10 @@ exports.vaultsPolygon = functions
   })
   .https.onRequest(vaultsApp);
 
+exports.sendEmailBalance = sendEmailBalance;
 exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
 exports.onVaultUpdate = onVaultUpdate;
 exports.onVaultCreate = onVaultCreate;
-exports.sendEmailBalance = sendEmailBalance;
 
 const marketApp = express();
 configureApp(marketApp);
