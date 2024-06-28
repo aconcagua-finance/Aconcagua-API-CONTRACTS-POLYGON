@@ -2657,7 +2657,7 @@ exports.sendEmailBalance = functions.pubsub
         const balances = vault.balances || [];
         let usdValuation = 0;
         let arsValuation = 0;
-        let tokenDetails = '';
+        let totalTokenValueUSD = 0;
 
         balances.forEach((balanceData) => {
           if (balanceData.isValuation) {
@@ -2670,7 +2670,7 @@ exports.sendEmailBalance = functions.pubsub
             const usdValue = balanceData.valuations.find(
               (valuation) => valuation.currency === 'usd'
             ).value;
-            tokenDetails += `Tenés un total de ${balanceData.balance} de ${balanceData.currency} que valen ${usdValue} USD\n`;
+            totalTokenValueUSD += usdValue;
           }
         });
 
@@ -2679,8 +2679,7 @@ exports.sendEmailBalance = functions.pubsub
           Hola ${firstName}, te mandamos el balance semanal de tu bóveda.
           El total de tu bóveda valuado en USD es ${usdValuation}
           El total de tu bóveda valuado en ARS es ${arsValuation}
-          El detalle de tus tokens es:
-          ${tokenDetails}
+          El valor total de tus tokens en USD es ${totalTokenValueUSD}
           Gracias por trabajar con nosotros.
         `;
         /*
@@ -2699,7 +2698,7 @@ exports.sendEmailBalance = functions.pubsub
         });
         */
         console.log(
-          `Email sent to ${userEmail} for vault ${vaultDoc.id} usdValuation es ${usdValuation} y arsValuation es ${arsValuation}`
+          `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
         );
       }
     } catch (error) {
