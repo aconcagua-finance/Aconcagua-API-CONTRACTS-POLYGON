@@ -346,6 +346,7 @@ exports.patch = async function (req, res) {
       // Envio el email al empleado que creó la boveda
       EmailSender.send({
         to: employee.email,
+        SYS_ADMIN_EMAIL,
         message: null,
         template: {
           name: 'mail-liberate',
@@ -1080,6 +1081,7 @@ exports.withdraw = async function (req, res) {
 
     await EmailSender.send({
       to: employee.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1265,6 +1267,7 @@ exports.rescue = async function (req, res) {
 
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-rescue',
@@ -1549,6 +1552,7 @@ const sendDepositEmails = async (vault, movementAmount) => {
 
     EmailSender.send({
       to: employee.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-cripto',
@@ -2187,6 +2191,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-mc2',
@@ -2204,6 +2209,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción SWAP para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-swap',
@@ -2686,6 +2692,7 @@ exports.sendEmailBalance = functions.pubsub
         `;
         EmailSender.send({
           to: userEmail,
+          SYS_ADMIN_EMAIL,
           message: null,
           template: {
             name: 'mail-balance-semanal',
