@@ -89,19 +89,41 @@ exports.enumValuesToArray = (enumType) => {
 // Helper function to extract rebasing tokens from a vault
 const getRebasingTokens = (balances) => {
   return balances
-    .filter((balance) => Object.values(RebasingTokens).includes(balance.currency))
+    .filter(
+      (balance) => Object.values(RebasingTokens).includes(balance.currency) && !balance.isValuation
+    )
     .map((balance) => ({
       currency: balance.currency,
       balance: balance.balance,
     }));
 };
 
+exports.getRebasingTokens = getRebasingTokens;
+
 // Helper function to extract non-rebasing tokens from a vault
 const getNonRebasingTokens = (balances) => {
   return balances
-    .filter((balance) => !Object.values(RebasingTokens).includes(balance.currency))
+    .filter(
+      (balance) => !Object.values(RebasingTokens).includes(balance.currency) && !balance.isValuation
+    )
     .map((balance) => balance.currency);
 };
+
+exports.getNonRebasingTokens = getNonRebasingTokens;
+
+// Helper function to extract non-rebasing tokens with balances from a vault
+const getNonRebasingTokensWithBalances = (balances) => {
+  return balances
+    .filter(
+      (balance) => !Object.values(RebasingTokens).includes(balance.currency) && !balance.isValuation
+    )
+    .map((balance) => ({
+      currency: balance.currency,
+      balance: balance.balance,
+    }));
+};
+
+exports.getNonRebasingTokensWithBalances = getNonRebasingTokensWithBalances;
 
 // Function to compare rebasing tokens between two vaults with a tolerance percentage
 const areRebasingTokensEqualWithDiff = (balances1, balances2, tolerancePercentage = 0) => {
@@ -127,14 +149,17 @@ exports.areRebasingTokensEqualWithDiff = areRebasingTokensEqualWithDiff;
 
 // Function to compare non-rebasing tokens between two vaults
 const areNonRebasingTokensEqual = (balances1, balances2) => {
-  const nonRebasingTokens1 = getNonRebasingTokens(balances1);
-  const nonRebasingTokens2 = getNonRebasingTokens(balances2);
+  const nonRebasingTokens1 = getNonRebasingTokensWithBalances(balances1);
+  const nonRebasingTokens2 = getNonRebasingTokensWithBalances(balances2);
 
   if (nonRebasingTokens1.length !== nonRebasingTokens2.length) {
     return false;
   }
 
-  return nonRebasingTokens1.every((token) => nonRebasingTokens2.includes(token));
+  return nonRebasingTokens1.every((token1) => {
+    const token2 = nonRebasingTokens2.find((token) => token.currency === token1.currency);
+    return token2 && token1.balance === token2.balance;
+  });
 };
 
 exports.areNonRebasingTokensEqual = areNonRebasingTokensEqual;

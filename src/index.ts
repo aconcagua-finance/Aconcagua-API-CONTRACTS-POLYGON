@@ -16,6 +16,7 @@ const {
   cronFetchVaultsBalances,
   onVaultUpdate,
   onVaultCreate,
+  sendEmailBalance,
 } = require('./endpoints/vaults/controller');
 
 console.log('NODE_ENV:', process.env.NODE_ENV, 'ENVIRONMENT:', process.env.ENVIRONMENT);
@@ -67,6 +68,7 @@ exports.vaultsPolygon = functions
   })
   .https.onRequest(vaultsApp);
 
+exports.sendEmailBalance = sendEmailBalance;
 exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
 exports.onVaultUpdate = onVaultUpdate;
 exports.onVaultCreate = onVaultCreate;

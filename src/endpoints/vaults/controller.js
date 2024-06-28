@@ -91,6 +91,7 @@ const {
 } = require('../baseEndpoint');
 
 const {
+  SYS_ADMIN_EMAIL,
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
@@ -124,6 +125,8 @@ const { TechnicalError } = require('../../vs-core/error');
 const COLLECTION_NAME = Collections.VAULTS;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
+const COLLECTION_NAME_USERS = Collections.USERS;
+
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
@@ -343,6 +346,7 @@ exports.patch = async function (req, res) {
       // Envio el email al empleado que creó la boveda
       EmailSender.send({
         to: employee.email,
+        SYS_ADMIN_EMAIL,
         message: null,
         template: {
           name: 'mail-liberate',
@@ -495,7 +499,7 @@ exports.create = async function (req, res) {
 
     const networkName = hre.network.name;
 
-    const colateralContractName = 'ColateralContract2';
+    const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
 
     // Deploy ColateralContract
@@ -1077,6 +1081,7 @@ exports.withdraw = async function (req, res) {
 
     await EmailSender.send({
       to: employee.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1262,6 +1267,7 @@ exports.rescue = async function (req, res) {
 
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-rescue',
@@ -1546,6 +1552,7 @@ const sendDepositEmails = async (vault, movementAmount) => {
 
     EmailSender.send({
       to: employee.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-cripto',
@@ -1718,7 +1725,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
-    console.log('Mail ingreso crypto ', after, '  ', movementAmount);
+    console.log('Mail ingreso crypto ', after.balances, '  ', movementAmount);
     await sendDepositEmails(after, movementAmount);
   }
 
@@ -1959,6 +1966,7 @@ const sendCreateEmails = async (vault) => {
 
   await EmailSender.send({
     to: employee.email,
+    SYS_ADMIN_EMAIL,
     message: null,
     template: {
       name: 'mail-vault',
@@ -2183,6 +2191,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-mc2',
@@ -2200,6 +2209,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción SWAP para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-swap',
@@ -2614,3 +2624,93 @@ exports.amountToConversions = async (req, res) => {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.sendEmailBalance = functions.pubsub
+  .schedule('every sunday 00:00')
+  .timeZone('America/New_York')
+  .onRun(async (context) => {
+    try {
+      const db = admin.firestore();
+      const ref = db.collection(COLLECTION_NAME);
+
+      console.log('getVaultsToUpdate - Consultando vaults para actualizar');
+      const savingsVaultsSnapshot = await ref
+        .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+        .where('vaultType', 'in', [Types.VaultTypes.VAULT_TYPE_SAVINGS])
+        .get();
+
+      if (savingsVaultsSnapshot.empty) {
+        console.log('No savings vaults found.');
+        return;
+      }
+
+      for (const vaultDoc of savingsVaultsSnapshot.docs) {
+        const vault = vaultDoc.data();
+        const userId = vault.userId;
+
+        // Fetch user details
+        const userDoc = await fetchSingleItem({
+          collectionName: COLLECTION_NAME_USERS,
+          id: userId,
+        });
+        if (!userDoc) {
+          console.log(`No user found for ID: ${userId}`);
+          continue;
+        }
+
+        const firstName = userDoc.firstName;
+        const userEmail = userDoc.email;
+
+        // Extract balance details from vault.balances
+        const balances = vault.balances || [];
+        let usdValuation = 0;
+        let arsValuation = 0;
+        let totalTokenValueUSD = 0;
+
+        balances.forEach((balanceData) => {
+          if (balanceData.isValuation) {
+            if (balanceData.currency === 'usd') {
+              usdValuation = balanceData.balance;
+            } else if (balanceData.currency === 'ars') {
+              arsValuation = balanceData.balance;
+            }
+          } else {
+            const usdValue = balanceData.valuations.find(
+              (valuation) => valuation.currency === 'usd'
+            ).value;
+            totalTokenValueUSD += usdValue;
+          }
+        });
+
+        // Send email
+        const emailContent = `
+          Hola ${firstName}, te mandamos el balance semanal de tu bóveda.
+          El total de tu bóveda valuado en USD es ${usdValuation}
+          El total de tu bóveda valuado en ARS es ${arsValuation}
+          El valor total de tus tokens en USD es ${totalTokenValueUSD}
+          Gracias por trabajar con nosotros.
+        `;
+
+        /*
+        EmailSender.send({
+          to: userEmail,
+          SYS_ADMIN_EMAIL,
+          message: null,
+          template: {
+            name: 'mail-balance-semanal',
+            data: {
+              username: firstName,
+              vaultId: vault.id,
+              USDAmount: usdValuation,
+            },
+          },
+        });
+        */
+        console.log(
+          `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
+        );
+      }
+    } catch (error) {
+      console.error('Error sending email balance:', error);
+    }
+  });
