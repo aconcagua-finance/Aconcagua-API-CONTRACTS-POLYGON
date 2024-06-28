@@ -499,7 +499,7 @@ exports.create = async function (req, res) {
 
     const networkName = hre.network.name;
 
-    const colateralContractName = 'ColateralContract2';
+    const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
 
     // Deploy ColateralContract
