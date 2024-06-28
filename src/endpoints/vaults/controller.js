@@ -91,6 +91,7 @@ const {
 } = require('../baseEndpoint');
 
 const {
+  SYS_ADMIN_EMAIL,
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
@@ -1961,6 +1962,7 @@ const sendCreateEmails = async (vault) => {
 
   await EmailSender.send({
     to: employee.email,
+    SYS_ADMIN_EMAIL,
     message: null,
     template: {
       name: 'mail-vault',
