@@ -537,45 +537,100 @@ exports.create = async function (req, res) {
 
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
-
     const colateralBlockchainContract = new hre.ethers.Contract(
       colateralContractAddress,
       colateralAbi,
       deployerWallet
     );
 
+    let args;
+    let abiEncodedArgs;
     const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
 
-    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
-    const tokenAddresses = [
-      USDC_TOKEN_ADDRESS,
-      USDT_TOKEN_ADDRESS,
-      USDM_TOKEN_ADDRESS,
-      WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS,
-    ];
+    if (colateralContractName === 'ColateralContract2') {
+      // Contrato version 2
 
-    const contractKeys = ['router', 'swapper', 'quoter'];
-    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+      const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+      const tokenAddresses = [
+        USDC_TOKEN_ADDRESS,
+        USDT_TOKEN_ADDRESS,
+        USDM_TOKEN_ADDRESS,
+        WBTC_TOKEN_ADDRESS,
+        WETH_TOKEN_ADDRESS,
+      ];
 
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
-    const args = [
-      tokenNames,
-      tokenAddresses,
-      operators,
-      DEFAULT_RESCUE_WALLET_ADDRESS,
-      DEFAULT_WITHDRAW_WALLET_ADDRESS,
-      colateralContractSignerAddress, // lender.safeLiq1,
-      lender.safeLiq2.toLowerCase(),
-      contractKeys,
-      contractAddresses,
-    ];
-    console.log('Create - proxy args ');
-    console.log(args);
+      const contractKeys = ['router', 'swapper', 'quoter'];
+      const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+
+      // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+      args = [
+        tokenNames,
+        tokenAddresses,
+        operators,
+        DEFAULT_RESCUE_WALLET_ADDRESS,
+        DEFAULT_WITHDRAW_WALLET_ADDRESS,
+        colateralContractSignerAddress, // lender.safeLiq1,
+        lender.safeLiq2.toLowerCase(),
+        contractKeys,
+        contractAddresses,
+      ];
+
+      // Log the ABI encoded constructor arguments
+      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+        [
+          'string[]',
+          'address[]',
+          'address[]',
+          'address',
+          'address',
+          'address',
+          'address',
+          'string[]',
+          'address[]',
+        ],
+        args
+      );
+    } else {
+      // Contrato version 1
+
+      args = [
+        USDC_TOKEN_ADDRESS,
+        USDT_TOKEN_ADDRESS,
+        USDM_TOKEN_ADDRESS,
+        WBTC_TOKEN_ADDRESS,
+        operators,
+        DEFAULT_RESCUE_WALLET_ADDRESS,
+        DEFAULT_WITHDRAW_WALLET_ADDRESS,
+        colateralContractSignerAddress, // lender.safeLiq1,
+        lender.safeLiq2.toLowerCase(),
+        SWAP_ROUTER_V3_ADDRESS,
+        SWAPPER_ADDRESS,
+      ];
+
+      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'address',
+          'address',
+          'address',
+          'address[]',
+          'address',
+          'address',
+          'address',
+          'address',
+          'address',
+          'address',
+        ],
+        args
+      );
+    }
 
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
     );
+
+    console.log('Create - proxy args ');
+    console.log(args);
 
     const proxyContractArgs = [
       colateralContractAddress,
@@ -594,22 +649,6 @@ exports.create = async function (req, res) {
         null
       );
     }
-
-    // Log the ABI encoded constructor arguments
-    const abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
-      [
-        'string[]',
-        'address[]',
-        'address[]',
-        'address',
-        'address',
-        'address',
-        'address',
-        'string[]',
-        'address[]',
-      ],
-      args
-    );
 
     // Build entity
     const collectionName = COLLECTION_NAME;
