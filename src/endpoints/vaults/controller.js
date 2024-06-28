@@ -2690,6 +2690,8 @@ exports.sendEmailBalance = functions.pubsub
           El valor total de tus tokens en USD es ${totalTokenValueUSD}
           Gracias por trabajar con nosotros.
         `;
+
+        /*
         EmailSender.send({
           to: userEmail,
           SYS_ADMIN_EMAIL,
@@ -2703,6 +2705,7 @@ exports.sendEmailBalance = functions.pubsub
             },
           },
         });
+        */
         console.log(
           `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
         );
