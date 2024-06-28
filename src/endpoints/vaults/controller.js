@@ -2698,7 +2698,9 @@ exports.sendEmailBalance = functions.pubsub
           },
         });
         */
-        console.log(`Email sent to ${userEmail} for vault ${vaultDoc.id}`);
+        console.log(
+          `Email sent to ${userEmail} for vault ${vaultDoc.id} usdValuation es ${usdValuation} y arsValuation es ${arsValuation}`
+        );
       }
     } catch (error) {
       console.error('Error sending email balance:', error);
