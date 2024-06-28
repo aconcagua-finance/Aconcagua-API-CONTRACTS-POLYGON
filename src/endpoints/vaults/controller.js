@@ -2692,7 +2692,7 @@ exports.sendEmailBalance = functions.pubsub
             data: {
               username: firstName,
               vaultId: vault.id,
-              USDAmount: USDValuation,
+              USDAmount: usdValuation,
             },
           },
         });
