@@ -528,6 +528,15 @@ exports.create = async function (req, res) {
     }
 
     // Deploy ColateralProxy
+    const contractJson = require('../../../artifacts/contracts/' +
+      colateralContractName +
+      '.sol/' +
+      colateralContractName +
+      '.json');
+    const colateralAbi = contractJson.abi;
+
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+    const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
     const colateralBlockchainContract = new hre.ethers.Contract(
       colateralContractAddress,
       colateralAbi,
@@ -536,10 +545,11 @@ exports.create = async function (req, res) {
 
     let args;
     let abiEncodedArgs;
+    const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
 
     if (colateralContractName === 'ColateralContract2') {
       // Contrato version 2
-      const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
+
       const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
       const tokenAddresses = [
         USDC_TOKEN_ADDRESS,
@@ -582,7 +592,7 @@ exports.create = async function (req, res) {
       );
     } else {
       // Contrato version 1
-      const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
+
       args = [
         USDC_TOKEN_ADDRESS,
         USDT_TOKEN_ADDRESS,
