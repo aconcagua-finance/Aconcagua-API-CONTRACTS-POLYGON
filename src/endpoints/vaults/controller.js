@@ -2730,7 +2730,6 @@ exports.sendEmailBalance = functions.pubsub
           Gracias por trabajar con nosotros.
         `;
 
-        /*
         EmailSender.send({
           to: userEmail,
           SYS_ADMIN_EMAIL,
@@ -2744,7 +2743,7 @@ exports.sendEmailBalance = functions.pubsub
             },
           },
         });
-        */
+
         console.log(
           `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
         );
