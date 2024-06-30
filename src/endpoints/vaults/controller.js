@@ -2665,7 +2665,7 @@ exports.amountToConversions = async (req, res) => {
 };
 
 exports.sendEmailBalance = functions.pubsub
-  .schedule('every sunday 00:00')
+  .schedule('every sunday 08:00')
   .timeZone('America/New_York')
   .onRun(async (context) => {
     try {
@@ -2730,7 +2730,6 @@ exports.sendEmailBalance = functions.pubsub
           Gracias por trabajar con nosotros.
         `;
 
-        /*
         EmailSender.send({
           to: userEmail,
           SYS_ADMIN_EMAIL,
@@ -2739,14 +2738,14 @@ exports.sendEmailBalance = functions.pubsub
             name: 'mail-balance-semanal',
             data: {
               username: firstName,
-              vaultId: vault.id,
-              USDAmount: usdValuation,
+              vaultId: vaultDoc.id,
+              USDAmount: totalTokenValueUSD,
             },
           },
         });
-        */
+
         console.log(
-          `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
+          `Email sent to ${userEmail} for ${firstName} on vault ${vaultDoc.id}, usdValuation es ${totalTokenValueUSD}`
         );
       }
     } catch (error) {
