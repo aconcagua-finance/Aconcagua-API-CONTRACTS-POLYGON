@@ -2738,14 +2738,14 @@ exports.sendEmailBalance = functions.pubsub
             name: 'mail-balance-semanal',
             data: {
               username: firstName,
-              vaultId: vault.id,
-              USDAmount: usdValuation,
+              vaultId: vaultDoc.id,
+              USDAmount: totalTokenValueUSD,
             },
           },
         });
 
         console.log(
-          `Email sent to ${userEmail} for vault ${vaultDoc.id}, usdValuation es ${usdValuation}`
+          `Email sent to ${userEmail} for ${firstName} on vault ${vaultDoc.id}, usdValuation es ${totalTokenValueUSD}`
         );
       }
     } catch (error) {
