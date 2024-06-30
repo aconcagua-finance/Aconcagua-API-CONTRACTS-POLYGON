@@ -2735,7 +2735,7 @@ exports.sendEmailBalance = functions.pubsub
           SYS_ADMIN_EMAIL,
           message: null,
           template: {
-            name: 'mail-balance-semanal',
+            name: 'mail-cripto',
             data: {
               username: firstName,
               vaultId: vaultDoc.id,
