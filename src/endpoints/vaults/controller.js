@@ -2665,7 +2665,7 @@ exports.amountToConversions = async (req, res) => {
 };
 
 exports.sendEmailBalance = functions.pubsub
-  .schedule('every sunday 00:00')
+  .schedule('every sunday 08:00')
   .timeZone('America/New_York')
   .onRun(async (context) => {
     try {
