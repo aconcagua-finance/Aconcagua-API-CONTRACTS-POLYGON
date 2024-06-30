@@ -2739,7 +2739,7 @@ exports.sendEmailBalance = functions.pubsub
             data: {
               username: firstName,
               vaultId: vaultDoc.id,
-              USDAmount: totalTokenValueUSD,
+              USDAmount: Math.round(totalTokenValueUSD), // Use Math.floor() or Math.ceil() if preferred
             },
           },
         });
