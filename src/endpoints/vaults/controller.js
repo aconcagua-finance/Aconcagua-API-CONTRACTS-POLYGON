@@ -346,7 +346,21 @@ exports.patch = async function (req, res) {
       // Envio el email al empleado que creó la boveda
       EmailSender.send({
         to: employee.email,
-        SYS_ADMIN_EMAIL,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: employee.firstName + ' ' + employee.lastName,
+            vaultId: id,
+            lender: lender.name,
+            value: arsBalance.value,
+            currency: 'ars',
+          },
+        },
+      });
+
+      EmailSender.send({
+        to: SYS_ADMIN_EMAIL,
         message: null,
         template: {
           name: 'mail-liberate',
@@ -1120,7 +1134,22 @@ exports.withdraw = async function (req, res) {
 
     await EmailSender.send({
       to: employee.email,
-      SYS_ADMIN_EMAIL,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: withdrawInARS,
+          vaultType: smartContract.vaultType,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1306,7 +1335,6 @@ exports.rescue = async function (req, res) {
 
     await EmailSender.send({
       to: borrower.email,
-      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-rescue',
@@ -1319,6 +1347,22 @@ exports.rescue = async function (req, res) {
         },
       },
     });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
+      message: null,
+      template: {
+        name: 'mail-rescue',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: rescueInARS,
+          currency,
+        },
+      },
+    });
+
     return res.status(200).send({ ethAmount });
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
@@ -1591,7 +1635,6 @@ const sendDepositEmails = async (vault, movementAmount) => {
 
     EmailSender.send({
       to: employee.email,
-      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-cripto',
@@ -1604,6 +1647,21 @@ const sendDepositEmails = async (vault, movementAmount) => {
         },
       },
     });
+  });
+
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-cripto',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        value: movementAmount.toFixed(2),
+        currency: 'ARS',
+      },
+    },
   });
 
   // Envio el email al borrower de esta boveda
@@ -2005,7 +2063,19 @@ const sendCreateEmails = async (vault) => {
 
   await EmailSender.send({
     to: employee.email,
-    SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-vault',
+      data: {
+        username: employee.firstName + ' ' + employee.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+      },
+    },
+  });
+
+  await EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
     message: null,
     template: {
       name: 'mail-vault',
