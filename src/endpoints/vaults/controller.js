@@ -24,6 +24,7 @@ const { Auth } = require('../../vs-core-firebase');
 const {
   areRebasingTokensEqualWithDiff,
   areNonRebasingTokensEqual,
+  getDifferences,
 } = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
@@ -310,6 +311,7 @@ exports.patch = async function (req, res) {
 
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
+    // MRM TODO revisar si es por esto que no actualiza bien rescuewalletAccount
     const { rescueWalletAccount } = req.body;
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
@@ -1568,8 +1570,6 @@ const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
 
     const allBalances = await fetchVaultBalances({ ...after, id: docId });
 
-    console.log('onVaultUpdate post fetch smart contract data' + docId);
-
     const updateData = {
       lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
       mustUpdate: false,
@@ -1676,6 +1676,73 @@ const sendDepositEmails = async (vault, movementAmount) => {
         lender: lender.name,
         value: movementAmount.toFixed(2),
         currency: 'ARS',
+      },
+    },
+  });
+};
+
+const sendCreditEmails = async (vault, beforeAmount) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+  console.log('sendCreditEmails - Envio mails por modificación del monto del crédito.' + vault.id);
+
+  const movementAmount = vault.amount;
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.userId,
+  });
+  const employees = await getVaultCompanyEmployees(vault);
+
+  // Envio aviso a los employees de la companía
+  employees.forEach((compEmployee) => {
+    const employee = compEmployee.userId_SOURCE_ENTITIES[0];
+
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-update',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: vault.id,
+          lender: lender.name,
+          amountBefore: beforeAmount,
+          amount: movementAmount.toFixed(2),
+        },
+      },
+    });
+  });
+
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: beforeAmount,
+        amount: movementAmount.toFixed(2),
+      },
+    },
+  });
+
+  // Envio el email al borrower de esta boveda
+  EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: beforeAmount,
+        amount: movementAmount.toFixed(2),
       },
     },
   });
@@ -1802,11 +1869,11 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
         movementAmount = after.amount - before.amount;
-
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
+        await sendCreditEmails(after, before.amount);
       }
     }
 
@@ -1862,10 +1929,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       ' docId ',
       docId
     );
-    // MRM Junio 2024 para evitar CRYPTO_UPDATE duplicados
-    if (!after.mustUpdate) return;
 
-    if (!before.balances && !after.balances) return;
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && !after.balances && !after.mustUpdate) return;
 
     if (before.balances.length !== after.balances.length) {
       console.log(
@@ -1880,7 +1946,8 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && !after.mustUpdate) {
       console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
@@ -1892,7 +1959,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (!before.balances && after.balances) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && after.balances && !after.mustUpdate) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
         before,
@@ -1903,13 +1972,17 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (before.amount !== after.amount) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Actualización de crédito ' + docId);
       await createVaultTransaction({
         docId,
         before,
         after,
         transactionType: VaultTransactionTypes.CREDIT_UPDATE,
       });
+      return;
     }
+
+    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
     throw e;
@@ -2001,13 +2074,19 @@ exports.onVaultUpdate = functions.firestore
 
     // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
-      console.log('onVaultUpdate ' + documentPath);
+      console.log(
+        'onVaultUpdate ' +
+          documentPath +
+          ' differences ' +
+          JSON.stringify(getDifferences(before, after))
+      );
+
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
-
+      console.log('onVaultUpdate ' + documentPath + ' updateData ' + JSON.stringify(updateData));
       if (Object.keys(updateData).length > 0) {
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);

@@ -163,3 +163,44 @@ const areNonRebasingTokensEqual = (balances1, balances2) => {
 };
 
 exports.areNonRebasingTokensEqual = areNonRebasingTokensEqual;
+
+// utils.js
+
+// Function to get differences between two objects, including nested objects
+const getDifferences = (obj1, obj2) => {
+  const diff = {};
+
+  const compare = (key, value1, value2) => {
+    if (
+      typeof value1 === 'object' &&
+      value1 !== null &&
+      typeof value2 === 'object' &&
+      value2 !== null
+    ) {
+      const nestedDiff = getDifferences(value1, value2);
+      if (Object.keys(nestedDiff).length > 0) {
+        diff[key] = nestedDiff;
+      }
+    } else if (value1 !== value2) {
+      diff[key] = { before: value1, after: value2 };
+    }
+  };
+
+  for (const key in obj1) {
+    if (Object.prototype.hasOwnProperty.call(obj2, key)) {
+      compare(key, obj1[key], obj2[key]);
+    } else {
+      diff[key] = { before: obj1[key], after: undefined };
+    }
+  }
+
+  for (const key in obj2) {
+    if (!Object.prototype.hasOwnProperty.call(obj1, key)) {
+      diff[key] = { before: undefined, after: obj2[key] };
+    }
+  }
+
+  return diff;
+};
+
+exports.getDifferences = getDifferences;
