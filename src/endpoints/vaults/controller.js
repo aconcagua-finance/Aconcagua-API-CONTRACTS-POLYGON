@@ -1681,6 +1681,73 @@ const sendDepositEmails = async (vault, movementAmount) => {
   });
 };
 
+const sendCreditEmails = async (vault, beforeAmount) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+  console.log('sendCreditEmails - Envio mails por modificación del monto del crédito.' + vault.id);
+
+  const movementAmount = vault.amount;
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.userId,
+  });
+  const employees = await getVaultCompanyEmployees(vault);
+
+  // Envio aviso a los employees de la companía
+  employees.forEach((compEmployee) => {
+    const employee = compEmployee.userId_SOURCE_ENTITIES[0];
+
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-update',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: vault.id,
+          lender: lender.name,
+          amountBefore: beforeAmount,
+          amount: movementAmount.toFixed(2),
+        },
+      },
+    });
+  });
+
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: beforeAmount,
+        amount: movementAmount.toFixed(2),
+      },
+    },
+  });
+
+  // Envio el email al borrower de esta boveda
+  EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: beforeAmount,
+        amount: movementAmount.toFixed(2),
+      },
+    },
+  });
+};
+
 const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
@@ -1801,15 +1868,12 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
-        console.log(
-          'Hola estoy actualizando el crédito de ' + before.amount + ' a ' + after.amount
-        );
         movementAmount = after.amount - before.amount;
-
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
+        await sendCreditEmails(after, before.amount);
       }
     }
 
