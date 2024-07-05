@@ -1569,8 +1569,6 @@ const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
 
     const allBalances = await fetchVaultBalances({ ...after, id: docId });
 
-    console.log('onVaultUpdate post fetch smart contract data' + docId);
-
     const updateData = {
       lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
       mustUpdate: false,
@@ -1867,7 +1865,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       docId
     );
     // MRM Junio 2024 para evitar CRYPTO_UPDATE duplicados
-    if (!after.mustUpdate) return;
+    // if (!after.mustUpdate) return;
 
     if (!before.balances && !after.balances) return;
 
@@ -1907,6 +1905,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (before.amount !== after.amount) {
+      // Creo transacción para los cambios de crédito
       await createVaultTransaction({
         docId,
         before,
