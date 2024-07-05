@@ -1895,6 +1895,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (!before.balances && after.balances) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
         before,
@@ -1905,14 +1906,17 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (before.amount !== after.amount) {
-      // Creo transacción para los cambios de crédito
+      console.log('onVaultUpdate_ThenCreateTransaction - Actualización de crédito ' + docId);
       await createVaultTransaction({
         docId,
         before,
         after,
         transactionType: VaultTransactionTypes.CREDIT_UPDATE,
       });
+      return;
     }
+
+    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada');
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
     throw e;
