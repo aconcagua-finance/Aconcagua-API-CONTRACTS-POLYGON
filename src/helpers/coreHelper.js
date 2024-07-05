@@ -163,3 +163,21 @@ const areNonRebasingTokensEqual = (balances1, balances2) => {
 };
 
 exports.areNonRebasingTokensEqual = areNonRebasingTokensEqual;
+
+// Function to get differences between two objects
+const getDifferences = (obj1, obj2) => {
+  const diff = {};
+  for (const key in obj2) {
+    if (obj1[key] !== obj2[key]) {
+      diff[key] = { before: obj1[key], after: obj2[key] };
+    }
+  }
+  for (const key in obj1) {
+    if (!(key in obj2)) {
+      diff[key] = { before: obj1[key], after: undefined };
+    }
+  }
+  return diff;
+};
+
+exports.getDifferences = getDifferences;

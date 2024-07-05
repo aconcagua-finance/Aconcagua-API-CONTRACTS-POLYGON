@@ -24,6 +24,7 @@ const { Auth } = require('../../vs-core-firebase');
 const {
   areRebasingTokensEqualWithDiff,
   areNonRebasingTokensEqual,
+  getDifferences,
 } = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
@@ -2008,7 +2009,13 @@ exports.onVaultUpdate = functions.firestore
 
     // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
-      console.log('onVaultUpdate ' + documentPath);
+      console.log(
+        'onVaultUpdate ' +
+          documentPath +
+          ' differences ' +
+          JSON.stringify(getDifferences(before, after))
+      );
+      console.log('');
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
