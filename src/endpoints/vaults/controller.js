@@ -25,6 +25,7 @@ const {
   areRebasingTokensEqualWithDiff,
   areNonRebasingTokensEqual,
   getDifferences,
+  formatMoneyWithCurrency,
 } = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
@@ -1685,7 +1686,9 @@ const sendCreditEmails = async (vault, beforeAmount) => {
   // TODO refactor along the others email sending into a generic fx (event, vault, args)
   console.log('sendCreditEmails - Envio mails por modificación del monto del crédito.' + vault.id);
 
-  const movementAmount = vault.amount;
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, ',', '.', 'ARS');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, ',', '.', 'ARS');
+
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
     id: vault.companyId,
@@ -1709,8 +1712,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: vault.id,
           lender: lender.name,
-          amountBefore: beforeAmount,
-          amount: movementAmount.toFixed(2),
+          amountBefore: bAmount,
+          amount: movementAmount,
         },
       },
     });
@@ -1725,8 +1728,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: beforeAmount,
-        amount: movementAmount.toFixed(2),
+        amountBefore: bAmount,
+        amount: movementAmount,
       },
     },
   });
@@ -1741,8 +1744,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: beforeAmount,
-        amount: movementAmount.toFixed(2),
+        amountBefore: bAmount,
+        amount: movementAmount,
       },
     },
   });
