@@ -310,6 +310,7 @@ exports.patch = async function (req, res) {
 
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
+    // MRM TODO revisar si es por esto que no actualiza bien rescuewalletAccount
     const { rescueWalletAccount } = req.body;
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
@@ -1801,6 +1802,9 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
+        console.log(
+          'Hola estoy actualizando el crédito de ' + before.amount + ' a ' + after.amount
+        );
         movementAmount = after.amount - before.amount;
 
         if (movementAmount < 0) movementAmount = movementAmount * -1;
