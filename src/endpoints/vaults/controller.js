@@ -1865,10 +1865,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       ' docId ',
       docId
     );
-    // MRM Junio 2024 para evitar CRYPTO_UPDATE duplicados
-    // if (!after.mustUpdate) return;
 
-    if (!before.balances && !after.balances) return;
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && !after.balances && !after.mustUpdate) return;
 
     if (before.balances.length !== after.balances.length) {
       console.log(
@@ -1883,7 +1882,8 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && !after.mustUpdate) {
       console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
@@ -1895,7 +1895,8 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (!before.balances && after.balances) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && after.balances && !after.mustUpdate) {
       console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
@@ -2015,7 +2016,7 @@ exports.onVaultUpdate = functions.firestore
           ' differences ' +
           JSON.stringify(getDifferences(before, after))
       );
-      console.log('');
+
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
