@@ -1935,10 +1935,13 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       docId
     );
 
-    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
-    if (!before.balances && !after.balances && !after.mustUpdate) return;
+    if (!before.balances && !after.balances) {
+      console.log('onVaultUpdate_ThenCreateTransaction - No hay información de balances ' + docId);
+      return;
+    }
 
-    if (before.balances.length !== after.balances.length) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (before.balances.length !== after.balances.length && after.mustUpdate) {
       console.log(
         'onVaultUpdate_ThenCreateTransaction - Son distintos por cantidad de activos ' + docId
       );
@@ -1952,7 +1955,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
-    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && !after.mustUpdate) {
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && after.mustUpdate) {
       console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
@@ -1965,7 +1968,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
-    if (!before.balances && after.balances && !after.mustUpdate) {
+    if (!before.balances && after.balances && after.mustUpdate) {
       console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
