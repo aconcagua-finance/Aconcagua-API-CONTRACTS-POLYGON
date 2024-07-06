@@ -1039,6 +1039,7 @@ exports.withdraw = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
   const { id, companyId, userId: targetUserId } = req.params;
+  console.log('Empiezo withdraw - ' + req.params.id);
 
   const { amount, token } = req.body;
 
@@ -1118,7 +1119,7 @@ exports.withdraw = async function (req, res) {
     const withdrawTotalAmountUSD = smartContract.withdrawTotalAmountUSD
       ? smartContract.withdrawTotalAmountUSD
       : 0;
-
+    console.log('withdraw - actualizo la bóveda con  el nuevo crédito ' + id);
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
       id,
@@ -1135,6 +1136,7 @@ exports.withdraw = async function (req, res) {
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
 
+    console.log('withdraw - mando mails de liquidación ' + id);
     await EmailSender.send({
       to: employee.email,
       message: null,
@@ -1985,7 +1987,7 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada' + docId);
+    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada ' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
     throw e;
