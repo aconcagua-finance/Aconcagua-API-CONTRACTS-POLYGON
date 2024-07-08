@@ -1688,8 +1688,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
   // TODO refactor along the others email sending into a generic fx (event, vault, args)
   console.log('sendCreditEmails - Envio mails por modificación del monto del crédito.' + vault.id);
 
-  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, ',', '.', 'ARS');
-  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, ',', '.', 'ARS');
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, null, null, 'ARS');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, null, null, 'ARS');
 
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
