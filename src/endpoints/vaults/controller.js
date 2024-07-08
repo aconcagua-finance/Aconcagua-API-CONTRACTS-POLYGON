@@ -1686,7 +1686,14 @@ const sendDepositEmails = async (vault, movementAmount) => {
 
 const sendCreditEmails = async (vault, beforeAmount) => {
   // TODO refactor along the others email sending into a generic fx (event, vault, args)
-  console.log('sendCreditEmails - Envio mails por modificación del monto del crédito.' + vault.id);
+  console.log(
+    'sendCreditEmails - Envio mails por modificación del monto del crédito.' +
+      vault.id +
+      ' before ' +
+      beforeAmount +
+      ' after ' +
+      vault.amount
+  );
 
   const movementAmount = formatMoneyWithCurrency(vault.amount, 0, null, null, 'ARS');
   const bAmount = formatMoneyWithCurrency(beforeAmount, 0, null, null, 'ARS');
