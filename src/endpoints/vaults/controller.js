@@ -1695,8 +1695,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
       vault.amount
   );
 
-  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, null, null, 'ars');
-  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, null, null, 'ars');
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, 'ars');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, 'ars');
 
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
