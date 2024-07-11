@@ -5,6 +5,7 @@
 // require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
 import { Pool, FeeAmount } from '@uniswap/v3-sdk';
+import { move } from 'fs-extra';
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -20,6 +21,12 @@ const { LoggerHelper } = require('../../vs-core-firebase');
 const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
+const {
+  areRebasingTokensEqualWithDiff,
+  areNonRebasingTokensEqual,
+  getDifferences,
+  formatMoneyWithCurrency,
+} = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
 
@@ -27,6 +34,8 @@ const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
+const { RebasingTokens } = require('../../types/RebasingTokens');
+const { Valuation, Balance } = require('../../types/BalanceTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -35,6 +44,7 @@ const schemas = require('./schemas');
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
+const _ = require('lodash');
 
 const {
   abi: QuoterABI,
@@ -83,6 +93,7 @@ const {
 } = require('../baseEndpoint');
 
 const {
+  SYS_ADMIN_EMAIL,
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   ALCHEMY_API_KEY,
@@ -116,6 +127,8 @@ const { TechnicalError } = require('../../vs-core/error');
 const COLLECTION_NAME = Collections.VAULTS;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
+const COLLECTION_NAME_USERS = Collections.USERS;
+
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
@@ -299,6 +312,7 @@ exports.patch = async function (req, res) {
 
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
+    // MRM TODO revisar si es por esto que no actualiza bien rescuewalletAccount
     const { rescueWalletAccount } = req.body;
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
@@ -335,6 +349,21 @@ exports.patch = async function (req, res) {
       // Envio el email al empleado que creó la boveda
       EmailSender.send({
         to: employee.email,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: employee.firstName + ' ' + employee.lastName,
+            vaultId: id,
+            lender: lender.name,
+            value: arsBalance.value,
+            currency: 'ars',
+          },
+        },
+      });
+
+      EmailSender.send({
+        to: SYS_ADMIN_EMAIL,
         message: null,
         template: {
           name: 'mail-liberate',
@@ -487,7 +516,7 @@ exports.create = async function (req, res) {
 
     const networkName = hre.network.name;
 
-    const colateralContractName = 'ColateralContract2';
+    const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
 
     // Deploy ColateralContract
@@ -525,45 +554,100 @@ exports.create = async function (req, res) {
 
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
-
     const colateralBlockchainContract = new hre.ethers.Contract(
       colateralContractAddress,
       colateralAbi,
       deployerWallet
     );
 
+    let args;
+    let abiEncodedArgs;
     const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
 
-    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
-    const tokenAddresses = [
-      USDC_TOKEN_ADDRESS,
-      USDT_TOKEN_ADDRESS,
-      USDM_TOKEN_ADDRESS,
-      WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS,
-    ];
+    if (colateralContractName === 'ColateralContract2') {
+      // Contrato version 2
 
-    const contractKeys = ['router', 'swapper', 'quoter'];
-    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+      const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+      const tokenAddresses = [
+        USDC_TOKEN_ADDRESS,
+        USDT_TOKEN_ADDRESS,
+        USDM_TOKEN_ADDRESS,
+        WBTC_TOKEN_ADDRESS,
+        WETH_TOKEN_ADDRESS,
+      ];
 
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
-    const args = [
-      tokenNames,
-      tokenAddresses,
-      operators,
-      DEFAULT_RESCUE_WALLET_ADDRESS,
-      DEFAULT_WITHDRAW_WALLET_ADDRESS,
-      colateralContractSignerAddress, // lender.safeLiq1,
-      lender.safeLiq2.toLowerCase(),
-      contractKeys,
-      contractAddresses,
-    ];
-    console.log('Create - proxy args ');
-    console.log(args);
+      const contractKeys = ['router', 'swapper', 'quoter'];
+      const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+
+      // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+      args = [
+        tokenNames,
+        tokenAddresses,
+        operators,
+        DEFAULT_RESCUE_WALLET_ADDRESS,
+        DEFAULT_WITHDRAW_WALLET_ADDRESS,
+        colateralContractSignerAddress, // lender.safeLiq1,
+        lender.safeLiq2.toLowerCase(),
+        contractKeys,
+        contractAddresses,
+      ];
+
+      // Log the ABI encoded constructor arguments
+      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+        [
+          'string[]',
+          'address[]',
+          'address[]',
+          'address',
+          'address',
+          'address',
+          'address',
+          'string[]',
+          'address[]',
+        ],
+        args
+      );
+    } else {
+      // Contrato version 1
+
+      args = [
+        USDC_TOKEN_ADDRESS,
+        USDT_TOKEN_ADDRESS,
+        USDM_TOKEN_ADDRESS,
+        WBTC_TOKEN_ADDRESS,
+        operators,
+        DEFAULT_RESCUE_WALLET_ADDRESS,
+        DEFAULT_WITHDRAW_WALLET_ADDRESS,
+        colateralContractSignerAddress, // lender.safeLiq1,
+        lender.safeLiq2.toLowerCase(),
+        SWAP_ROUTER_V3_ADDRESS,
+        SWAPPER_ADDRESS,
+      ];
+
+      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
+        [
+          'address',
+          'address',
+          'address',
+          'address',
+          'address[]',
+          'address',
+          'address',
+          'address',
+          'address',
+          'address',
+          'address',
+        ],
+        args
+      );
+    }
 
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
     );
+
+    console.log('Create - proxy args ');
+    console.log(args);
 
     const proxyContractArgs = [
       colateralContractAddress,
@@ -582,22 +666,6 @@ exports.create = async function (req, res) {
         null
       );
     }
-
-    // Log the ABI encoded constructor arguments
-    const abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
-      [
-        'string[]',
-        'address[]',
-        'address[]',
-        'address',
-        'address',
-        'address',
-        'address',
-        'string[]',
-        'address[]',
-      ],
-      args
-    );
 
     // Build entity
     const collectionName = COLLECTION_NAME;
@@ -876,13 +944,42 @@ exports.getVaultBalances = async function (req, res) {
     console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
     const allBalances = await fetchVaultBalances(vault);
-    console.log('La vault que estoy procesando es');
+    console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
+    console.log(
+      'getVaultBalances - Balances en la base es: ',
+      JSON.stringify(vault.balances, null, 2)
+    );
+    console.log(
+      'getVaultBalances - Balances obtenidos del contrato: ',
+      JSON.stringify(allBalances, null, 2)
+    );
 
-    // actualizo
+    let balancesNeedUpdate = true;
+
+    if (
+      areNonRebasingTokensEqual(vault.balances, allBalances) &&
+      areRebasingTokensEqualWithDiff(vault.balances, allBalances, 1)
+    ) {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - All Non Rebasing tokens balances are the same and rebasing within allowable difference'
+      );
+      balancesNeedUpdate = false;
+    } else {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - Non Rebasing tokens are different, or rebasing tokens outside allowable difference'
+      );
+      balancesNeedUpdate = true;
+    }
+
+    // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
-      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      data: { balances: allBalances, mustUpdate: balancesNeedUpdate, balancesUpdateRetries: 0 },
       auditUid,
       id: vault.id,
     });
@@ -942,6 +1039,7 @@ exports.withdraw = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
   const { id, companyId, userId: targetUserId } = req.params;
+  console.log('Empiezo withdraw - ' + req.params.id);
 
   const { amount, token } = req.body;
 
@@ -1021,7 +1119,7 @@ exports.withdraw = async function (req, res) {
     const withdrawTotalAmountUSD = smartContract.withdrawTotalAmountUSD
       ? smartContract.withdrawTotalAmountUSD
       : 0;
-
+    console.log('withdraw - actualizo la bóveda con  el nuevo crédito ' + id);
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
       id,
@@ -1038,8 +1136,25 @@ exports.withdraw = async function (req, res) {
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
 
+    console.log('withdraw - mando mails de liquidación ' + id);
     await EmailSender.send({
       to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: withdrawInARS,
+          vaultType: smartContract.vaultType,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1237,6 +1352,22 @@ exports.rescue = async function (req, res) {
         },
       },
     });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
+      message: null,
+      template: {
+        name: 'mail-rescue',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: rescueInARS,
+          currency,
+        },
+      },
+    });
+
     return res.status(200).send({ ethAmount });
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
@@ -1258,7 +1389,7 @@ const getVaultsToUpdate = async function () {
   const db = admin.firestore();
   const ref = db.collection(COLLECTION_NAME);
 
-  console.log('Consultando vaults para actualizar');
+  console.log('getVaultsToUpdate - Consultando vaults para actualizar');
   const querySnapshot = await ref
     .where('state', '==', Types.StateTypes.STATE_ACTIVE)
 
@@ -1282,34 +1413,60 @@ const getVaultsToUpdate = async function () {
       return { id, ...data };
     });
   }
-
+  // Extract vault IDs from the initial list for logging
+  const vaultIdsToUpdate = vaults.map((vault) => vault.id);
+  console.log(
+    `getVaultsToUpdate - Initial list of vaults to update: ${
+      vaults.length
+    }, IDs: ${vaultIdsToUpdate.join(', ')}`
+  );
   return vaults;
 };
 
 const getVaultsToEvaluate = async function () {
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
 
-  // Duplicar código de getVaultsToUpdate adaptado?
+  // Retrieve vaults that potentially need updates
   const vaultsToUpdate = await getVaultsToUpdate();
+
+  // Extract vault IDs from the initial list for logging
+  const initialVaultIds = vaultsToUpdate.map((vault) => vault.id);
+  console.log(
+    `getVaultsToEvaluate - Initial list of vaults to Evaluate: ${
+      vaultsToUpdate.length
+    }, IDs: ${initialVaultIds.join(', ')}`
+  );
+
+  // Filter the vaults to identify those with volatile token balances
+  // Duplicar código de getVaultsToUpdate adaptado?
   const vaults = vaultsToUpdate.filter((vault) =>
     vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)
   );
-  console.log(`Vaults con tokens volátiles a evaluar: ${vaults.length}`);
+
+  // Extract vault IDs from the filtered list for logging
+  const filteredVaultIds = vaults.map((vault) => vault.id);
+  console.log(
+    `getVaultsToEvaluate - Filtered list of vaults con tokens volátiles a evaluar: ${
+      vaults.length
+    }, IDs: ${filteredVaultIds.join(', ')}`
+  );
 
   return vaults;
 };
 
 const MAX_BALANCES_RETRIES = 5;
 const markVaultsToUpdate = async function () {
+  console.log('Starting markVaultsToUpdate');
   const db = admin.firestore();
 
-  // TODO MICHEL HACER LOTES
+  // Prepare batch operation
   const batch = db.batch();
 
+  // Retrieve vaults that potentially need updates
   const vaults = await getVaultsToUpdate();
 
-  // const boundaryStartDate = new Date(Date.now());
-  // boundaryStartDate.setDate(boundaryStartDate.getDate() - 45);
+  // Initialize an array to keep track of the operations for logging purposes
+  const batchOperations = [];
 
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
@@ -1328,12 +1485,20 @@ const markVaultsToUpdate = async function () {
       balancesUpdateCount: balancesUpdateRetries,
     };
 
-    const updates = { ...assistanceUpdateData };
+    // Log each batch operation
+    console.log('markVaultsToUpdate - Adding to the bach ', vault.id, assistanceUpdateData);
+    batchOperations.push({ vaultId: vault.id, ...assistanceUpdateData });
 
-    batch.update(ref, updates);
+    // Queue the update in the batch
+    batch.update(ref, assistanceUpdateData);
   });
 
+  // Log all batch operations before committing
+  console.log('Batch operations queued:', JSON.stringify(batchOperations));
+
+  // Commit the batch
   await batch.commit();
+  console.log('Batch commit successful');
 };
 
 const MAX_EVALUATE_RETRIES = 5;
@@ -1398,11 +1563,15 @@ exports.cronFetchVaultsBalances = functions
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenUpdateBalances - after.mustUpdate ',
+      after.mustUpdate,
+      ' docId ',
+      docId
+    );
     if (!after.mustUpdate) return;
 
     const allBalances = await fetchVaultBalances({ ...after, id: docId });
-
-    console.log('onVaultUpdate post fetch smart contract data' + docId);
 
     const updateData = {
       lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
@@ -1483,6 +1652,21 @@ const sendDepositEmails = async (vault, movementAmount) => {
     });
   });
 
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-cripto',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        value: movementAmount.toFixed(2),
+        currency: 'ARS',
+      },
+    },
+  });
+
   // Envio el email al borrower de esta boveda
   EmailSender.send({
     to: borrower.email,
@@ -1495,6 +1679,82 @@ const sendDepositEmails = async (vault, movementAmount) => {
         lender: lender.name,
         value: movementAmount.toFixed(2),
         currency: 'ARS',
+      },
+    },
+  });
+};
+
+const sendCreditEmails = async (vault, beforeAmount) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+  console.log(
+    'sendCreditEmails - Envio mails por modificación del monto del crédito.' +
+      vault.id +
+      ' before ' +
+      beforeAmount +
+      ' after ' +
+      vault.amount
+  );
+
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, 'ars');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, 'ars');
+
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.userId,
+  });
+  const employees = await getVaultCompanyEmployees(vault);
+
+  // Envio aviso a los employees de la companía
+  employees.forEach((compEmployee) => {
+    const employee = compEmployee.userId_SOURCE_ENTITIES[0];
+
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-update',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: vault.id,
+          lender: lender.name,
+          amountBefore: bAmount,
+          amount: movementAmount,
+        },
+      },
+    });
+  });
+
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: bAmount,
+        amount: movementAmount,
+      },
+    },
+  });
+
+  // Envio el email al borrower de esta boveda
+  EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: bAmount,
+        amount: movementAmount,
       },
     },
   });
@@ -1531,6 +1791,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       console.log(
         'transactionType:',
         transactionType,
+        'proxyContractAddress:',
+        JSON.stringify(after.proxyContractAddress),
         'before balances:',
         JSON.stringify(before.balances),
         'after balances:',
@@ -1619,11 +1881,11 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
         movementAmount = after.amount - before.amount;
-
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
+        await sendCreditEmails(after, before.amount);
       }
     }
 
@@ -1639,6 +1901,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
+    console.log('Mail ingreso crypto ', after.balances, '  ', movementAmount);
     await sendDepositEmails(after, movementAmount);
   }
 
@@ -1670,10 +1933,25 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
   try {
-    if (!before.balances && !after.balances) return;
+    console.log(
+      'onVaultUpdate_ThenCreateTransaction - after.mustUpdate ',
+      after.mustUpdate,
+      ' after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
 
-    if (before.balances.length !== after.balances.length) {
-      console.log('Son distintos por cantidad ' + docId);
+    if (!before.balances && !after.balances) {
+      console.log('onVaultUpdate_ThenCreateTransaction - No hay información de balances ' + docId);
+      return;
+    }
+
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (before.balances.length !== after.balances.length && after.mustUpdate) {
+      console.log(
+        'onVaultUpdate_ThenCreateTransaction - Son distintos por cantidad de activos ' + docId
+      );
       await createVaultTransaction({
         docId,
         before,
@@ -1683,8 +1961,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
-      console.log('Son distintos por comparacion ' + docId);
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && after.mustUpdate) {
+      console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
         docId,
@@ -1695,7 +1974,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (!before.balances && after.balances) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && after.balances && after.mustUpdate) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
         before,
@@ -1706,13 +1987,17 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (before.amount !== after.amount) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Actualización de crédito ' + docId);
       await createVaultTransaction({
         docId,
         before,
         after,
         transactionType: VaultTransactionTypes.CREDIT_UPDATE,
       });
+      return;
     }
+
+    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada ' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
     throw e;
@@ -1722,6 +2007,12 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenEvaluateBalances - after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
     if (!after.mustEvaluate) return;
     console.log(`Evaluación contrato ${docId}`);
 
@@ -1798,13 +2089,19 @@ exports.onVaultUpdate = functions.firestore
 
     // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
-      console.log('onVaultUpdate ' + documentPath);
+      console.log(
+        'onVaultUpdate ' +
+          documentPath +
+          ' differences ' +
+          JSON.stringify(getDifferences(before, after))
+      );
+
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
-
+      console.log('onVaultUpdate ' + documentPath + ' updateData ' + JSON.stringify(updateData));
       if (Object.keys(updateData).length > 0) {
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
@@ -1860,6 +2157,19 @@ const sendCreateEmails = async (vault) => {
 
   await EmailSender.send({
     to: employee.email,
+    message: null,
+    template: {
+      name: 'mail-vault',
+      data: {
+        username: employee.firstName + ' ' + employee.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+      },
+    },
+  });
+
+  await EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
     message: null,
     template: {
       name: 'mail-vault',
@@ -2084,6 +2394,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-mc2',
@@ -2101,6 +2412,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción SWAP para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-swap',
@@ -2351,9 +2663,9 @@ const swapVaultTokenBalances = async (vault) => {
 
 exports.evaluate = async function (req, res) {
   try {
-    console.log('Pedido de evaluación de vaults entrante.');
+    console.log('evaluate - Pedido de evaluación de vaults entrante.');
     await markVaultsToEvaluate();
-    return res.status(200).send('Ok: vaults marcadas para evaluar');
+    return res.status(200).send('evaluate - Ok: vaults marcadas para evaluar');
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -2364,13 +2676,13 @@ exports.createVaultAdmin = async (req, res) => {
     const { owner } = req.params;
     if (!owner || typeof owner !== 'string' || owner.length !== 42) {
       throw new CustomError.TechnicalError(
-        'ERROR_INVALID_ARGS',
+        'createVaultAdmin - ERROR_INVALID_ARGS',
         null,
-        'Invalida args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalida args creating ProxyAdmin contract',
         null
       );
     }
-    console.log(`Pedido creacion ProxyAdmin con owner ${owner}`);
+    console.log(`createVaultAdmin - Pedido creacion ProxyAdmin con owner ${owner}`);
 
     const contractName = 'ColateralProxyAdmin';
     // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
@@ -2515,3 +2827,92 @@ exports.amountToConversions = async (req, res) => {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.sendEmailBalance = functions.pubsub
+  .schedule('every sunday 08:00')
+  .timeZone('America/New_York')
+  .onRun(async (context) => {
+    try {
+      const db = admin.firestore();
+      const ref = db.collection(COLLECTION_NAME);
+
+      console.log('getVaultsToUpdate - Consultando vaults para actualizar');
+      const savingsVaultsSnapshot = await ref
+        .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+        .where('vaultType', 'in', [Types.VaultTypes.VAULT_TYPE_SAVINGS])
+        .get();
+
+      if (savingsVaultsSnapshot.empty) {
+        console.log('No savings vaults found.');
+        return;
+      }
+
+      for (const vaultDoc of savingsVaultsSnapshot.docs) {
+        const vault = vaultDoc.data();
+        const userId = vault.userId;
+
+        // Fetch user details
+        const userDoc = await fetchSingleItem({
+          collectionName: COLLECTION_NAME_USERS,
+          id: userId,
+        });
+        if (!userDoc) {
+          console.log(`No user found for ID: ${userId}`);
+          continue;
+        }
+
+        const firstName = userDoc.firstName;
+        const userEmail = userDoc.email;
+
+        // Extract balance details from vault.balances
+        const balances = vault.balances || [];
+        let usdValuation = 0;
+        let arsValuation = 0;
+        let totalTokenValueUSD = 0;
+
+        balances.forEach((balanceData) => {
+          if (balanceData.isValuation) {
+            if (balanceData.currency === 'usd') {
+              usdValuation = balanceData.balance;
+            } else if (balanceData.currency === 'ars') {
+              arsValuation = balanceData.balance;
+            }
+          } else {
+            const usdValue = balanceData.valuations.find(
+              (valuation) => valuation.currency === 'usd'
+            ).value;
+            totalTokenValueUSD += usdValue;
+          }
+        });
+
+        // Send email
+        const emailContent = `
+          Hola ${firstName}, te mandamos el balance semanal de tu bóveda.
+          El total de tu bóveda valuado en USD es ${usdValuation}
+          El total de tu bóveda valuado en ARS es ${arsValuation}
+          El valor total de tus tokens en USD es ${totalTokenValueUSD}
+          Gracias por trabajar con nosotros.
+        `;
+
+        EmailSender.send({
+          to: userEmail,
+          SYS_ADMIN_EMAIL,
+          message: null,
+          template: {
+            name: 'mail-balance-semanal',
+            data: {
+              username: firstName,
+              vaultId: vaultDoc.id,
+              USDAmount: Math.round(totalTokenValueUSD), // Use Math.floor() or Math.ceil() if preferred
+            },
+          },
+        });
+
+        console.log(
+          `Email sent to ${userEmail} for ${firstName} on vault ${vaultDoc.id}, usdValuation es ${totalTokenValueUSD}`
+        );
+      }
+    } catch (error) {
+      console.error('Error sending email balance:', error);
+    }
+  });

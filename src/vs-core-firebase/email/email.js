@@ -83,6 +83,6 @@ exports.sendTemplateEmail = async function ({
     // console.log("Mail OK:" + JSON.stringify(mailResponse));
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error('Mail not sended:', e.message, e.code, e.response, e.responseCode, e.command);
+    console.error('Mail not sent:', e.message, e.code, e.response, e.responseCode, e.command);
   }
 };
