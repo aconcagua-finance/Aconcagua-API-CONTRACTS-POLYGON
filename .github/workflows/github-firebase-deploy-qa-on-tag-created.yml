@@ -27,7 +27,6 @@ env:
 
   DEPLOYER_PRIVATE_KEY: ${{secrets.DEPLOYER_PRIVATE_KEY_QA}}
   SWAPPER_PRIVATE_KEY: ${{secrets.SWAPPER_PRIVATE_KEY_QA}}
-  ALCHEMY_API_KEY: ${{secrets.ALCHEMY_API_KEY_QA}}
   HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL_QA}}
   HARDHAT_NETWORK_NAME: 'sepolia'
   PROVIDER_NETWORK_NAME: 'sepolia'
@@ -50,11 +49,6 @@ env:
   DEFAULT_RESCUE_WALLET_ADDRESS: '0x0c8060812F614B70E2cF3a9CD3fC0333453eE0A6'
   DEFAULT_WITHDRAW_WALLET_ADDRESS: '0x2C1747a1101355e5FfA54F597965152079DE78F2'
 
-  # Mumbai Safe account creation (QA only): Acon defaults
-  ALIQ1_ADDRESS: '0xBC747d69e7cA913dFCC988722e84972139e92921'
-  ALIQ2_ADDRESS: '0x3D49Dd4754d121E52d1a9278Df5CBf19eD4625a4'
-
-  GAS_STATION_URL: 'https://gasstation-mumbai.matic.today/v2'
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
   BINANCE_URL: 'https://api.binance.com/api/v3'
   KRAKEN_URL: 'https://api.kraken.com/0/public'

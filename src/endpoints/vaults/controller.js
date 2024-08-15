@@ -36,6 +36,7 @@ const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
 const { RebasingTokens } = require('../../types/RebasingTokens');
 const { Valuation, Balance } = require('../../types/BalanceTypes');
+const { networkTypes } = require('../../types/networkTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -46,9 +47,6 @@ const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
 const _ = require('lodash');
 
-const {
-  abi: QuoterABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const {
   abi: SwapRouterABI,
 } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
@@ -93,21 +91,21 @@ const {
 } = require('../baseEndpoint');
 
 const {
+  // Common variables
   SYS_ADMIN_EMAIL,
+  // Default variables
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
-  ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
+  POLYGONSCAN_API_KEY,
   HARDHAT_API_URL,
-  ETHERSCAN_API_KEY,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
   WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
-  GAS_STATION_URL,
-  QUOTER_CONTRACT_ADDRESS,
+  VALIDATOR_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
   SWAPPER_ADDRESS,
   OPERATOR1_ADDRESS,
@@ -117,6 +115,46 @@ const {
   DEFAULT_WITHDRAW_WALLET_ADDRESS,
   ALIQ1_ADDRESS,
   ALIQ2_ADDRESS,
+  // Polygon variables
+  DEPLOYER_PRIVATE_KEY_POLYGON,
+  SWAPPER_PRIVATE_KEY_POLYGON,
+  PROVIDER_NETWORK_NAME_POLYGON,
+  HARDHAT_API_URL_POLYGON,
+  USDC_TOKEN_ADDRESS_POLYGON,
+  USDT_TOKEN_ADDRESS_POLYGON,
+  USDM_TOKEN_ADDRESS_POLYGON,
+  WBTC_TOKEN_ADDRESS_POLYGON,
+  WETH_TOKEN_ADDRESS_POLYGON,
+  SWAP_ROUTER_V3_ADDRESS_POLYGON,
+  VALIDATOR_CONTRACT_ADDRESS_POLYGON,
+  SWAPPER_ADDRESS_POLYGON,
+  OPERATOR1_ADDRESS_POLYGON,
+  OPERATOR2_ADDRESS_POLYGON,
+  OPERATOR3_ADDRESS_POLYGON,
+  DEFAULT_RESCUE_WALLET_ADDRESS_POLYGON,
+  DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON,
+  ALIQ1_ADDRESS_POLYGON,
+  ALIQ2_ADDRESS_POLYGON,
+  // RSK variables
+  DEPLOYER_PRIVATE_KEY_RSK,
+  SWAPPER_PRIVATE_KEY_RSK,
+  PROVIDER_NETWORK_NAME_RSK,
+  HARDHAT_API_URL_RSK,
+  USDC_TOKEN_ADDRESS_RSK,
+  USDT_TOKEN_ADDRESS_RSK,
+  USDM_TOKEN_ADDRESS_RSK,
+  WBTC_TOKEN_ADDRESS_RSK,
+  WETH_TOKEN_ADDRESS_RSK,
+  SWAP_ROUTER_V3_ADDRESS_RSK,
+  VALIDATOR_CONTRACT_ADDRESS_RSK,
+  SWAPPER_ADDRESS_RSK,
+  OPERATOR1_ADDRESS_RSK,
+  OPERATOR2_ADDRESS_RSK,
+  OPERATOR3_ADDRESS_RSK,
+  DEFAULT_RESCUE_WALLET_ADDRESS_RSK,
+  DEFAULT_WITHDRAW_WALLET_ADDRESS_RSK,
+  ALIQ1_ADDRESS_RSK,
+  ALIQ2_ADDRESS_RSK,
 } = require('../../config/appConfig');
 
 const hre = require('hardhat');
@@ -133,14 +171,6 @@ const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
 const USER_ENTITY_PROPERTY_NAME = 'userId';
-
-// const settings = {
-//   apiKey: ALCHEMY_API_KEY,
-//   network: Network.ETH_GOERLI,
-// };
-// const alchemy = new Alchemy(settings);
-
-// const wallet = new Wallet(DEPLOYER_PRIVATE_KEY);
 
 exports.find = async function (req, res) {
   const { limit, offset } = req.query;
@@ -479,7 +509,6 @@ const getDeployedContract = (vault) => {
     '.json');
   const abi = contractJson.abi;
 
-  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
@@ -494,6 +523,9 @@ exports.create = async function (req, res) {
     const { userId } = res.locals;
     const auditUid = userId;
     const { userId: targetUserId, companyId } = req.params;
+
+    const networkName = req.body.networkTypes.value;
+    console.log('create - networkName = ' + networkName);
 
     if (!targetUserId || !companyId) {
       throw new CustomError.TechnicalError(
@@ -514,13 +546,110 @@ exports.create = async function (req, res) {
       );
     }
 
-    const networkName = hre.network.name;
+    // Defino variables según la red
+    let DEPLOYER_PRIVATE_KEY;
+    let SWAPPER_PRIVATE_KEY;
+    let HARDHAT_API_URL;
+    let USDC_TOKEN_ADDRESS;
+    let USDT_TOKEN_ADDRESS;
+    let USDM_TOKEN_ADDRESS;
+    let WBTC_TOKEN_ADDRESS;
+    let WETH_TOKEN_ADDRESS;
+    let SWAP_ROUTER_V3_ADDRESS;
+    let VALIDATOR_CONTRACT_ADDRESS;
+    let SWAPPER_ADDRESS;
+    let OPERATOR1_ADDRESS;
+    let OPERATOR2_ADDRESS;
+    let OPERATOR3_ADDRESS;
+    let DEFAULT_RESCUE_WALLET_ADDRESS;
+    let DEFAULT_WITHDRAW_WALLET_ADDRESS;
+    let ALIQ1_ADDRESS;
+    let ALIQ2_ADDRESS;
 
-    const colateralContractName = 'ColateralContract';
+    switch (networkName) {
+      case Types.NetWorks.NETWORK_TYPE_POLYGON:
+        console.log('Defino las variables de polygon network');
+        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
+        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
+        HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
+        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_POLYGON;
+        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_POLYGON;
+        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_POLYGON;
+        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_POLYGON;
+        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_POLYGON;
+        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_POLYGON;
+        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_POLYGON;
+        SWAPPER_ADDRESS = SWAPPER_ADDRESS_POLYGON;
+        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_POLYGON;
+        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_POLYGON;
+        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_POLYGON;
+        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_POLYGON;
+        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
+        ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
+        ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
+        break;
+
+      case Types.NetWorks.NETWORK_TYPE_RSK:
+        console.log('Defino las variables de rootstock network');
+        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_RSK;
+        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_RSK;
+        HARDHAT_API_URL = HARDHAT_API_URL_RSK;
+        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_RSK;
+        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_RSK;
+        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_RSK;
+        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_RSK;
+        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_RSK;
+        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_RSK;
+        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_RSK;
+        SWAPPER_ADDRESS = SWAPPER_ADDRESS_RSK;
+        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_RSK;
+        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_RSK;
+        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_RSK;
+        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_RSK;
+        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_RSK;
+        ALIQ1_ADDRESS = ALIQ1_ADDRESS_RSK;
+        ALIQ2_ADDRESS = ALIQ2_ADDRESS_RSK;
+        break;
+
+      default:
+        // Default to Polygon if network name is not provided
+        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
+        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
+        HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
+        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_POLYGON;
+        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_POLYGON;
+        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_POLYGON;
+        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_POLYGON;
+        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_POLYGON;
+        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_POLYGON;
+        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_POLYGON;
+        SWAPPER_ADDRESS = SWAPPER_ADDRESS_POLYGON;
+        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_POLYGON;
+        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_POLYGON;
+        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_POLYGON;
+        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_POLYGON;
+        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
+        ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
+        ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
+        break;
+    }
+    // TODO MRM
+    // const networkName = hre.network.name;
+    console.log('Create - Revisando networkName = ' + networkName);
+
+    const colateralContractName = 'ColateralContract2';
     const proxyContractName = 'ColateralProxy';
 
+    // Defino el gas
+    const gasLimit = 5000000;
+    const networkConfig = await getGasPriceAndLimit(networkName, gasLimit);
+    console.log(
+      'Create - Listo getGasPriceAndLimit - networkConfig es ' +
+        JSON.stringify(networkConfig, null, 2)
+    );
+
     // Deploy ColateralContract
-    const colateralContractDeploy = await deployContract(colateralContractName);
+    const colateralContractDeploy = await deployContract(colateralContractName, networkConfig);
     const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
     const colateralContractSignerAddress = lender.safeLiq1.toLowerCase(); // colateralContractDeploy.contractDeployment.signerAddress;
 
@@ -537,7 +666,7 @@ exports.create = async function (req, res) {
     let contractError = '';
     try {
       await colateralContractDeploy.deploymentResponse.deployed();
-      console.log('ColateralContract Deployment success');
+      console.log('Create - ColateralContract Deployment success');
       contractStatus = 'deployed';
     } catch (err) {
       contractStatus = 'error';
@@ -545,11 +674,13 @@ exports.create = async function (req, res) {
     }
 
     // Deploy ColateralProxy
+
     const contractJson = require('../../../artifacts/contracts/' +
       colateralContractName +
       '.sol/' +
       colateralContractName +
       '.json');
+
     const colateralAbi = contractJson.abi;
 
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
@@ -566,7 +697,8 @@ exports.create = async function (req, res) {
 
     if (colateralContractName === 'ColateralContract2') {
       // Contrato version 2
-
+      console.log('Create - creando contrato version 2 ');
+      const validatorAddress = VALIDATOR_CONTRACT_ADDRESS;
       const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
       const tokenAddresses = [
         USDC_TOKEN_ADDRESS,
@@ -576,11 +708,12 @@ exports.create = async function (req, res) {
         WETH_TOKEN_ADDRESS,
       ];
 
-      const contractKeys = ['router', 'swapper', 'quoter'];
-      const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+      const contractKeys = ['router', 'swapper'];
+      const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS];
 
       // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
       args = [
+        validatorAddress,
         tokenNames,
         tokenAddresses,
         operators,
@@ -595,6 +728,7 @@ exports.create = async function (req, res) {
       // Log the ABI encoded constructor arguments
       abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
         [
+          'address',
           'string[]',
           'address[]',
           'address[]',
@@ -609,7 +743,7 @@ exports.create = async function (req, res) {
       );
     } else {
       // Contrato version 1
-
+      console.log('Create - creando contrato version 1 ');
       args = [
         USDC_TOKEN_ADDRESS,
         USDT_TOKEN_ADDRESS,
@@ -623,6 +757,7 @@ exports.create = async function (req, res) {
         SWAP_ROUTER_V3_ADDRESS,
         SWAPPER_ADDRESS,
       ];
+      console.log('Create - args ' + JSON.stringify(args));
 
       abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
         [
@@ -641,7 +776,6 @@ exports.create = async function (req, res) {
         args
       );
     }
-
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
     );
@@ -654,7 +788,12 @@ exports.create = async function (req, res) {
       lender.vaultAdminAddress.toLowerCase(),
       initializeData.data || '0x',
     ];
-    const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
+
+    const proxyContractDeploy = await deployContract(
+      proxyContractName,
+      proxyContractArgs,
+      networkConfig
+    );
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
     const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
 
@@ -750,45 +889,59 @@ exports.create = async function (req, res) {
   }
 };
 
-const getGasPriceAndLimit = async (gasLimit) => {
-  // Fallback values
-  const gasLimitFallback = 500000;
-  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
+  const gasPriceFallback = 50000000000;
+  let GasPricePolygon;
+  const networkConfigfallback = {
+    // maxFeePerGas: null,
+    // maxPriorityFeePerGas: null,
+    gasPrice: gasPriceFallback,
+    gasLimit: gasLimit,
+  };
+
+  let HARDHAT_API_URL;
 
   try {
-    const feeData = await alchemy.getFeeData();
-    // Not needed const maxFeePerGas = feeData.maxFeePerGas || null;
-    // Not needed const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || null;
-
-    const gasPrice = feeData.gasPrice || null;
-
-    console.log('feeData:', feeData);
-
-    const networkConfig = PROVIDER_NETWORK_NAME === 'rsk' ? { gasPrice } : { gasPrice };
-
-    if (gasLimit) {
-      networkConfig.gasLimit = gasLimit;
+    if (networkName === networkTypes.NETWORK_TYPE_POLYGON) {
+      HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
+      const apiResponse = await invoke_get_api({
+        endpoint: `https://api.polygonscan.com/api?module=gastracker&action=gasoracle&apikey=${POLYGONSCAN_API_KEY}`,
+      });
+      console.log(
+        'getGasPriceAndLimit - api response de polygon Fast gas ' +
+          JSON.stringify(apiResponse.data.result.FastGasPrice)
+      );
+      GasPricePolygon = Math.round(apiResponse.data.result.FastGasPrice * 1e9); // Convert from gwei to wei
+    } else if (networkName === networkTypes.NETWORK_TYPE_RSK) {
+      HARDHAT_API_URL = HARDHAT_API_URL_RSK;
     } else {
-      networkConfig.gasLimit = gasLimitFallback;
+      throw new Error(
+        `Invalid network name: ${networkName}. Supported networks are POLYGON and RSK.`
+      );
     }
+
+    const networkConfig = {
+      // maxFeePerGas: feeData.maxFeePerGas.value,
+      // maxPriorityFeePerGas: feeData.maxPriorityFeePerGas.value,
+      gasPrice: GasPricePolygon,
+      gasLimit: gasLimit,
+    };
 
     console.log('networkConfig:', networkConfig);
     return networkConfig;
   } catch (error) {
     console.error('Error fetching feeData:', error);
-    return {
-      gasPrice: null,
-      maxFeePerGas: null,
-      maxPriorityFeePerGas: null,
-      gasLimit: gasLimit || gasLimitFallback,
-    };
+
+    // Return networkConfig with fallback values
+    console.log('Fallback networkConfig:', networkConfigfallback);
+    return networkConfigfallback;
   }
 };
 
 // Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const blockchainContract = getDeployedContract(vault);
-  const networkConfig = getGasPriceAndLimit();
+  const networkConfig = await getGasPriceAndLimit();
   const setTx1 = await blockchainContract.setRescueWalletAddress(
     rescueWalletAccount,
     networkConfig
@@ -2738,7 +2891,7 @@ exports.createSafeAccount = async (req, res) => {
     }
 
     // Init
-    // const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME,ALCHEMY_API_KEY);
+
     const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerOwnerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
 

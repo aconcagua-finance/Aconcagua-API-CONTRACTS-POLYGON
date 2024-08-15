@@ -56,15 +56,15 @@
         },
         {
           "indexed": false,
-          "internalType": "string[3]",
+          "internalType": "string[2]",
           "name": "_contractKeys",
-          "type": "string[3]"
+          "type": "string[2]"
         },
         {
           "indexed": false,
-          "internalType": "address[3]",
+          "internalType": "address[2]",
           "name": "_contractAddresses",
-          "type": "address[3]"
+          "type": "address[2]"
         }
       ],
       "name": "Initialize",
@@ -198,19 +198,62 @@
       "anonymous": false,
       "inputs": [
         {
-          "indexed": false,
+          "indexed": true,
           "internalType": "address",
           "name": "tokenIn",
           "type": "address"
         },
         {
+          "indexed": true,
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountOut",
+          "type": "uint256"
+        },
+        {
           "indexed": false,
           "internalType": "string",
-          "name": "msg",
+          "name": "reason",
           "type": "string"
         }
       ],
       "name": "SwapError",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        }
+      ],
+      "name": "SwapStarted",
       "type": "event"
     },
     {
@@ -273,33 +316,59 @@
     {
       "inputs": [
         {
-          "internalType": "uint256",
-          "name": "index",
-          "type": "uint256"
-        }
-      ],
-      "name": "getRoleByIndex",
-      "outputs": [
+          "internalType": "address",
+          "name": "_validator",
+          "type": "address"
+        },
         {
-          "internalType": "bytes32",
-          "name": "",
-          "type": "bytes32"
-        }
-      ],
-      "stateMutability": "view",
-      "type": "function"
-    },
-    {
-      "inputs": [],
-      "name": "getRoleCount",
-      "outputs": [
+          "internalType": "string[5]",
+          "name": "_tokenNames",
+          "type": "string[5]"
+        },
         {
-          "internalType": "uint256",
-          "name": "",
-          "type": "uint256"
+          "internalType": "address[5]",
+          "name": "_tokenAddresses",
+          "type": "address[5]"
+        },
+        {
+          "internalType": "address[3]",
+          "name": "_aconcagua",
+          "type": "address[3]"
+        },
+        {
+          "internalType": "address",
+          "name": "_rescueWalletAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_withdrawWalletAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_firstLenderLiq",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_secondLenderLiq",
+          "type": "address"
+        },
+        {
+          "internalType": "string[2]",
+          "name": "_contractKeys",
+          "type": "string[2]"
+        },
+        {
+          "internalType": "address[2]",
+          "name": "_contractAddresses",
+          "type": "address[2]"
         }
       ],
-      "stateMutability": "view",
+      "name": "initialize",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -404,6 +473,44 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "tokenNames",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "name": "tokenTable",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "version",
       "outputs": [
@@ -413,7 +520,7 @@
           "type": "string"
         }
       ],
-      "stateMutability": "view",
+      "stateMutability": "pure",
       "type": "function"
     },
     {
