@@ -53,13 +53,16 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
 
   beforeAll(async function () {
     // Deploy Mocks
+    const provider = new ethers.providers.JsonRpcProvider(process.env.HARDHAT_API_URL);
+    const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+    const deployer = new ethers.Wallet(privateKey, provider);
 
-    const RouterMock = await ethers.getContractFactory('UniversalRouterMock');
+    const RouterMock = await ethers.getContractFactory('UniversalRouterMock', deployer);
 
     router = await RouterMock.deploy();
     await router.deployed();
 
-    const TokenMock = await ethers.getContractFactory('TokenMock');
+    const TokenMock = await ethers.getContractFactory('TokenMock', deployer);
 
     weth = await TokenMock.deploy();
     await weth.deployed();
@@ -97,22 +100,22 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
 
     // Deploy the contracts before each test
 
-    const PriceConsumer = await ethers.getContractFactory('PriceConsumerV3Mock');
+    const PriceConsumer = await ethers.getContractFactory('PriceConsumerV3Mock', deployer);
 
     priceConsumer = await PriceConsumer.deploy();
     await priceConsumer.deployed();
 
-    const Validator = await ethers.getContractFactory('ValidatorContract');
+    const Validator = await ethers.getContractFactory('ValidatorContract', deployer);
 
     validator = await Validator.deploy(priceConsumer.address);
     await validator.deployed();
 
-    ColateralContract2 = await ethers.getContractFactory('ColateralContract2');
+    ColateralContract2 = await ethers.getContractFactory('ColateralContract2', deployer);
 
     colateral2 = await ColateralContract2.deploy();
     await colateral2.deployed();
 
-    ColateralProxy = await ethers.getContractFactory('ColateralProxy');
+    ColateralProxy = await ethers.getContractFactory('ColateralProxy', deployer);
 
     colateral2Iface = new ethers.utils.Interface(colateralJson.abi);
 
