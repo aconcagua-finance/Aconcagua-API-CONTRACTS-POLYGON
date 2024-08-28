@@ -2545,6 +2545,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
 
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
+    const balanceARS = evalVault.balances.find((balance) => balance.currency === 'ars');
     await EmailSender.send({
       to: borrower.email,
       SYS_ADMIN_EMAIL,
@@ -2555,9 +2556,10 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          requiredIdx: evalVault.arsLimits.notificationLimit,
-          idx: evalVault.vault.amount,
-          liquidateIdx: evalVault.arsLimits.actionLimit,
+          requiredCryptoValue: evalVault.arsLimits.notificationLimit,
+          loan: evalVault.vault.amount,
+          swapCryptoValue: evalVault.arsLimits.actionLimit,
+          cryptoValue: balanceARS.value,
         },
       },
     });
