@@ -51,8 +51,11 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
   let ColateralContract2;
   let ColateralProxy;
 
+  console.log('Before All');
+
   beforeAll(async function () {
     // Deploy Mocks
+    jest.setTimeout(30000); // 30 seconds
     const provider = new ethers.providers.JsonRpcProvider(process.env.HARDHAT_API_URL);
     const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
     const deployer = new ethers.Wallet(privateKey, provider);
