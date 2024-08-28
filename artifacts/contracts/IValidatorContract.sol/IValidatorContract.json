@@ -1,0 +1,205 @@
+{
+  "_format": "hh-sol-artifact-1",
+  "contractName": "IValidatorContract",
+  "sourceName": "contracts/IValidatorContract.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountIn",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "amountOut",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "reason",
+          "type": "string"
+        }
+      ],
+      "name": "SwapError",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "string[5]",
+          "name": "_tokenNames",
+          "type": "string[5]"
+        },
+        {
+          "internalType": "address[5]",
+          "name": "_tokenAddresses",
+          "type": "address[5]"
+        },
+        {
+          "internalType": "address[3]",
+          "name": "_aconcagua",
+          "type": "address[3]"
+        },
+        {
+          "internalType": "address",
+          "name": "_rescueWalletAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_withdrawWalletAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_firstLenderLiq",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "_secondLenderLiq",
+          "type": "address"
+        },
+        {
+          "internalType": "string[2]",
+          "name": "_contractKeys",
+          "type": "string[2]"
+        },
+        {
+          "internalType": "address[2]",
+          "name": "_contractAddresses",
+          "type": "address[2]"
+        }
+      ],
+      "name": "initializeChecks",
+      "outputs": [],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "components": [
+            {
+              "components": [
+                {
+                  "internalType": "bytes",
+                  "name": "path",
+                  "type": "bytes"
+                },
+                {
+                  "internalType": "address",
+                  "name": "recipient",
+                  "type": "address"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "deadline",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "amountIn",
+                  "type": "uint256"
+                },
+                {
+                  "internalType": "uint256",
+                  "name": "amountOutMinimum",
+                  "type": "uint256"
+                }
+              ],
+              "internalType": "struct ISwapRouter.ExactInputParams",
+              "name": "params",
+              "type": "tuple"
+            },
+            {
+              "internalType": "address",
+              "name": "tokenIn",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "tokenOut",
+              "type": "address"
+            }
+          ],
+          "internalType": "struct IColateralContract2.SwapParams",
+          "name": "swapParams",
+          "type": "tuple"
+        }
+      ],
+      "name": "swapExactInputsChecks",
+      "outputs": [],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "path",
+          "type": "bytes"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenIn",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "tokenOut",
+          "type": "address"
+        }
+      ],
+      "name": "validatePath",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "version",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {}
+}
