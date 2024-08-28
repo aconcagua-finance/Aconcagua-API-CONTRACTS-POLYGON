@@ -94,7 +94,14 @@ module.exports = {
       gasPrice: 'auto',
       gasMultiplier: 2,
       allowUnlimitedContractSize: true, // Useful if deploying large contracts
-      chainId: 11155111, // Hardhat's default chain ID
+      chainId: 31337, // Hardhat's default chain ID
+    },
+    sepolia: {
+      url: HARDHAT_API_URL, // Replace with your Infura project ID or another RPC provider
+      chainId: 11155111,
+      gas: 'auto',
+      gasPrice: 'auto',
+      gasMultiplier: 2,
     },
   },
   namedAccounts,
