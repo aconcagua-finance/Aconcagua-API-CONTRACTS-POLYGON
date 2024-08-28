@@ -896,7 +896,7 @@ const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
     // maxFeePerGas: null,
     // maxPriorityFeePerGas: null,
     gasPrice: gasPriceFallback,
-    gasLimit: gasLimit,
+    gasLimit,
   };
 
   let HARDHAT_API_URL;
@@ -924,7 +924,7 @@ const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
       // maxFeePerGas: feeData.maxFeePerGas.value,
       // maxPriorityFeePerGas: feeData.maxPriorityFeePerGas.value,
       gasPrice: GasPricePolygon,
-      gasLimit: gasLimit,
+      gasLimit,
     };
 
     console.log('networkConfig:', networkConfig);
