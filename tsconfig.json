@@ -17,5 +17,5 @@
     "noUnusedParameters": false
   },
   "compileOnSave": true,
-  "include": ["src", "contracts"]
+  "include": ["src"]
 }
