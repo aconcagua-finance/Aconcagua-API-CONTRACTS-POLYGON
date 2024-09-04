@@ -637,7 +637,7 @@ exports.create = async function (req, res) {
     // const networkName = hre.network.name;
     console.log('Create - Revisando networkName = ' + networkName);
 
-    const colateralContractName = 'ColateralContract2';
+    const colateralContractName = 'ColateralContract';
     const proxyContractName = 'ColateralProxy';
 
     // Defino el gas
@@ -2557,7 +2557,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           vaultId: evalVault.vault.id,
           lender: lender.name,
           requiredCryptoValue: evalVault.arsLimits.notificationLimit,
-          loan: evalVault.vault.amount,
+          loan: evalVault.amount,
           swapCryptoValue: evalVault.arsLimits.actionLimit,
           cryptoValue: balanceARS.value,
         },

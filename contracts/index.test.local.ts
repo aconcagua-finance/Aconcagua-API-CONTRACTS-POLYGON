@@ -51,21 +51,15 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
   let ColateralContract2;
   let ColateralProxy;
 
-  console.log('Before All');
-
   beforeAll(async function () {
     // Deploy Mocks
-    jest.setTimeout(30000); // 30 seconds
-    const provider = new ethers.providers.JsonRpcProvider(process.env.HARDHAT_API_URL);
-    const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
-    const deployer = new ethers.Wallet(privateKey, provider);
 
-    const RouterMock = await ethers.getContractFactory('UniversalRouterMock', deployer);
+    const RouterMock = await ethers.getContractFactory('UniversalRouterMock');
 
     router = await RouterMock.deploy();
     await router.deployed();
 
-    const TokenMock = await ethers.getContractFactory('TokenMock', deployer);
+    const TokenMock = await ethers.getContractFactory('TokenMock');
 
     weth = await TokenMock.deploy();
     await weth.deployed();
@@ -103,22 +97,22 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
 
     // Deploy the contracts before each test
 
-    const PriceConsumer = await ethers.getContractFactory('PriceConsumerV3Mock', deployer);
+    const PriceConsumer = await ethers.getContractFactory('PriceConsumerV3Mock');
 
     priceConsumer = await PriceConsumer.deploy();
     await priceConsumer.deployed();
 
-    const Validator = await ethers.getContractFactory('ValidatorContract', deployer);
+    const Validator = await ethers.getContractFactory('ValidatorContract');
 
     validator = await Validator.deploy(priceConsumer.address);
     await validator.deployed();
 
-    ColateralContract2 = await ethers.getContractFactory('ColateralContract2', deployer);
+    ColateralContract2 = await ethers.getContractFactory('ColateralContract2');
 
     colateral2 = await ColateralContract2.deploy();
     await colateral2.deployed();
 
-    ColateralProxy = await ethers.getContractFactory('ColateralProxy', deployer);
+    ColateralProxy = await ethers.getContractFactory('ColateralProxy');
 
     colateral2Iface = new ethers.utils.Interface(colateralJson.abi);
 
