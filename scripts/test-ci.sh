@@ -3,7 +3,7 @@ set -e
 
 echo "Running CI tests on Sepolia network..."
 export HARDHAT_NETWORK_NAME=sepolia
-npm run test -- --collectCoverage --colors --forceExit
+jest --selectProjects ciTests --collectCoverage --colors --forceExit --setupFiles dotenv/config
 codecov --token=${CODECOV_TOKEN}
 
 echo "CI test complete!"
