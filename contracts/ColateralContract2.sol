@@ -157,7 +157,7 @@ contract ColateralContract2 is
 
   function swapExactInputs(
     SwapParams[] calldata swapsParams
-  ) external override onlyRole(SWAPPER_ROLE) {
+  ) external override onlyRole(SWAPPER_ROLE) nonReentrant {
 
     for (uint256 i = 0; i < swapsParams.length; i++) {
       SwapParams calldata swapParams = swapsParams[i];
@@ -179,14 +179,15 @@ contract ColateralContract2 is
       // https://docs.uniswap.org/contracts/universal-router/technical-reference#v3_swap_exact_in
       inputs[0] = abi.encode(swapParams.params.recipient, swapParams.params.amountIn, swapParams.params.amountOutMinimum, swapParams.params.path, false);
       try IUniversalRouter(contractAddresses['router']).execute(commands, inputs, swapParams.params.deadline) {
-        resultAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+        uint256 finalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+        resultAmount = finalAmount - originalAmount; // El monto real del swap
         if ( resultAmount < swapParams.params.amountOutMinimum) {
-            emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount, "AmountOutMinimumTooLow");
+            emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, swapParams.params.amountOutMinimum, resultAmount, "AmountOutMinimumTooLow");
             revert AmountOutMinimumTooLow();
         }
-        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount - originalAmount);
+        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount);
       } catch Error(string memory errorMsg) {
-        emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount, errorMsg);
+        emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, swapParams.params.amountOutMinimum, resultAmount, errorMsg);
       }
     }
   }

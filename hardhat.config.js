@@ -94,7 +94,7 @@ module.exports = {
       gasPrice: 'auto',
       gasMultiplier: 2,
       allowUnlimitedContractSize: true, // Useful if deploying large contracts
-      chainId: 11155111, // Hardhat's default chain ID
+      chainId: 31337, // Hardhat's default chain ID
     },
   },
   namedAccounts,
