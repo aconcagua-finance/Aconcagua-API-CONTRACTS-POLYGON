@@ -7,9 +7,9 @@ import "../IPriceConsumerV3.sol";
 contract PriceConsumerV3Mock is IPriceConsumerV3 {
     function getLatestPrice(string memory token) public pure override returns (uint) {
         if (keccak256(abi.encodePacked(token)) == keccak256(abi.encodePacked("ETH"))) {
-            return 2000 * 10**8; // Mock price of ETH in USD
+            return 2000 * 10**8; // Mock price of ETH in USD - Chainlink validator returns price with 8 decimals
         } else if (keccak256(abi.encodePacked(token)) == keccak256(abi.encodePacked("BTC"))) {
-            return 30000 * 10**18; // Mock price of BTC in USD
+            return 30000 * 10**8; // Mock price of BTC in USD - Chainlink validator returns price with 8 decimals
         } else {
             revert("OracleUnknownToken");
         }

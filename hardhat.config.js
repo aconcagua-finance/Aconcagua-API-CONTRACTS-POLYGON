@@ -96,13 +96,6 @@ module.exports = {
       allowUnlimitedContractSize: true, // Useful if deploying large contracts
       chainId: 31337, // Hardhat's default chain ID
     },
-    sepolia: {
-      url: 'https://eth-sepolia.g.alchemy.com/v2/tQ1uu5mhjMGcjK7f49-PmX4pFfUwkFxN', // Replace with your Infura project ID or another RPC provider
-      chainId: 11155111,
-      gas: 'auto',
-      gasPrice: 'auto',
-      gasMultiplier: 2,
-    },
   },
   namedAccounts,
   etherscan: {

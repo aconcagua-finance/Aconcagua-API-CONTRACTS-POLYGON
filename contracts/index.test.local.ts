@@ -464,8 +464,10 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
 
   // swapExactInputs
   it('Can swap with Swapper Role', async () => {
+    // Mint WETH tokens para el swapper basado en la cantidad de tokenIn (amountIn)
+    const initialBalance = ethers.BigNumber.from(defaultSwapParams.params.amountIn);
+    await weth.mint(proxyWithAbi.address, defaultSwapParams.params.amountIn);
     await proxyWithAbi.connect(swapper).swapExactInputs([defaultSwapParams]);
-
     const tokenInTransfer = await weth.transferCalls(0);
     const routerCall = await router.executeCalls(0);
     const routerCallInputs = await router.getExecuteCallInputs(0);
@@ -500,7 +502,7 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
     }
   });
   it('Can swap with a path != than tokenIn - tokenOut - TRIGGERS ISSUE HI-01', async () => {
-    const badTokenIn = wbtc.address;
+    const badTokenIn = weth.address;
     const badTokenOut = usdt.address;
 
     const badPathBytes = ethers.utils.solidityPack(
@@ -517,6 +519,9 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
       ...defaultSwapParams,
       params: badParams,
     };
+
+    // Mint 10 unit of `badTokenIn` (wbtc) to the swapper address
+    await weth.mint(proxyWithAbi.address, ethers.utils.parseUnits('10', 18));
 
     try {
       await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
@@ -580,6 +585,9 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
       params: badParams,
     };
 
+    // Mint 10 unit of WETH
+    await weth.mint(proxyWithAbi.address, ethers.utils.parseUnits('10', 18));
+
     try {
       await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
       expect(true).toEqual(false); // Sanity check - Should fail
@@ -597,6 +605,9 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
       ...defaultSwapParams,
       params: badParams,
     };
+
+    // Mint 10 unit of WETH
+    await weth.mint(proxyWithAbi.address, ethers.utils.parseUnits('10', 18));
 
     try {
       await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
@@ -659,6 +670,8 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
     }
   });
   it('LENDER_LIQ_ROLE can withdraw', async () => {
+    // Mint 1000 unit of USDC
+    await usdc.mint(proxyWithAbi.address, ethers.utils.parseUnits('1000', 6));
     await proxyWithAbi.connect(firstLenderLiq).withdraw(1, USDC);
   });
 
@@ -671,6 +684,8 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
     }
   });
   it('RESCUER_ROLE can rescue', async () => {
+    // Mint 1000 unit of USDC
+    await usdc.mint(proxyWithAbi.address, ethers.utils.parseUnits('1000', 6));
     await proxyWithAbi.connect(firstLenderLiq).rescue(1, USDC);
   });
 

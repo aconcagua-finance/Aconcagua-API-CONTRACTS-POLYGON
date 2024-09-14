@@ -60,8 +60,5 @@ interface IColateralContract2 {
   event Rescue(address sender, string token, uint256 amount, address to);
   event SwapStarted(address indexed tokenIn, address indexed tokenOut, uint256 amountIn);
   event Swap(address tokenIn, address tokenOut, uint256 amountIn, uint256 amountOut);
-
-  event Quote(address tokenIn, address tokenOut, uint256 amountIn, uint256 quotedAmountOut);
-  event QuoteError(address tokenIn, address tokenOut, uint256 amountIn, string msg);
-  event SwapError(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOut, string reason);
+  event SwapError(address indexed tokenIn, address indexed tokenOut, uint256 amountIn, uint256 amountOutMinimum, uint256 amountOut, string reason);
 }
