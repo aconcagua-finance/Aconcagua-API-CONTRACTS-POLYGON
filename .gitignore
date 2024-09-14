@@ -158,8 +158,6 @@ coverage
 # production
 /build
 
-/artifacts
-
 /config/env.prod.json
 /config/env.local-prod.json
 

@@ -17,6 +17,28 @@ module.exports = {
       moduleFileExtensions: ['js', 'json', 'ts', 'cjs'],
       testEnvironment: 'node',
     },
+    {
+      // Nueva configuración para los tests locales
+      ...defaults,
+      displayName: 'localTests',
+      testMatch: [
+        '<rootDir>/contracts/index.test.local.ts',
+        ...defaults.testMatch, // Opcional: incluir otros tests
+      ],
+      moduleFileExtensions: ['js', 'json', 'ts', 'cjs'],
+      testEnvironment: 'node',
+    },
+    {
+      // Nueva configuración para los tests remotos
+      ...defaults,
+      displayName: 'ciTests',
+      testMatch: [
+        '<rootDir>/contracts/index.test.sepolia.ts',
+        ...defaults.testMatch, // Opcional: incluir otros tests
+      ],
+      moduleFileExtensions: ['js', 'json', 'ts', 'cjs'],
+      testEnvironment: 'node',
+    },
     // {
     //   ...defaults,
     //   displayName: 'web',

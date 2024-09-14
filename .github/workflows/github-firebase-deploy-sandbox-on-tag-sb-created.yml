@@ -106,6 +106,10 @@ jobs:
       - run: npm run prettier-ci
       - run: npm run lint-ci
       - run: npm run test-ci
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{secrets.SWAPPER_PRIVATE_KEY_SB}}
+          HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL_SB}}
+          HARDHAT_NETWORK_NAME: sepolia
 
       # ya lo hace el firebase.json
       # - run: npm run build
