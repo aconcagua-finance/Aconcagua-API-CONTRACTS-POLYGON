@@ -637,7 +637,7 @@ exports.create = async function (req, res) {
     // const networkName = hre.network.name;
     console.log('Create - Revisando networkName = ' + networkName);
 
-    const colateralContractName = 'ColateralContract';
+    const colateralContractName = 'ColateralContract2';
     const proxyContractName = 'ColateralProxy';
 
     // Defino el gas
@@ -896,7 +896,7 @@ const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
     // maxFeePerGas: null,
     // maxPriorityFeePerGas: null,
     gasPrice: gasPriceFallback,
-    gasLimit,
+    gasLimit: gasLimit,
   };
 
   let HARDHAT_API_URL;
@@ -924,7 +924,7 @@ const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
       // maxFeePerGas: feeData.maxFeePerGas.value,
       // maxPriorityFeePerGas: feeData.maxPriorityFeePerGas.value,
       gasPrice: GasPricePolygon,
-      gasLimit,
+      gasLimit: gasLimit,
     };
 
     console.log('networkConfig:', networkConfig);
@@ -2545,7 +2545,6 @@ const sendVaultEvaluationEmail = async (evalVault) => {
 
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
-    const balanceARS = evalVault.balances.find((balance) => balance.currency === 'ars');
     await EmailSender.send({
       to: borrower.email,
       SYS_ADMIN_EMAIL,
@@ -2557,9 +2556,8 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           vaultId: evalVault.vault.id,
           lender: lender.name,
           requiredCryptoValue: evalVault.arsLimits.notificationLimit,
-          loan: evalVault.amount,
+          loan: evalVault.vault.amount,
           swapCryptoValue: evalVault.arsLimits.actionLimit,
-          cryptoValue: balanceARS.value,
         },
       },
     });

@@ -146,7 +146,8 @@ yarn.lock
 *.sample
 coverage
 
-
+# Compiled
+/artifacts
 
 
 # dependencies
