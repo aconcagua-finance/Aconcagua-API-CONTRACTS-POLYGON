@@ -2559,10 +2559,22 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          requiredCryptoValue: evalVault.arsLimits.notificationLimit,
-          loan: evalVault.vault.amount,
-          cryptoValue: arsBalance.balance,
-          swapCryptoValue: evalVault.arsLimits.actionLimit,
+          requiredCryptoValue: formatMoneyWithCurrency(
+            evalVault.arsLimits.notificationLimit,
+            0,
+            undefined,
+            undefined,
+            'ars'
+          ),
+          loan: formatMoneyWithCurrency(evalVault.vault.amount, 0, undefined, undefined, 'ars'),
+          cryptoValue: formatMoneyWithCurrency(arsBalance.balance, 0, undefined, undefined, 'ars'),
+          swapCryptoValue: formatMoneyWithCurrency(
+            evalVault.arsLimits.actionLimit,
+            0,
+            undefined,
+            undefined,
+            'ars'
+          ),
         },
       },
     });
