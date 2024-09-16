@@ -26,6 +26,8 @@ const {
   areNonRebasingTokensEqual,
   getDifferences,
   formatMoneyWithCurrency,
+  getArsStableValue,
+  getArsVolatileValue,
 } = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
@@ -2547,6 +2549,14 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     (item) => item.currency === 'ars' && item.isValuation === true
   );
 
+  // Inicializar variables
+  const arsStablesSum = getArsStableValue(evalVault.vault.balances);
+  const arsVolatileSum = getArsVolatileValue(evalVault.vault.balances);
+
+  const ARSrequiredIncrease = evalVault.vault.amount - evalVault.arsLimits.notificationLimit;
+
+  const ARSrequiredVolatileValue = evalVault.vault.amount - arsStablesSum;
+
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
     await EmailSender.send({
@@ -2560,17 +2570,24 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           vaultId: evalVault.vault.id,
           lender: lender.name,
           requiredCryptoValue: formatMoneyWithCurrency(
-            evalVault.arsLimits.notificationLimit,
-            0,
+            ARSrequiredIncrease,
+            2,
             undefined,
             undefined,
             'ars'
           ),
-          loan: formatMoneyWithCurrency(evalVault.vault.amount, 0, undefined, undefined, 'ars'),
-          cryptoValue: formatMoneyWithCurrency(arsBalance.balance, 0, undefined, undefined, 'ars'),
+          loan: formatMoneyWithCurrency(evalVault.vault.amount, 2, undefined, undefined, 'ars'),
+          cryptoValue: formatMoneyWithCurrency(arsBalance.balance, 2, undefined, undefined, 'ars'),
+          volatileCryptoValue: formatMoneyWithCurrency(
+            arsVolatileSum,
+            2,
+            undefined,
+            undefined,
+            'ars'
+          ),
           swapCryptoValue: formatMoneyWithCurrency(
-            evalVault.arsLimits.actionLimit,
-            0,
+            ARSrequiredVolatileValue,
+            2,
             undefined,
             undefined,
             'ars'

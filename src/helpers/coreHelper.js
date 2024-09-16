@@ -205,6 +205,52 @@ const getDifferences = (obj1, obj2) => {
 
 exports.getDifferences = getDifferences;
 
+// Función para obtener la suma de ARS para los tokens estables: USDC, USDT, USDM, DOC
+function getArsStableValue(balances) {
+  const stableTokens = ['usdc', 'usdt', 'usdm', 'doc'];
+  let arsStableSum = 0;
+
+  balances.forEach((item) => {
+    const currency = item.currency.toLowerCase();
+    const arsValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'ars') :
+      null;
+
+    const arsValue = arsValuation ? arsValuation.value : 0;
+
+    if (stableTokens.includes(currency)) {
+      arsStableSum += arsValue;
+    }
+  });
+
+  return arsStableSum;
+}
+
+exports.getArsStableValue = getArsStableValue;
+
+// Función para obtener la suma de ARS para los tokens volátiles: WBTC, WETH
+function getArsVolatileValue(balances) {
+  const volatileTokens = ['wbtc', 'weth'];
+  let arsVolatileSum = 0;
+
+  balances.forEach((item) => {
+    const currency = item.currency.toLowerCase();
+    const arsValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'ars') :
+      null;
+
+    const arsValue = arsValuation ? arsValuation.value : 0;
+
+    if (volatileTokens.includes(currency)) {
+      arsVolatileSum += arsValue;
+    }
+  });
+
+  return arsVolatileSum;
+}
+
+exports.getArsVolatileValue = getArsVolatileValue;
+
 export const formatMoneyWithCurrency = function (
   amountArg,
   decimalCount = 2,
