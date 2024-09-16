@@ -147,7 +147,7 @@ yarn.lock
 coverage
 
 # Compiled
-/artifacts
+/artifacts/build-info
 
 
 # dependencies
