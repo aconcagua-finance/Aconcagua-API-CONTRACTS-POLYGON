@@ -212,9 +212,9 @@ function getArsStableValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const arsValuation = item.valuations ?
-      item.valuations.find((valuation) => valuation.currency === 'ars') :
-      null;
+    const arsValuation = item.valuations
+      ? item.valuations.find((valuation) => valuation.currency === 'ars')
+      : null;
 
     const arsValue = arsValuation ? arsValuation.value : 0;
 
@@ -235,9 +235,9 @@ function getArsVolatileValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const arsValuation = item.valuations ?
-      item.valuations.find((valuation) => valuation.currency === 'ars') :
-      null;
+    const arsValuation = item.valuations
+      ? item.valuations.find((valuation) => valuation.currency === 'ars')
+      : null;
 
     const arsValue = arsValuation ? arsValuation.value : 0;
 
@@ -250,6 +250,52 @@ function getArsVolatileValue(balances) {
 }
 
 exports.getArsVolatileValue = getArsVolatileValue;
+
+// Función para obtener la suma de ARS para los tokens estables: USDC, USDT, USDM, DOC
+function getUsdStableValue(balances) {
+  const stableTokens = ['usdc', 'usdt', 'usdm', 'doc'];
+  let usdStableSum = 0;
+
+  balances.forEach((item) => {
+    const currency = item.currency.toLowerCase();
+    const usdValuation = item.valuations
+      ? item.valuations.find((valuation) => valuation.currency === 'usd')
+      : null;
+
+    const usdValue = usdValuation ? usdValuation.value : 0;
+
+    if (stableTokens.includes(currency)) {
+      usdStableSum += usdValue;
+    }
+  });
+
+  return usdStableSum;
+}
+
+exports.getUsdStableValue = getUsdStableValue;
+
+// Función para obtener la suma de ARS para los tokens volátiles: WBTC, WETH
+function getUsdVolatileValue(balances) {
+  const volatileTokens = ['wbtc', 'weth'];
+  let usdVolatileSum = 0;
+
+  balances.forEach((item) => {
+    const currency = item.currency.toLowerCase();
+    const usdValuation = item.valuations
+      ? item.valuations.find((valuation) => valuation.currency === 'usd')
+      : null;
+
+    const usdValue = usdValuation ? usdValuation.value : 0;
+
+    if (volatileTokens.includes(currency)) {
+      usdVolatileSum += usdValue;
+    }
+  });
+
+  return usdVolatileSum;
+}
+
+exports.getUsdVolatileValue = getUsdVolatileValue;
 
 export const formatMoneyWithCurrency = function (
   amountArg,
@@ -277,12 +323,12 @@ export const formatMoneyWithCurrency = function (
       negativeSign +
       (jj ? ii.substring(0, jj) + thousands : '') +
       ii.substring(jj).replace(/(\d{3})(?=\d)/g, `$1${thousands}`) +
-      (decimalCount ?
-        decimal +
+      (decimalCount
+        ? decimal +
           Math.abs(amount - ii)
             .toFixed(decimalCount)
-            .slice(2) :
-        '')
+            .slice(2)
+        : '')
     );
   } else if (currency == 'usd') {
     const currencySign = 'U$D';
@@ -303,12 +349,12 @@ export const formatMoneyWithCurrency = function (
       negativeSign +
       (jj ? ii.substring(0, jj) + thousands : '') +
       ii.substring(jj).replace(/(\d{3})(?=\d)/g, `$1${thousands}`) +
-      (decimalCount ?
-        decimal +
+      (decimalCount
+        ? decimal +
           Math.abs(amount - ii)
             .toFixed(decimalCount)
-            .slice(2) :
-        '')
+            .slice(2)
+        : '')
     );
   }
   return 0;

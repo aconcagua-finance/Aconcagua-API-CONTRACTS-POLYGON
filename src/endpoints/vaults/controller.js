@@ -28,6 +28,8 @@ const {
   formatMoneyWithCurrency,
   getArsStableValue,
   getArsVolatileValue,
+  getUsdStableValue,
+  getUsdVolatileValue,
 } = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
@@ -2545,17 +2547,15 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     id: evalVault.vault.userId,
   });
 
-  const arsBalance = evalVault.vault.balances.find(
-    (item) => item.currency === 'ars' && item.isValuation === true
+  const usdBalance = evalVault.vault.balances.find(
+    (item) => item.currency === 'usd' && item.isValuation === true
   );
 
   // Inicializar variables
-  const arsStablesSum = getArsStableValue(evalVault.vault.balances);
-  const arsVolatileSum = getArsVolatileValue(evalVault.vault.balances);
+  const usdStablesSum = getUsdStableValue(evalVault.vault.balances);
+  const usdVolatileSum = getUsdVolatileValue(evalVault.vault.balances);
 
   const ARSrequiredIncrease = evalVault.vault.amount - evalVault.arsLimits.notificationLimit;
-
-  const ARSrequiredVolatileValue = evalVault.vault.amount - arsStablesSum;
 
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
@@ -2577,20 +2577,13 @@ const sendVaultEvaluationEmail = async (evalVault) => {
             'ars'
           ),
           loan: formatMoneyWithCurrency(evalVault.vault.amount, 2, undefined, undefined, 'ars'),
-          cryptoValue: formatMoneyWithCurrency(arsBalance.balance, 2, undefined, undefined, 'ars'),
+          cryptoValue: formatMoneyWithCurrency(usdBalance.balance, 2, undefined, undefined, 'usd'),
           volatileCryptoValue: formatMoneyWithCurrency(
-            arsVolatileSum,
+            usdVolatileSum,
             2,
             undefined,
             undefined,
-            'ars'
-          ),
-          swapCryptoValue: formatMoneyWithCurrency(
-            ARSrequiredVolatileValue,
-            2,
-            undefined,
-            undefined,
-            'ars'
+            'usd'
           ),
         },
       },
