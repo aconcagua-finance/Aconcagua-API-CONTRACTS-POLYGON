@@ -2556,6 +2556,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
   const usdVolatileSum = getUsdVolatileValue(evalVault.vault.balances);
 
   const ARSrequiredIncrease = evalVault.vault.amount - evalVault.arsLimits.notificationLimit;
+  console.log(`evalVault vale ${JSON.stringify(evalVault)}`);
 
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
