@@ -2586,6 +2586,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
             undefined,
             'usd'
           ),
+          stableCryptoValue: formatMoneyWithCurrency(usdStablesSum, 2, undefined, undefined, 'usd'),
         },
       },
     });
