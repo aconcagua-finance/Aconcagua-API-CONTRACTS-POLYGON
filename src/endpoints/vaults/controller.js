@@ -570,9 +570,12 @@ exports.create = async function (req, res) {
     let ALIQ1_ADDRESS;
     let ALIQ2_ADDRESS;
 
+    console.log('Create - Reviso tipo de datos Polygon es ' + networkTypes.NETWORK_TYPE_POLYGON);
+    console.log('Create - Reviso tipo de datos Rootstock es ' + networkTypes.NETWORK_TYPE_RSK);
+
     switch (networkName) {
-      case Types.NetWorks.NETWORK_TYPE_POLYGON:
-        console.log('Defino las variables de polygon network');
+      case networkTypes.NETWORK_TYPE_POLYGON:
+        console.log('Create - Defino las variables de polygon network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
         HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
@@ -591,9 +594,10 @@ exports.create = async function (req, res) {
         DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
         ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
         ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
+        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
         break;
 
-      case Types.NetWorks.NETWORK_TYPE_RSK:
+      case networkTypes.NETWORK_TYPE_RSK:
         console.log('Defino las variables de rootstock network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_RSK;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_RSK;
@@ -613,10 +617,12 @@ exports.create = async function (req, res) {
         DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_RSK;
         ALIQ1_ADDRESS = ALIQ1_ADDRESS_RSK;
         ALIQ2_ADDRESS = ALIQ2_ADDRESS_RSK;
+        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
         break;
 
       default:
         // Default to Polygon if network name is not provided
+        console.log('Defino las variables de default network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
         HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
@@ -635,6 +641,7 @@ exports.create = async function (req, res) {
         DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
         ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
         ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
+        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
         break;
     }
     // TODO MRM
