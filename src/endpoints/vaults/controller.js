@@ -6,6 +6,7 @@
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
 import { Pool, FeeAmount } from '@uniswap/v3-sdk';
 import { move } from 'fs-extra';
+import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -477,24 +478,55 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
   };
 };
 
-const deployContract = async (contractName, args = null) => {
+const deployContract = async (
+  contractName,
+  args = null,
+  networkName = null,
+  networkConfig = null
+) => {
   if (!contractName) return null;
-  const contract = await hre.ethers.getContractFactory(contractName);
-  let deploymentResponse;
+  let contract;
+  let NETWORK_URL;
+  let alchemy;
+  let signer;
 
-  if (Array.isArray(args)) {
-    deploymentResponse = await contract.deploy(...args);
+  if (networkName) {
+    NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+
+    console.log('deployContract NETWORK_URL ' + NETWORK_URL);
+    console.log('deployContract contractName ' + contractName);
+    console.log('deployContract args ' + JSON.stringify(args));
+    console.log('deployContract networkName ' + networkName);
+    console.log('deployContract networkConfig ' + JSON.stringify(networkConfig));
+
+    alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+    signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+    contract = await hre.ethers.getContractFactory(contractName, signer);
   } else {
-    deploymentResponse = await contract.deploy(args);
+    contract = await hre.ethers.getContractFactory(contractName);
   }
 
+  console.log('Signer: ', signer.address);
+
+  let deploymentResponse;
+  // Verifica si args es null, un valor único, o un array.
+  if (args === null) {
+    deploymentResponse = await contract.deploy(networkConfig);
+  } else if (Array.isArray(args)) {
+    deploymentResponse = await contract.deploy(...args, networkConfig);
+  } else {
+    // Caso en que args es un valor único
+    deploymentResponse = await contract.deploy(args, networkConfig);
+  }
+
+  console.log('deployContract - Contract deployed');
   // Parse
   const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
 
   return { deploymentResponse, contractDeployment };
 };
 
-const getDeployedContract = (vault) => {
+const getDeployedContract = async (vault) => {
   console.log('Dentro de getDeployedContract');
   console.log(
     'Dentro de getDeployedContract - Vault id ',
@@ -502,7 +534,9 @@ const getDeployedContract = (vault) => {
     ' Contractname ',
     vault.contractName,
     ' Contract Version ',
-    vault.contractVersion
+    vault.contractVersion,
+    ' Contract Network ',
+    vault.contractNetwork
   );
   const smartContract = vault;
 
@@ -513,7 +547,18 @@ const getDeployedContract = (vault) => {
     '.json');
   const abi = contractJson.abi;
 
-  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+  const contractNetwork = (vault.contractNetwork || 'POLYGON').toUpperCase();
+  console.log('Contract Network ', vault.contractNetwork || 'Red por defecto: POLYGON');
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', contractNetwork);
+
+  if (!NETWORK_URL) {
+    throw new Error(`No se encontró una URL válida para la red: ${contractNetwork}`);
+  }
+
+  // TODO Validar que la red que tomé de la base es válida
+  console.log('getDeployedContract - NETWORK_URL ' + NETWORK_URL);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
   // Get the deployed contract.
@@ -527,8 +572,8 @@ exports.create = async function (req, res) {
     const { userId } = res.locals;
     const auditUid = userId;
     const { userId: targetUserId, companyId } = req.params;
-
-    const networkName = req.body.networkTypes.value;
+    console.log('Req.body es ' + JSON.stringify(req.body));
+    const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
     console.log('create - networkName = ' + networkName);
 
     if (!targetUserId || !companyId) {
@@ -540,8 +585,10 @@ exports.create = async function (req, res) {
       );
     }
 
+    // Asumiendo que tienes una variable `networkName` que especifica la red (Polygon o Rootstock)
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-    if (!lender || !lender.vaultAdminAddress) {
+
+    if (!lender) {
       throw new CustomError.TechnicalError(
         'ERROR_COMPANY_NOT_FOUND',
         null,
@@ -550,74 +597,53 @@ exports.create = async function (req, res) {
       );
     }
 
+    // Inicializamos una variable para almacenar el vaultAdminAddress
+    let vaultAdminAddress;
+
+    // Verificar si hay un vaultAdmin específico para la red
+    if (networkName.toLowerCase() === 'polygon') {
+      vaultAdminAddress = lender.vaultAdminAddressPolygon;
+    } else if (networkName.toLowerCase() === 'rootstock') {
+      vaultAdminAddress = lender.vaultAdminAddressRootstock;
+    }
+
+    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior
+    if (!vaultAdminAddress && lender.vaultAdminAddress) {
+      vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
+    }
+    console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
+
+    // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
+    if (!vaultAdminAddress) {
+      throw new CustomError.TechnicalError(
+        'ERROR_VAULT_ADMIN_NOT_FOUND',
+        null,
+        `Vault Admin not found for network ${networkName} or in the previous version`,
+        null
+      );
+    }
+
     // Defino variables según la red
     let DEPLOYER_PRIVATE_KEY;
     let SWAPPER_PRIVATE_KEY;
-    let HARDHAT_API_URL;
-    let USDC_TOKEN_ADDRESS;
-    let USDT_TOKEN_ADDRESS;
-    let USDM_TOKEN_ADDRESS;
-    let WBTC_TOKEN_ADDRESS;
-    let WETH_TOKEN_ADDRESS;
-    let SWAP_ROUTER_V3_ADDRESS;
-    let VALIDATOR_CONTRACT_ADDRESS;
-    let SWAPPER_ADDRESS;
-    let OPERATOR1_ADDRESS;
-    let OPERATOR2_ADDRESS;
-    let OPERATOR3_ADDRESS;
-    let DEFAULT_RESCUE_WALLET_ADDRESS;
-    let DEFAULT_WITHDRAW_WALLET_ADDRESS;
-    let ALIQ1_ADDRESS;
-    let ALIQ2_ADDRESS;
-
-    console.log('Create - Reviso tipo de datos Polygon es ' + networkTypes.NETWORK_TYPE_POLYGON);
-    console.log('Create - Reviso tipo de datos Rootstock es ' + networkTypes.NETWORK_TYPE_RSK);
+    let safeA;
+    let safeB;
 
     switch (networkName) {
       case networkTypes.NETWORK_TYPE_POLYGON:
         console.log('Create - Defino las variables de polygon network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
-        HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
-        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_POLYGON;
-        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_POLYGON;
-        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_POLYGON;
-        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_POLYGON;
-        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_POLYGON;
-        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_POLYGON;
-        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_POLYGON;
-        SWAPPER_ADDRESS = SWAPPER_ADDRESS_POLYGON;
-        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_POLYGON;
-        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_POLYGON;
-        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_POLYGON;
-        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_POLYGON;
-        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
-        ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
-        ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
-        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
+        safeA = lender.safeLiq1.toLowerCase();
+        safeB = lender.safeLiq2.toLowerCase();
         break;
 
-      case networkTypes.NETWORK_TYPE_RSK:
+      case networkTypes.NETWORK_TYPE_ROOTSTOCK:
         console.log('Defino las variables de rootstock network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_RSK;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_RSK;
-        HARDHAT_API_URL = HARDHAT_API_URL_RSK;
-        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_RSK;
-        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_RSK;
-        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_RSK;
-        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_RSK;
-        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_RSK;
-        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_RSK;
-        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_RSK;
-        SWAPPER_ADDRESS = SWAPPER_ADDRESS_RSK;
-        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_RSK;
-        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_RSK;
-        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_RSK;
-        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_RSK;
-        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_RSK;
-        ALIQ1_ADDRESS = ALIQ1_ADDRESS_RSK;
-        ALIQ2_ADDRESS = ALIQ2_ADDRESS_RSK;
-        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
+        safeA = lender.safeLiq3.toLowerCase();
+        safeB = lender.safeLiq4.toLowerCase();
         break;
 
       default:
@@ -625,63 +651,66 @@ exports.create = async function (req, res) {
         console.log('Defino las variables de default network');
         DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
         SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
-        HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
-        USDC_TOKEN_ADDRESS = USDC_TOKEN_ADDRESS_POLYGON;
-        USDT_TOKEN_ADDRESS = USDT_TOKEN_ADDRESS_POLYGON;
-        USDM_TOKEN_ADDRESS = USDM_TOKEN_ADDRESS_POLYGON;
-        WBTC_TOKEN_ADDRESS = WBTC_TOKEN_ADDRESS_POLYGON;
-        WETH_TOKEN_ADDRESS = WETH_TOKEN_ADDRESS_POLYGON;
-        SWAP_ROUTER_V3_ADDRESS = SWAP_ROUTER_V3_ADDRESS_POLYGON;
-        VALIDATOR_CONTRACT_ADDRESS = VALIDATOR_CONTRACT_ADDRESS_POLYGON;
-        SWAPPER_ADDRESS = SWAPPER_ADDRESS_POLYGON;
-        OPERATOR1_ADDRESS = OPERATOR1_ADDRESS_POLYGON;
-        OPERATOR2_ADDRESS = OPERATOR2_ADDRESS_POLYGON;
-        OPERATOR3_ADDRESS = OPERATOR3_ADDRESS_POLYGON;
-        DEFAULT_RESCUE_WALLET_ADDRESS = DEFAULT_RESCUE_WALLET_ADDRESS_POLYGON;
-        DEFAULT_WITHDRAW_WALLET_ADDRESS = DEFAULT_WITHDRAW_WALLET_ADDRESS_POLYGON;
-        ALIQ1_ADDRESS = ALIQ1_ADDRESS_POLYGON;
-        ALIQ2_ADDRESS = ALIQ2_ADDRESS_POLYGON;
-        console.log('Create - HARDHAT_API_URL es ' + HARDHAT_API_URL);
         break;
     }
-    // TODO MRM
-    // const networkName = hre.network.name;
-    console.log('Create - Revisando networkName = ' + networkName);
+
+    // Abro wallet
+
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
     const colateralContractName = 'ColateralContract2';
     const proxyContractName = 'ColateralProxy';
 
     // Defino el gas
-    const gasLimit = 5000000;
-    const networkConfig = await getGasPriceAndLimit(networkName, gasLimit);
+    const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
     console.log(
       'Create - Listo getGasPriceAndLimit - networkConfig es ' +
         JSON.stringify(networkConfig, null, 2)
     );
 
-    // Deploy ColateralContract
-    const colateralContractDeploy = await deployContract(colateralContractName, networkConfig);
-    const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-    const colateralContractSignerAddress = lender.safeLiq1.toLowerCase(); // colateralContractDeploy.contractDeployment.signerAddress;
-
-    if (!colateralContractAddress) {
-      throw new CustomError.TechnicalError(
-        'ERROR_CREATE_COLATERAL_CONTRACT',
-        null,
-        'Empty Colateral contract address response',
-        null
-      );
-    }
-
     let contractStatus;
     let contractError = '';
+    let colateralContractAddress;
+    let colateralContractDeploy;
+
     try {
-      await colateralContractDeploy.deploymentResponse.deployed();
-      console.log('Create - ColateralContract Deployment success');
+      // Deploy ColateralContract
+      colateralContractDeploy = await deployContract(
+        colateralContractName,
+        null,
+        networkName,
+        networkConfig
+      );
+
+      const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
+      const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
+
+      colateralContractAddress = colateralContractDeploy.contractDeployment.address;
+
+      if (!colateralContractAddress) {
+        throw new CustomError.TechnicalError(
+          ' ERROR_CREATE_COLATERAL_CONTRACT',
+          null,
+          'Empty Colateral contract address response',
+          null
+        );
+      }
+
+      console.log(
+        'Create - ColateralContract Deployment success. Transaction Hash:',
+        transactionHash
+      );
       contractStatus = 'deployed';
     } catch (err) {
       contractStatus = 'error';
-      contractError = err.message;
+      contractError = err.message ? err.message.substring(0, 2000) : '';
+      throw new CustomError.TechnicalError(
+        'ERROR_CREATE_COLATERAL_CONTRACT',
+        null,
+        contractError,
+        null
+      );
     }
 
     // Deploy ColateralProxy
@@ -694,7 +723,6 @@ exports.create = async function (req, res) {
 
     const colateralAbi = contractJson.abi;
 
-    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
     const colateralBlockchainContract = new hre.ethers.Contract(
       colateralContractAddress,
@@ -704,89 +732,97 @@ exports.create = async function (req, res) {
 
     let args;
     let abiEncodedArgs;
-    const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
+
+    const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
+    const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
+    const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
+
+    // Asignar las direcciones a la lista de operadores
+    const operators = [operator1Address, operator2Address, operator3Address];
 
     if (colateralContractName === 'ColateralContract2') {
       // Contrato version 2
       console.log('Create - creando contrato version 2 ');
-      const validatorAddress = VALIDATOR_CONTRACT_ADDRESS;
+
+      // Usar getEnvVariable para obtener las direcciones desde Firestore
+      const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
+      const defaultRescueWalletAddress = await getEnvVariable(
+        'DEFAULT_RESCUE_WALLET_ADDRESS',
+        networkName
+      );
+      const defaultWithdrawWalletAddress = await getEnvVariable(
+        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+        networkName
+      );
+      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
       const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+
       const tokenAddresses = [
-        USDC_TOKEN_ADDRESS,
-        USDT_TOKEN_ADDRESS,
-        USDM_TOKEN_ADDRESS,
-        WBTC_TOKEN_ADDRESS,
-        WETH_TOKEN_ADDRESS,
+        await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
       ];
 
       const contractKeys = ['router', 'swapper'];
-      const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS];
+      const contractAddresses = [swapRouterV3Address, swapperAddress];
 
-      // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+      // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
       args = [
         validatorAddress,
         tokenNames,
         tokenAddresses,
         operators,
-        DEFAULT_RESCUE_WALLET_ADDRESS,
-        DEFAULT_WITHDRAW_WALLET_ADDRESS,
-        colateralContractSignerAddress, // lender.safeLiq1,
-        lender.safeLiq2.toLowerCase(),
+        defaultRescueWalletAddress,
+        defaultWithdrawWalletAddress,
+        safeA,
+        safeB,
         contractKeys,
         contractAddresses,
       ];
 
-      // Log the ABI encoded constructor arguments
-      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
-        [
-          'address',
-          'string[]',
-          'address[]',
-          'address[]',
-          'address',
-          'address',
-          'address',
-          'address',
-          'string[]',
-          'address[]',
-        ],
-        args
-      );
+      console.log('Create - args ' + JSON.stringify(args));
     } else {
       // Contrato version 1
       console.log('Create - creando contrato version 1 ');
-      args = [
-        USDC_TOKEN_ADDRESS,
-        USDT_TOKEN_ADDRESS,
-        USDM_TOKEN_ADDRESS,
-        WBTC_TOKEN_ADDRESS,
-        operators,
-        DEFAULT_RESCUE_WALLET_ADDRESS,
-        DEFAULT_WITHDRAW_WALLET_ADDRESS,
-        colateralContractSignerAddress, // lender.safeLiq1,
-        lender.safeLiq2.toLowerCase(),
-        SWAP_ROUTER_V3_ADDRESS,
-        SWAPPER_ADDRESS,
-      ];
-      console.log('Create - args ' + JSON.stringify(args));
 
-      abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
-        [
-          'address',
-          'address',
-          'address',
-          'address',
-          'address[]',
-          'address',
-          'address',
-          'address',
-          'address',
-          'address',
-          'address',
-        ],
-        args
+      // Usar getEnvVariable para obtener las direcciones desde Firestore
+      const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
+      const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
+      const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
+      const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
+      const defaultRescueWalletAddress = await getEnvVariable(
+        'DEFAULT_RESCUE_WALLET_ADDRESS',
+        networkName
       );
+      const defaultWithdrawWalletAddress = await getEnvVariable(
+        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+        networkName
+      );
+      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+      // Crear los argumentos para el contrato
+      args = [
+        usdcTokenAddress,
+        usdtTokenAddress,
+        usdmTokenAddress,
+        wbtcTokenAddress,
+        operators, // Supongo que ya tienes esta variable en tu entorno
+        defaultRescueWalletAddress,
+        defaultWithdrawWalletAddress,
+        safeA, // lender.safeLiq1
+        safeB,
+        swapRouterV3Address,
+        swapperAddress,
+      ];
+
+      console.log('Create - args ' + JSON.stringify(args));
     }
+
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
     );
@@ -796,13 +832,14 @@ exports.create = async function (req, res) {
 
     const proxyContractArgs = [
       colateralContractAddress,
-      lender.vaultAdminAddress.toLowerCase(),
+      vaultAdminAddress,
       initializeData.data || '0x',
     ];
 
     const proxyContractDeploy = await deployContract(
       proxyContractName,
       proxyContractArgs,
+      networkName,
       networkConfig
     );
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
@@ -829,7 +866,7 @@ exports.create = async function (req, res) {
     body.balances = [];
 
     body.contractAddress = colateralContractAddress;
-    body.contractSignerAddress = colateralContractSignerAddress;
+    body.contractSignerAddress = lender.safeLiq1.toLowerCase();
     body.contractDeployment = colateralContractDeploy.contractDeployment;
     body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
@@ -900,59 +937,124 @@ exports.create = async function (req, res) {
   }
 };
 
-const getGasPriceAndLimit = async (networkName = null, gasLimit = 5000000) => {
-  const gasPriceFallback = 50000000000;
-  let GasPricePolygon;
-  const networkConfigfallback = {
-    // maxFeePerGas: null,
-    // maxPriorityFeePerGas: null,
-    gasPrice: gasPriceFallback,
-    gasLimit,
+const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
+  const functionName = 'getGasPriceAndLimit'; // Nombre de la función para los mensajes de error
+  const gasPriceFallback = 50000000000; // Fallback gas price (en wei)
+
+  // Lista fija de acciones permitidas
+  const allowedActions = ['CREATE', 'TRANSFER', 'SWAP'];
+
+  // Definición de gasLimit por acción (valores por defecto)
+  const gasLimitActionFallback = {
+    CREATE: 5000000, // 5,000,000 para CREATE
+    TRANSFER: 500000, // 500,000 para TRANSFER
+    SWAP: 1000000, // 1,000,000 para SWAP
   };
 
-  let HARDHAT_API_URL;
+  // Convertir el enum en una lista de valores válidos
+  const validNetworks = Object.values(networkTypes);
+  // Verificaciones iniciales
+  if (!networkName || !validNetworks.includes(networkName)) {
+    const errorMessage = `${functionName} - Invalid or undefined networkName: ${networkName}. Supported networks are: ${validNetworks.join(
+      ', '
+    )}. Called with networkName=${networkName}, actionName=${actionName}`;
+    throw new Error(errorMessage);
+  }
+
+  // Verificar que actionName esté en la lista de acciones permitidas
+  if (!actionName || !allowedActions.includes(actionName)) {
+    const errorMessage = `${functionName} - Invalid or undefined actionName: ${actionName}. Allowed actions are: ${allowedActions.join(
+      ', '
+    )}. Called with networkName=${networkName}, actionName=${actionName}`;
+    throw new Error(errorMessage);
+  }
+
+  // Inicialización y valores de fallback
+  let gasPrice = gasPriceFallback;
+  let gasLimit = gasLimitActionFallback[actionName]; // Inicializar con el valor de fallback correspondiente a la acción
+  let maxFeePerGas;
+  let maxPriorityFeePerGas;
+  let gasLimitEnv;
+  const gasLimitVariable = `GAS_LIMIT_${actionName.toUpperCase()}`;
+  let networkConfig;
 
   try {
-    if (networkName === networkTypes.NETWORK_TYPE_POLYGON) {
-      HARDHAT_API_URL = HARDHAT_API_URL_POLYGON;
-      const apiResponse = await invoke_get_api({
-        endpoint: `https://api.polygonscan.com/api?module=gastracker&action=gasoracle&apikey=${POLYGONSCAN_API_KEY}`,
-      });
-      console.log(
-        'getGasPriceAndLimit - api response de polygon Fast gas ' +
-          JSON.stringify(apiResponse.data.result.FastGasPrice)
-      );
-      GasPricePolygon = Math.round(apiResponse.data.result.FastGasPrice * 1e9); // Convert from gwei to wei
-    } else if (networkName === networkTypes.NETWORK_TYPE_RSK) {
-      HARDHAT_API_URL = HARDHAT_API_URL_RSK;
+    // Obtener URL del proveedor RPC usando el networkName
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+
+    gasLimitEnv = await getEnvVariable(gasLimitVariable, networkName);
+    if (gasLimitEnv) {
+      gasLimit = parseInt(gasLimitEnv, 10); // Sobrescribir el fallback con el valor encontrado
     } else {
-      throw new Error(
-        `Invalid network name: ${networkName}. Supported networks are POLYGON and RSK.`
-      );
+      console.error(functionName, ' - Error getting price limit from database:', error);
+      throw error;
     }
 
-    const networkConfig = {
-      // maxFeePerGas: feeData.maxFeePerGas.value,
-      // maxPriorityFeePerGas: feeData.maxPriorityFeePerGas.value,
-      gasPrice: GasPricePolygon,
-      gasLimit,
-    };
+    // Obtener el valor de OVERRIDE_GAS_PRICE para saber si hay que usar el valor por override
+    const OVERRIDE_GAS_PRICE = await getEnvVariable('OVERRIDE_GAS_PRICE', networkName);
 
-    console.log('networkConfig:', networkConfig);
+    // Step 1: Cálculo del Gas Price
+    if (OVERRIDE_GAS_PRICE === 'TRUE') {
+      // Si OVERRIDE_GAS_PRICE está activado, obtener el valor del gasPrice de OVERRIDE_GAS_PRICE_VALUE
+      gasPrice = await getEnvVariable('OVERRIDE_GAS_PRICE_VALUE', networkName);
+      networkConfig = {
+        gasPrice, // gasPrice ya está en el formato correcto, no es necesario volver a aplicarlo a BigNumber
+        gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+      };
+    } else {
+      // Si OVERRIDE_GAS_PRICE es false, determinar gasPrice basado en la red
+      const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+      if (networkName === 'ROOTSTOCK') {
+        // Obtener gas price para RSK
+        const gasPriceData = await provider.getGasPrice();
+        gasPrice = Math.round(hre.ethers.BigNumber.from(gasPriceData).toString() * 1.1); // Convertir de hex a decimal y aumentar un 10%
+        networkConfig = {
+          gasPrice, // gasPrice ya está en el formato correcto, no es necesario volver a aplicarlo a BigNumber
+          gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+        };
+      } else if (networkName === 'POLYGON') {
+        // Obtener fee data para Polygon
+        const feeData = await provider.getFeeData();
+        // Pruebo usar fees
+        // gasPrice = Math.round(hre.ethers.BigNumber.from(feeData.gasPrice).toString() * 1.1); // Convertir de hex a decimal y aumentar un 10%
+        // Convertir BigNumber a decimal utilizando .toString() para obtener la representación decimal
+        maxFeePerGas = feeData.maxFeePerGas ? feeData.maxFeePerGas.toString() : null;
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+          ? feeData.maxPriorityFeePerGas.toString()
+          : null;
+
+        // Intentar obtener el valor de gas limit desde las variables de entorno, si existe, sobreescribir el fallback
+        networkConfig = {
+          maxPriorityFeePerGas,
+          maxFeePerGas,
+          gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+        };
+      }
+    }
+
+    console.log(`${functionName} - networkConfig:`, networkConfig);
     return networkConfig;
   } catch (error) {
-    console.error('Error fetching feeData:', error);
+    const errorMessage = `${functionName} - Error fetching gas price or gas limit. Called with networkName=${networkName}, actionName=${actionName}. Error: ${error.message}`;
+    console.error(errorMessage);
 
-    // Return networkConfig with fallback values
-    console.log('Fallback networkConfig:', networkConfigfallback);
-    return networkConfigfallback;
+    // Valores por defecto en caso de error (ya inicializados con valores fallback)
+    const fallbackConfig = {
+      gasPrice: gasPriceFallback,
+      gasLimit: gasLimitActionFallback[actionName], // Usar el gasLimit específico para la acción (fallback)
+    };
+
+    console.log(`${functionName} - Fallback networkConfig:`, fallbackConfig);
+    return fallbackConfig;
   }
 };
 
 // Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const blockchainContract = getDeployedContract(vault);
-  const networkConfig = await getGasPriceAndLimit();
+  const networkName = vault.contractNetwork;
+  const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
   const setTx1 = await blockchainContract.setRescueWalletAddress(
     rescueWalletAccount,
     networkConfig
@@ -966,7 +1068,7 @@ const fetchVaultBalances = async (vault) => {
   console.log('fetchVaultBalances- Vault version vale ' + vault.contractVersion);
 
   // Get the deployed contract.
-  const blockchainContract = getDeployedContract(vault);
+  const blockchainContract = await getDeployedContract(vault);
   const contractBalances = await blockchainContract.getBalances();
   console.log('BALANCES FOR ' + vault.id + ': ' + JSON.stringify(contractBalances));
   let balancesWithCurrencies = [];
@@ -1268,7 +1370,8 @@ exports.withdraw = async function (req, res) {
     const blockchainContract = getDeployedContract(smartContract);
     const decimals = CurrencyDecimals.get(token); // decimales
     const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-    const networkConfig = await getGasPriceAndLimit();
+    const networkName = smartContract.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
     // dry run so if it fails it gives a reason, also transaction is not launch to avoid unnecesart money spending
@@ -1468,8 +1571,8 @@ exports.rescue = async function (req, res) {
     const decimals = CurrencyDecimals.get(token); // decimales
     const ethAmount =
       token === decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-
-    const networkConfig = await getGasPriceAndLimit();
+    const networkName = smartContract.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
     // Dry run it helps gettint the error reason and fails without spending money
@@ -2675,7 +2778,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       'swapVaultExactInputs - Final total gas estimation for all swaps:',
       swapsGasEstimation.toString()
     );
-    const networkConfig = await getGasPriceAndLimit(swapsGasEstimation);
+    const networkName = vault.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'SWAP');
     console.log('swapVaultExactInputs - swapsParams', JSON.stringify(swapsParams));
     console.log('swapVaultExactInputs - networkConfig', JSON.stringify(networkConfig));
 
@@ -2867,21 +2971,62 @@ exports.createVaultAdmin = async (req, res) => {
       throw new CustomError.TechnicalError(
         'createVaultAdmin - ERROR_INVALID_ARGS',
         null,
-        'createVaultAdmin - Invalida args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalid args creating ProxyAdmin contract',
         null
       );
     }
-    console.log(`createVaultAdmin - Pedido creacion ProxyAdmin con owner ${owner}`);
+
+    console.log(`createVaultAdmin - Requested creation of ProxyAdmin with owner ${owner}`);
 
     const contractName = 'ColateralProxyAdmin';
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+    const ownerAddress = owner.toLowerCase(); // Convertir a minúsculas para compatibilidad
+
+    // Deploy in Polygon
+    const polygonConfig = await getGasPriceAndLimit('POLYGON', 'CREATE');
+    const polygonDeployment = await deployProxyAdminInNetwork(
+      contractName,
+      ownerAddress,
+      'POLYGON',
+      polygonConfig
+    );
+
+    // Deploy in Rootstock
+    const rootstockConfig = await getGasPriceAndLimit('ROOTSTOCK', 'CREATE');
+    const rootstockDeployment = await deployProxyAdminInNetwork(
+      contractName,
+      ownerAddress,
+      'ROOTSTOCK',
+      rootstockConfig
+    );
+
+    // Combine the deployments into a single response
+    const proxyAdminDeploymentResult = {
+      polygon: polygonDeployment,
+      rootstock: rootstockDeployment,
+    };
+
+    return res.status(201).send(proxyAdminDeploymentResult);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+// Helper function to deploy a contract in a specific network
+async function deployProxyAdminInNetwork(contractName, owner, network, networkConfig) {
+  try {
+    console.log(
+      `createVaultAdmin - Starting deployment of contract ${contractName} on ${network} for owner ${owner}`
+    );
+
     const { deploymentResponse, contractDeployment } = await deployContract(
       contractName,
-      owner.toLowerCase()
+      owner,
+      network,
+      networkConfig
     );
 
     await deploymentResponse.deployed();
-    console.log('Deployment success');
+    console.log(`createVaultAdmin - ${network} deployment success`);
 
     const contractAddress = contractDeployment.address;
 
@@ -2889,23 +3034,26 @@ exports.createVaultAdmin = async (req, res) => {
       throw new CustomError.TechnicalError(
         'ERROR_CREATE_CONTRACT',
         null,
-        'Empty contract address response',
+        `Empty contract address response for ${network}`,
         null
       );
     }
 
-    const proxyAdmin = {
+    return {
       proxyAdminAddress: contractAddress.toLowerCase(),
-      owner: owner.toLowerCase(),
+      owner,
       contractDeployment,
     };
-
-    console.log(`ProxyAdmin ${contractAddress} creado con exito con owner ${owner}`);
-    return res.status(201).send(proxyAdmin);
   } catch (err) {
-    return ErrorHelper.handleError(req, res, err);
+    console.error(`createVaultAdmin - Error during ${network} deployment:`, err);
+    throw new CustomError.TechnicalError(
+      `createVaultAdmin - ERROR_DEPLOY_${network}`,
+      err,
+      `Error deploying on ${network}`,
+      null
+    );
   }
-};
+}
 
 // Se desestima. MUMBAI para crear SAFE asociada a un lender
 exports.createSafeAccount = async (req, res) => {

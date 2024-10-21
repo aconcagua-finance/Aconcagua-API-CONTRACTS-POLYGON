@@ -21,6 +21,7 @@ export const FIREB_MESSAGING_SENDER_ID = Config.getEnvConfig('FIREB_MESSAGING_SE
 export const FIREB_MEASURAMENT_ID = Config.getEnvConfig('FIREB_MEASURAMENT_ID');
 export const FIREB_APP_ID = Config.getEnvConfig('FIREBASE_APP_ID');
 
+export const CONFIG_NETWORK_COLLECTION = Config.getEnvConfig('CONFIG_NETWORK_COLLECTION');
 export const DEPLOYER_PRIVATE_KEY = Config.getEnvConfig('DEPLOYER_PRIVATE_KEY');
 export const SWAPPER_PRIVATE_KEY = Config.getEnvConfig('SWAPPER_PRIVATE_KEY');
 export const HARDHAT_API_URL = Config.getEnvConfig('HARDHAT_API_URL');
