@@ -986,8 +986,9 @@ const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
     if (gasLimitEnv) {
       gasLimit = parseInt(gasLimitEnv, 10); // Sobrescribir el fallback con el valor encontrado
     } else {
-      console.error(functionName, ' - Error getting price limit from database:', error);
-      throw error;
+      const errorMessage = `${functionName} - Error getting price limit from database. Called with networkName=${networkName}`;
+      console.error(functionName, errorMessage);
+      throw new Error(errorMessage);
     }
 
     // Obtener el valor de OVERRIDE_GAS_PRICE para saber si hay que usar el valor por override
@@ -1017,8 +1018,6 @@ const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
         // Obtener fee data para Polygon
         const feeData = await provider.getFeeData();
         // Pruebo usar fees
-        // gasPrice = Math.round(hre.ethers.BigNumber.from(feeData.gasPrice).toString() * 1.1); // Convertir de hex a decimal y aumentar un 10%
-        // Convertir BigNumber a decimal utilizando .toString() para obtener la representación decimal
         maxFeePerGas = feeData.maxFeePerGas ? feeData.maxFeePerGas.toString() : null;
         maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
           ? feeData.maxPriorityFeePerGas.toString()
