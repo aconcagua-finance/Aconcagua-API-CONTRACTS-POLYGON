@@ -602,15 +602,16 @@ exports.create = async function (req, res) {
 
     // Verificar si hay un vaultAdmin específico para la red
     if (networkName.toLowerCase() === 'polygon') {
-      vaultAdminAddress = lender.vaultAdminAddressPolygon;
+      vaultAdminAddress = lender.vaultAdminAddressPolygon; // Dirección de Vault Admin para Polygon
     } else if (networkName.toLowerCase() === 'rootstock') {
-      vaultAdminAddress = lender.vaultAdminAddressRootstock;
+      vaultAdminAddress = lender.vaultAdminAddressRootstock; // Dirección de Vault Admin para Rootstock
     }
 
-    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior
+    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior (versión anterior)
     if (!vaultAdminAddress && lender.vaultAdminAddress) {
       vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
     }
+
     console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
 
     // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
@@ -2965,40 +2966,52 @@ exports.evaluate = async function (req, res) {
 
 exports.createVaultAdmin = async (req, res) => {
   try {
-    const { owner } = req.params;
-    if (!owner || typeof owner !== 'string' || owner.length !== 42) {
+    const { safeLiq1, safeLiq3 } = req.body;
+
+    // Validar owners de Polygon y Rootstock
+    if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
       throw new CustomError.TechnicalError(
-        'createVaultAdmin - ERROR_INVALID_ARGS',
+        'createVaultAdmin - ERROR_INVALID_ARGS_POLYGON',
         null,
-        'createVaultAdmin - Invalid args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalid Polygon owner address',
         null
       );
     }
 
-    console.log(`createVaultAdmin - Requested creation of ProxyAdmin with owner ${owner}`);
+    if (!safeLiq3 || typeof safeLiq3 !== 'string' || safeLiq3.length !== 42) {
+      throw new CustomError.TechnicalError(
+        'createVaultAdmin - ERROR_INVALID_ARGS_ROOTSTOCK',
+        null,
+        'createVaultAdmin - Invalid Rootstock owner address',
+        null
+      );
+    }
+
+    console.log(
+      `createVaultAdmin - Requested creation of ProxyAdmin with owners: Polygon (${safeLiq1}), Rootstock (${safeLiq3})`
+    );
 
     const contractName = 'ColateralProxyAdmin';
-    const ownerAddress = owner.toLowerCase(); // Convertir a minúsculas para compatibilidad
 
-    // Deploy in Polygon
+    // Deploy en Polygon con el owner de Polygon
     const polygonConfig = await getGasPriceAndLimit('POLYGON', 'CREATE');
     const polygonDeployment = await deployProxyAdminInNetwork(
       contractName,
-      ownerAddress,
+      safeLiq1.toLowerCase(), // Owner de Polygon
       'POLYGON',
       polygonConfig
     );
 
-    // Deploy in Rootstock
+    // Deploy en Rootstock con el owner de Rootstock
     const rootstockConfig = await getGasPriceAndLimit('ROOTSTOCK', 'CREATE');
     const rootstockDeployment = await deployProxyAdminInNetwork(
       contractName,
-      ownerAddress,
+      safeLiq3.toLowerCase(), // Owner de Rootstock
       'ROOTSTOCK',
       rootstockConfig
     );
 
-    // Combine the deployments into a single response
+    // Combinar los deployments en una sola respuesta
     const proxyAdminDeploymentResult = {
       polygon: polygonDeployment,
       rootstock: rootstockDeployment,
