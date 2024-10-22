@@ -631,25 +631,19 @@ exports.create = async function (req, res) {
     switch (networkName) {
       case networkTypes.NETWORK_TYPE_POLYGON:
         console.log('Create - Defino las variables de polygon network');
-        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
-        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
         safeA = lender.safeLiq1.toLowerCase();
         safeB = lender.safeLiq2.toLowerCase();
         break;
 
       case networkTypes.NETWORK_TYPE_ROOTSTOCK:
-        console.log('Defino las variables de rootstock network');
-        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_RSK;
-        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_RSK;
+        console.log('Create - Defino las variables de rootstock network');
         safeA = lender.safeLiq3.toLowerCase();
         safeB = lender.safeLiq4.toLowerCase();
         break;
 
       default:
         // Default to Polygon if network name is not provided
-        console.log('Defino las variables de default network');
-        DEPLOYER_PRIVATE_KEY = DEPLOYER_PRIVATE_KEY_POLYGON;
-        SWAPPER_PRIVATE_KEY = SWAPPER_PRIVATE_KEY_POLYGON;
+        console.log('Create - No Defino las variables no identifiqué red');
         break;
     }
 
