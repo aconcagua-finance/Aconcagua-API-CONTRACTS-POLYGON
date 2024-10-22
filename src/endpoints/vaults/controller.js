@@ -8,6 +8,7 @@ import { Pool, FeeAmount } from '@uniswap/v3-sdk';
 import { move } from 'fs-extra';
 import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
 
+
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
 
@@ -96,9 +97,7 @@ const {
 } = require('../baseEndpoint');
 
 const {
-  // Common variables
   SYS_ADMIN_EMAIL,
-  // Default variables
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   PROVIDER_NETWORK_NAME,
@@ -2263,7 +2262,6 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       });
       return;
     }
-
     console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada ' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
