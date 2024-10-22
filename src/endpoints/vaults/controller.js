@@ -8,6 +8,7 @@ import { Pool, FeeAmount } from '@uniswap/v3-sdk';
 import { move } from 'fs-extra';
 import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
 
+
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
 
@@ -96,9 +97,7 @@ const {
 } = require('../baseEndpoint');
 
 const {
-  // Common variables
   SYS_ADMIN_EMAIL,
-  // Default variables
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   PROVIDER_NETWORK_NAME,
@@ -2262,7 +2261,6 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       });
       return;
     }
-
     console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada ' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
@@ -2965,40 +2963,52 @@ exports.evaluate = async function (req, res) {
 
 exports.createVaultAdmin = async (req, res) => {
   try {
-    const { owner } = req.params;
-    if (!owner || typeof owner !== 'string' || owner.length !== 42) {
+    const { safeLiq1, safeLiq3 } = req.body;
+
+    // Validar owners de Polygon y Rootstock
+    if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
       throw new CustomError.TechnicalError(
-        'createVaultAdmin - ERROR_INVALID_ARGS',
+        'createVaultAdmin - ERROR_INVALID_ARGS_POLYGON',
         null,
-        'createVaultAdmin - Invalid args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalid Polygon owner address',
         null
       );
     }
 
-    console.log(`createVaultAdmin - Requested creation of ProxyAdmin with owner ${owner}`);
+    if (!safeLiq3 || typeof safeLiq3 !== 'string' || safeLiq3.length !== 42) {
+      throw new CustomError.TechnicalError(
+        'createVaultAdmin - ERROR_INVALID_ARGS_ROOTSTOCK',
+        null,
+        'createVaultAdmin - Invalid Rootstock owner address',
+        null
+      );
+    }
+
+    console.log(
+      `createVaultAdmin - Requested creation of ProxyAdmin with owners: Polygon (${safeLiq1}), Rootstock (${safeLiq3})`
+    );
 
     const contractName = 'ColateralProxyAdmin';
-    const ownerAddress = owner.toLowerCase(); // Convertir a minúsculas para compatibilidad
 
-    // Deploy in Polygon
+    // Deploy en Polygon con el owner de Polygon
     const polygonConfig = await getGasPriceAndLimit('POLYGON', 'CREATE');
     const polygonDeployment = await deployProxyAdminInNetwork(
       contractName,
-      ownerAddress,
+      safeLiq1.toLowerCase(), // Owner de Polygon
       'POLYGON',
       polygonConfig
     );
 
-    // Deploy in Rootstock
+    // Deploy en Rootstock con el owner de Rootstock
     const rootstockConfig = await getGasPriceAndLimit('ROOTSTOCK', 'CREATE');
     const rootstockDeployment = await deployProxyAdminInNetwork(
       contractName,
-      ownerAddress,
+      safeLiq3.toLowerCase(), // Owner de Rootstock
       'ROOTSTOCK',
       rootstockConfig
     );
 
-    // Combine the deployments into a single response
+    // Combinar los deployments en una sola respuesta
     const proxyAdminDeploymentResult = {
       polygon: polygonDeployment,
       rootstock: rootstockDeployment,
