@@ -937,6 +937,7 @@ exports.create = async function (req, res) {
 };
 
 const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
+  console.log(' getGasPriceAndLimit - networkName - ', networkName, ' actionName - ', actionName);
   const functionName = 'getGasPriceAndLimit'; // Nombre de la función para los mensajes de error
   const gasPriceFallback = 50000000000; // Fallback gas price (en wei)
 
@@ -2964,12 +2965,7 @@ exports.evaluate = async function (req, res) {
 exports.createVaultAdmin = async (req, res) => {
   try {
     const { safeLiq1, safeLiq3 } = req.body;
-    console.log(
-      ' Comienzo createVaultAdmin req ',
-      JSON.stringify(req),
-      ' res ',
-      JSON.stringify(res)
-    );
+    console.log(' Comienzo createVaultAdmin req ', JSON.stringify(req));
 
     // Validar owners de Polygon y Rootstock
     if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
