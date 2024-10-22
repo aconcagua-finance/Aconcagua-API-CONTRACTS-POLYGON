@@ -47,6 +47,7 @@
   },
   "main": "dist/index.js",
   "dependencies": {
+    "@chainlink/contracts": "^1.2.0",
     "@ethersproject/providers": "^5.7.2",
     "@google-cloud/datastore": "^6.6.2",
     "@google-cloud/logging": "^9.2.3",
