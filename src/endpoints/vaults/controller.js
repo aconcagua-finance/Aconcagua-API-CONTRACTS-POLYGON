@@ -8,7 +8,6 @@ import { Pool, FeeAmount } from '@uniswap/v3-sdk';
 import { move } from 'fs-extra';
 import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
 
-
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
 
@@ -2965,6 +2964,12 @@ exports.evaluate = async function (req, res) {
 exports.createVaultAdmin = async (req, res) => {
   try {
     const { safeLiq1, safeLiq3 } = req.body;
+    console.log(
+      ' Comienzo createVaultAdmin req ',
+      JSON.stringify(req),
+      ' res ',
+      JSON.stringify(res)
+    );
 
     // Validar owners de Polygon y Rootstock
     if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
