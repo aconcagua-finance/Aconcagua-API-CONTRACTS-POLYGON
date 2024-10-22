@@ -601,15 +601,16 @@ exports.create = async function (req, res) {
 
     // Verificar si hay un vaultAdmin específico para la red
     if (networkName.toLowerCase() === 'polygon') {
-      vaultAdminAddress = lender.vaultAdminAddressPolygon;
+      vaultAdminAddress = lender.vaultAdminAddressPolygon; // Dirección de Vault Admin para Polygon
     } else if (networkName.toLowerCase() === 'rootstock') {
-      vaultAdminAddress = lender.vaultAdminAddressRootstock;
+      vaultAdminAddress = lender.vaultAdminAddressRootstock; // Dirección de Vault Admin para Rootstock
     }
 
-    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior
+    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior (versión anterior)
     if (!vaultAdminAddress && lender.vaultAdminAddress) {
       vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
     }
+
     console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
 
     // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
