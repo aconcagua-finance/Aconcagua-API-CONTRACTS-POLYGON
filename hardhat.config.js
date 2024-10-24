@@ -2,13 +2,8 @@ const { readFileSync, existsSync } = require('fs');
 const { parse } = require('dotenv');
 
 require('@nomiclabs/hardhat-waffle');
-require('@nomiclabs/hardhat-etherscan'); // TODO PROBAR SI ERA POR ESTO QUE ROMPIA
+require('@nomiclabs/hardhat-etherscan');
 require('dotenv').config();
-
-/*
-import { config as dotEnvConfig } from 'dotenv'
-dotEnvConfig()
-*/
 
 const getEnvConfig = (key) => {
   return process.env[key];
@@ -16,8 +11,6 @@ const getEnvConfig = (key) => {
 
 const loadDotEnvSync = () => {
   const FILE_NAME_ENV = '.env';
-
-  // const envFilePath = resolve(resolveStagePath(options), FILE_NAME_ENV)
   const envFilePath = FILE_NAME_ENV;
 
   if (!existsSync(envFilePath)) return {};
@@ -55,21 +48,9 @@ if (!ENVIRONMENT) {
 }
 
 if (ENVIRONMENT === 'local') {
-  // This is a sample Hardhat task. To learn how to create your own go to
-  // https://hardhat.org/guides/create-task.html
-  // task('accounts', 'Prints the list of accounts', async (taskArgs, hre) => {
-  //   const accounts = await hre.ethers.getSigners();
-  //   for (const account of accounts) {
-  //     console.log(account.address);
-  //   }
-  // });
+  // Local tasks or configuration for the local environment
 }
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
 
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
 const namedAccounts = require('./hardhat.accounts');
 
 module.exports = {
@@ -80,7 +61,7 @@ module.exports = {
       runs: 400,
     },
   },
-  defaultNetwork: HARDHAT_NETWORK_NAME, // muy importante para que tome la red esta
+  defaultNetwork: HARDHAT_NETWORK_NAME, // Set default network based on ENV variable
   networks: {
     [HARDHAT_NETWORK_NAME]: {
       url: HARDHAT_API_URL || '',
@@ -88,33 +69,44 @@ module.exports = {
       gasMultiplier: 1,
     },
     localhost: {
-      // Optional: Add custom configurations here
       url: 'http://127.0.0.1:8545',
-      blockGasLimit: 12000000, // Increase block gas limit if needed
-      gas: 'auto', // Automatically estimate gas
+      blockGasLimit: 12000000,
+      gas: 'auto',
       gasPrice: 'auto',
       gasMultiplier: 1,
-      allowUnlimitedContractSize: true, // Useful if deploying large contracts
-      chainId: 31337, // Hardhat's default chain ID
+      allowUnlimitedContractSize: true,
+      chainId: 31337,
+    },
+    polygon: {
+      url: 'https://polygon-rpc.com', // Mainnet URL
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
+      gasMultiplier: 1.1,
+      chainId: 137,
+    },
+    polygonMumbai: {
+      url: 'https://rpc-mumbai.maticvigil.com', // Mumbai Testnet URL
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
+      gasMultiplier: 1.1,
+      chainId: 80001,
+    },
+    sepolia: {
+      url: 'https://rpc.sepolia.org', // Sepolia Testnet URL
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
+      gasMultiplier: 1.2,
+      chainId: 11155111,
     },
     rsktest: {
-      // Optional: Add custom configurations here
       url: 'https://public-node.testnet.rsk.co',
-      blockGasLimit: 12000000, // Increase block gas limit if needed
-      gas: 'auto', // Automatically estimate gas
-      gasPrice: 'auto',
+      accounts: DEPLOYER_PRIVATE_KEY ? [DEPLOYER_PRIVATE_KEY] : [],
       gasMultiplier: 1,
-      allowUnlimitedContractSize: true, // Useful if deploying large contracts
-      chainId: 31, // Hardhat's default chain ID
+      chainId: 31,
     },
   },
   namedAccounts,
   etherscan: {
     apiKey: {
-      // ethereum
       mainnet: ETHERSCAN_API_KEY,
       sepolia: '8RZVT4TC2ZCEM8TMKVBQ4CYCNGIKWWTZMK',
-      // polygon
       polygon: POLYGONSCAN_API_KEY,
       polygonMumbai: POLYGONSCAN_API_KEY,
       rsktest: '7Cv0hCwRbuBFWMD2iixK9i6nPXoX8T-T',
@@ -124,8 +116,8 @@ module.exports = {
         network: 'rsktest',
         chainId: 31,
         urls: {
-          apiURL: 'https://rpc.testnet.rootstock.io/7Cv0hCwRbuBFWMD2iixK9i6nPXoX8T-T/',
-          browserURL: 'https://rpc.testnet.rootstock.io/7Cv0hCwRbuBFWMD2iixK9i6nPXoX8T-T/',
+          apiURL: 'https://blockscout.com/rsktestnet/api',
+          browserURL: 'https://blockscout.com/rsktestnet',
         },
       },
     ],
