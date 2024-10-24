@@ -1,8 +1,12 @@
 module.exports = {
+  globals: {
+    BigInt: 'readonly',
+  },
   root: true,
   env: {
     es6: true,
     node: true,
+    jest: true,
   },
   extends: [
     'eslint:recommended',

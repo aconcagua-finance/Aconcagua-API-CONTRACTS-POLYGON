@@ -16,6 +16,7 @@ const {
   cronFetchVaultsBalances,
   onVaultUpdate,
   onVaultCreate,
+  sendEmailBalance,
 } = require('./endpoints/vaults/controller');
 
 console.log('NODE_ENV:', process.env.NODE_ENV, 'ENVIRONMENT:', process.env.ENVIRONMENT);
@@ -60,13 +61,14 @@ vaultsRoutesConfig(vaultsApp);
 exports.vaultsPolygon = functions
   .runWith({
     memory: '2GB',
-    timeoutSeconds: 120,
+    timeoutSeconds: 540,
     // Keep 5 instances warm for this latency-critical function
     // in production only. Default to 0 for test projects.
     // minInstances: envProjectId === "my-production-project" ? 5 : 0,
   })
   .https.onRequest(vaultsApp);
 
+exports.sendEmailBalance = sendEmailBalance;
 exports.cronFetchVaultsBalances = cronFetchVaultsBalances;
 exports.onVaultUpdate = onVaultUpdate;
 exports.onVaultCreate = onVaultCreate;

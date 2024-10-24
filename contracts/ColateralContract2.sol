@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: MIT
+
+// Public Libraries
 import '@openzeppelin/contracts/utils/Strings.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import '@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol';
-import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
 import {Commands} from '@uniswap/universal-router/contracts/libraries/Commands.sol';
 import '@uniswap/universal-router/contracts/interfaces/IUniversalRouter.sol';
 
+// Private Libraries
 import './IColateralContract2.sol';
 import './IWETH.sol';
+import './IValidatorContract.sol';
+
 
 pragma solidity 0.8.18;
 
@@ -46,28 +50,16 @@ contract ColateralContract2 is
   string[3] public contractKeys;
   mapping(string => address) public contractAddresses;
 
-
-  ISwapRouter internal swapRouter;
-  IQuoter internal quoter; 
+  IValidatorContract internal validator;
 
   // Custom Errors
-  error AdminAddressInvalid();
+
   error RescueAddressInvalid();
   error WithdrawAddressInvalid();
-  error FirstLenderLiqAddressInvalid();
-  error SecondLenderLiqAddressInvalid();
-  error TokenNameAndAddressLengthMismatch();
-  error TokenInError();
-  error RecipientError();
-  error TokenOutError();
-  error AmountInError();
   error AmountOutMinimumTooLow();
 
-  constructor() {
-    _disableInitializers();
-  }
-
   function initialize(
+    address _validator,
     string[5] calldata _tokenNames,
     address[5] calldata _tokenAddresses,
     address[3] calldata _aconcagua,
@@ -75,31 +67,24 @@ contract ColateralContract2 is
     address _withdrawWalletAddress,
     address _firstLenderLiq,
     address _secondLenderLiq,
-    string[3] calldata _contractKeys,
-    address[3] calldata _contractAddresses
+    string[2] calldata _contractKeys,
+    address[2] calldata _contractAddresses
   ) external initializer {
-    if (_aconcagua[0] == address(0) && _aconcagua[1] == address(0) && _aconcagua[2] == address(0)) {
-      revert AdminAddressInvalid();
-    }
-    if (_rescueWalletAddress == address(0)) {
-      revert RescueAddressInvalid();
-    }
-    if (_withdrawWalletAddress == address(0)) {
-      revert WithdrawAddressInvalid();
-    }
-    if (_firstLenderLiq == address(0)) {
-      revert FirstLenderLiqAddressInvalid();
-    }
-    if (_secondLenderLiq == address(0)) {
-      revert SecondLenderLiqAddressInvalid();
-    }
+    validator = IValidatorContract(_validator);
+    validator.initializeChecks(
+      _tokenNames,
+      _tokenAddresses,
+      _aconcagua,
+      _rescueWalletAddress,
+      _withdrawWalletAddress,
+      _firstLenderLiq,
+      _secondLenderLiq,
+      _contractKeys,
+      _contractAddresses
+    );
 
     __AccessControl_init_unchained();
     __ReentrancyGuard_init_unchained();
-
-    if (_tokenNames.length != _tokenAddresses.length) {
-      revert TokenNameAndAddressLengthMismatch();
-    }
 
 
     for (uint i = 0; i < _tokenNames.length; i++) {
@@ -116,14 +101,8 @@ contract ColateralContract2 is
       contractAddresses[contractKeys[i]] = _contractAddresses[i];
     }
 
-    swapRouter = ISwapRouter(contractAddresses['router']);
-    quoter = IQuoter(contractAddresses['quoter']); 
-
-    // Add roles to the set of Roles for later tracking
-    _rolesSet.add(ACONCAGUA_ROLE);
-    _rolesSet.add(LENDER_LIQ_ROLE);
-    _rolesSet.add(RESCUER_ROLE);
-    _rolesSet.add(SWAPPER_ROLE);
+    // Set Price Consumer
+    
 
     _grantRole(ACONCAGUA_ROLE, _aconcagua[0]);
     _grantRole(ACONCAGUA_ROLE, _aconcagua[1]);
@@ -149,7 +128,7 @@ contract ColateralContract2 is
       _withdrawWalletAddress,
       _firstLenderLiq,
       _secondLenderLiq,
-      contractKeys,
+      _contractKeys,
       _contractAddresses
     );
   }
@@ -178,52 +157,20 @@ contract ColateralContract2 is
 
   function swapExactInputs(
     SwapParams[] calldata swapsParams
-  ) external override onlyRole(SWAPPER_ROLE) {
-    // Define the allowed tokens
-    address WETH = tokenTable['WETH'];
-    address WBTC = tokenTable['WBTC'];
-    address USDC = tokenTable['USDC'];
-    address USDT = tokenTable['USDT'];
+  ) external override onlyRole(SWAPPER_ROLE) nonReentrant {
 
     for (uint256 i = 0; i < swapsParams.length; i++) {
       SwapParams calldata swapParams = swapsParams[i];
 
-      // Input validations
-      if (swapParams.params.recipient != address(this)) {
-        revert RecipientError();
-      }
-
-      if (swapParams.tokenOut != USDC && swapParams.tokenOut != USDT) {
-        revert TokenOutError();
-      }
-
-      // Check if tokenIn is either WETH or WBTC
-      if (swapParams.tokenIn != WETH && swapParams.tokenIn != WBTC) {
-        revert TokenInError();
-      }
-
-      // Get the quote for the swap
-
-      uint256 quotedAmountOut;
-      try quoter.quoteExactInput(swapParams.params.path, swapParams.params.amountIn) returns (uint256 amountOut) {
-            quotedAmountOut = amountOut;
-            emit Quote(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, quotedAmountOut);
-        } catch Error(string memory errorMsg) {
-            emit QuoteError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, errorMsg);
-        }
-      
-      // Check if amountOutMinimum is more than zero and at least 98% of quotedAmountOut
-      if (swapParams.params.amountOutMinimum <= 0 || swapParams.params.amountOutMinimum < (quotedAmountOut * 98) / 100) {
-        revert AmountOutMinimumTooLow();
-      }
-
-      // Get token
-      IERC20 token = IERC20(swapParams.tokenIn);
-      if (swapParams.params.amountIn <= 0 || swapParams.params.amountIn > token.balanceOf(address(this))) {
-        revert AmountInError();
-      }
+      // Emitir evento de inicio
+      emit SwapStarted(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn);
+        
+      // Validaciones por validoador
+      validator.swapExactInputsChecks(address(this), swapParams);
 
       uint256 originalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+      uint256 resultAmount;
+      IERC20 token = IERC20(swapParams.tokenIn);
       // Send tokens to universal router
       SafeERC20.safeTransfer(token, contractAddresses['router'], swapParams.params.amountIn);
       // Execute swap with universalRouter
@@ -232,21 +179,17 @@ contract ColateralContract2 is
       // https://docs.uniswap.org/contracts/universal-router/technical-reference#v3_swap_exact_in
       inputs[0] = abi.encode(swapParams.params.recipient, swapParams.params.amountIn, swapParams.params.amountOutMinimum, swapParams.params.path, false);
       try IUniversalRouter(contractAddresses['router']).execute(commands, inputs, swapParams.params.deadline) {
-        uint256 resultAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
-        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount - originalAmount);
+        uint256 finalAmount = IERC20(swapParams.tokenOut).balanceOf(address(this));
+        resultAmount = finalAmount - originalAmount; // El monto real del swap
+        if ( resultAmount < swapParams.params.amountOutMinimum) {
+            emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, swapParams.params.amountOutMinimum, resultAmount, "AmountOutMinimumTooLow");
+            revert AmountOutMinimumTooLow();
+        }
+        emit Swap(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, resultAmount);
       } catch Error(string memory errorMsg) {
-        emit SwapError(swapParams.tokenIn, errorMsg);
+        emit SwapError(swapParams.tokenIn, swapParams.tokenOut, swapParams.params.amountIn, swapParams.params.amountOutMinimum, resultAmount, errorMsg);
       }
     }
-  }
-
-  function tokenTableContains(address token) internal view returns (bool) {
-    for (uint i = 0; i < tokenNames.length; i++) {
-      if (tokenTable[tokenNames[i]] == token) {
-        return true;
-      }
-    }
-    return false;
   }
 
   function withdraw(
@@ -280,14 +223,6 @@ contract ColateralContract2 is
     // transfers Tokens that belong to your contract to the sender address
     SafeERC20.safeTransfer(IERC20(tokenTable[_tokenSymbol]), rescueWalletAddress, _amount);
     emit Rescue(_msgSender(), _tokenSymbol, _amount, rescueWalletAddress);
-  }
-
-  function getRoleCount() external view virtual override returns (uint256) {
-    return _rolesSet.length();
-  }
-
-  function getRoleByIndex(uint index) external view virtual override returns (bytes32) {
-    return _rolesSet.at(index);
   }
 
   function getTokenNames() external view returns (string[5] memory) {

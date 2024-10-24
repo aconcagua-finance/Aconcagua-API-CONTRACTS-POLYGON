@@ -141,15 +141,13 @@ exports.vaultsRoutesConfig = function (app) {
   ]);
 
   // deploy de ProxyAdmin para ser asociado a una companía en creación
-  app.get('/vaultAdmin/:owner', [
+  app.post('/vaultAdmin', [
     Audit.logger,
-
     Auth.isAuthenticated,
     Auth.isAuthorized({
       hasAppRole: [Types.AppRols.APP_ADMIN],
     }),
-
-    createVaultAdmin,
+    createVaultAdmin, // función que recibe safeLiq1 (owner de Polygon) y safeLiq3 (owner de Rootstock)
   ]);
 
   app.post('/:companyId/:userId/:id/withdraw', [

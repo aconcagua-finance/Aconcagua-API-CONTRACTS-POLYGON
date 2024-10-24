@@ -1,0 +1,1259 @@
+From 51ba3365f5f5f6340df3ecd95258f88194db3cc8 Mon Sep 17 00:00:00 2001
+From: Julian Zamt <julian.zamt@coinfabrik.com>
+Date: Thu, 27 Jun 2024 11:54:27 -0300
+Subject: [PATCH 1/2] add contracts tests
+
+---
+ .eslintrc.js                            |   4 +
+ contracts/index.test.ts                 | 355 ++++++++++++++++++++++++
+ contracts/mocks/QuoterMock.sol          |  45 +++
+ contracts/mocks/TokenMock.sol           |  22 ++
+ contracts/mocks/UniversalRouterMock.sol |  26 ++
+ tsconfig.json                           |   2 +-
+ 6 files changed, 453 insertions(+), 1 deletion(-)
+ create mode 100644 contracts/index.test.ts
+ create mode 100644 contracts/mocks/QuoterMock.sol
+ create mode 100644 contracts/mocks/TokenMock.sol
+ create mode 100644 contracts/mocks/UniversalRouterMock.sol
+
+diff --git a/.eslintrc.js b/.eslintrc.js
+index a6d9609..9e36b08 100644
+--- a/.eslintrc.js
++++ b/.eslintrc.js
+@@ -1,8 +1,12 @@
+ module.exports = {
++  globals: {
++    BigInt: 'readonly',
++  },
+   root: true,
+   env: {
+     es6: true,
+     node: true,
++    jest: true,
+   },
+   extends: [
+     'eslint:recommended',
+diff --git a/contracts/index.test.ts b/contracts/index.test.ts
+new file mode 100644
+index 0000000..e2a896d
+--- /dev/null
++++ b/contracts/index.test.ts
+@@ -0,0 +1,355 @@
++const { ethers, upgrades } = require('hardhat');
++const colateralJson = require('../artifacts/contracts/ColateralContract2.sol/ColateralContract2.json');
++
++const WETH = 'WETH';
++const WBTC = 'WBTC';
++const USDC = 'USDC';
++const USDT = 'USDT';
++const TOK4 = 'TOK4';
++const ROUTER = 'router';
++const QUOTER = 'quoter';
++const SWAPPER = 'swapper';
++const ACONCAGUA_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('ACONCAGUA'));
++const LENDER_LIQ_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('LENDER_LIQ'));
++const RESCUER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('RESCUER'));
++const V3_SWAP_EXACT_IN_COMMAND = '0x00';
++
++describe('ColateralContract2 tests (Via Proxy)', function () {
++  const tokenNames = [WETH, WBTC, USDC, USDT, TOK4];
++  let weth; let wbtc; let usdc; let usdt; let token4;
++  let tokenAddresses;
++  let aconcagua;
++  let aconcagua0; let aconcagua1; let aconcagua2;
++  let rescueWallet;
++  let withdrawWallet;
++  let firstLenderLiq;
++  let secondLenderLiq;
++  const contractKeys = [ROUTER, QUOTER, SWAPPER];
++  let contractAddresses;
++  let router; let quoter; let swapper;
++  let colateral2;
++  let colateralProxy;
++  let proxyWithAbi;
++  let deployer;
++  let proxyTxSigner;
++  let tokenIn;
++  let tokenOut;
++  let pathBytes;
++  let params;
++  let defaultSwapParams;
++  let colateral2Iface;
++  let ColateralContract2;
++  let ColateralProxy;
++
++  beforeAll(async function () {
++    // Deploy Mocks
++    const QuoterMock = await ethers.getContractFactory('QuoterMock');
++
++    quoter = await QuoterMock.deploy();
++    await quoter.deployed();
++
++    const RouterMock = await ethers.getContractFactory('UniversalRouterMock');
++
++    router = await RouterMock.deploy();
++    await router.deployed();
++
++    const TokenMock = await ethers.getContractFactory('TokenMock');
++
++    weth = await TokenMock.deploy();
++    await weth.deployed();
++
++    wbtc = await TokenMock.deploy();
++    await wbtc.deployed();
++
++    usdc = await TokenMock.deploy();
++    await usdc.deployed();
++
++    usdt = await TokenMock.deploy();
++    await usdt.deployed();
++  });
++
++  beforeEach(async function () {
++    [
++      deployer,
++      proxyTxSigner,
++      token4,
++      aconcagua0,
++      aconcagua1,
++      aconcagua2,
++      rescueWallet,
++      withdrawWallet,
++      firstLenderLiq,
++      secondLenderLiq,
++      swapper,
++    ] = await ethers.getSigners();
++
++    tokenAddresses = [weth.address, wbtc.address, usdc.address, usdt.address, token4.address];
++
++    aconcagua = [aconcagua0.address, aconcagua1.address, aconcagua2.address];
++
++    contractAddresses = [router.address, quoter.address, swapper.address];
++
++    // Deploy the contract before each test
++    ColateralContract2 = await ethers.getContractFactory('ColateralContract2');
++
++    colateral2 = await ColateralContract2.deploy();
++    await colateral2.deployed();
++
++    ColateralProxy = await ethers.getContractFactory('ColateralProxy');
++
++    colateral2Iface = new ethers.utils.Interface(colateralJson.abi);
++
++    const initData = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
++
++    colateralProxy = await ColateralProxy.deploy(colateral2.address, deployer.address, initData);
++
++    proxyWithAbi = new ethers.Contract(colateralProxy.address, colateralJson.abi, proxyTxSigner);
++
++    // Default swap params
++    tokenIn = weth.address;
++    tokenOut = usdc.address;
++
++    pathBytes = ethers.utils.solidityPack(['address', 'address'], [tokenIn, tokenOut]);
++
++    params = {
++      path: pathBytes,
++      recipient: colateralProxy.address,
++      deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 3),
++      amountIn: 1,
++      amountOutMinimum: 1,
++    };
++
++    defaultSwapParams = {
++      params,
++      tokenIn,
++      tokenOut,
++    };
++  });
++
++  // ************ TESTS *************
++  it('Initialize happy path check', async function () {
++    expect(await proxyWithAbi.tokenNames(0)).toEqual(WETH);
++    expect(await proxyWithAbi.tokenNames(1)).toEqual(WBTC);
++    expect(await proxyWithAbi.tokenNames(2)).toEqual(USDC);
++    expect(await proxyWithAbi.tokenNames(3)).toEqual(USDT);
++    expect(await proxyWithAbi.tokenNames(4)).toEqual(TOK4);
++
++    expect(await proxyWithAbi.tokenTable(WETH)).toEqual(weth.address);
++    expect(await proxyWithAbi.tokenTable(WBTC)).toEqual(wbtc.address);
++    expect(await proxyWithAbi.tokenTable(USDC)).toEqual(usdc.address);
++    expect(await proxyWithAbi.tokenTable(USDT)).toEqual(usdt.address);
++    expect(await proxyWithAbi.tokenTable(TOK4)).toEqual(token4.address);
++
++    expect(await proxyWithAbi.rescueWalletAddress()).toEqual(rescueWallet.address);
++    expect(await proxyWithAbi.withdrawWalletAddress()).toEqual(withdrawWallet.address);
++
++    expect(await proxyWithAbi.contractKeys(0)).toEqual(ROUTER);
++    expect(await proxyWithAbi.contractKeys(1)).toEqual(QUOTER);
++    expect(await proxyWithAbi.contractKeys(2)).toEqual(SWAPPER);
++
++    expect(await proxyWithAbi.contractAddresses(ROUTER)).toEqual(router.address);
++    expect(await proxyWithAbi.contractAddresses(QUOTER)).toEqual(quoter.address);
++    expect(await proxyWithAbi.contractAddresses(SWAPPER)).toEqual(swapper.address);
++
++    expect(await proxyWithAbi.version()).toEqual('2.0.0');
++  });
++
++  // Args checks
++  it('WithdrawWallet cannot be set to address 0', async () => {
++    try {
++      await proxyWithAbi.connect(aconcagua1).setWithdrawWalletAddress(ethers.constants.AddressZero);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*WithdrawAddressInvalid.*/));
++    }
++  });
++  it('RescueWallet cannot be set to address 0', async () => {
++    try {
++      await proxyWithAbi.connect(aconcagua1).setRescueWalletAddress(ethers.constants.AddressZero);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*RescueAddressInvalid.*/));
++    }
++  });
++
++  // Access Control
++  it('Other than Role admin cannot revoke a role', async () => {
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++
++    try {
++      await proxyWithAbi.revokeRole(ACONCAGUA_ROLE, aconcagua1.address);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++  });
++  it('Only Aconcagua Role can set the Withdraw Wallet address', async () => {
++    try {
++      await proxyWithAbi.connect(withdrawWallet).setWithdrawWalletAddress(aconcagua0.address);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++
++    expect(await proxyWithAbi.withdrawWalletAddress()).toEqual(withdrawWallet.address);
++
++    await proxyWithAbi.connect(aconcagua0).setWithdrawWalletAddress(aconcagua0.address);
++
++    expect(await proxyWithAbi.withdrawWalletAddress()).not.toEqual(withdrawWallet.address);
++    expect(await proxyWithAbi.withdrawWalletAddress()).toEqual(aconcagua0.address);
++  });
++  it('Only Aconcagua Role can set the Rescue Wallet address', async () => {
++    try {
++      await proxyWithAbi.connect(rescueWallet).setRescueWalletAddress(aconcagua0.address);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++
++    expect(await proxyWithAbi.rescueWalletAddress()).toEqual(rescueWallet.address);
++
++    await proxyWithAbi.connect(aconcagua0).setRescueWalletAddress(aconcagua0.address);
++
++    expect(await proxyWithAbi.rescueWalletAddress()).not.toEqual(rescueWallet.address);
++    expect(await proxyWithAbi.rescueWalletAddress()).toEqual(aconcagua0.address);
++  });
++  it('Cannot call swapExactInputs if not Swapper Role', async () => {
++    try {
++      await proxyWithAbi.swapExactInputs([defaultSwapParams]);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++  });
++  it('Cannot call withdraw if not LENDER_LIQ_ROLE', async () => {
++    try {
++      await proxyWithAbi.withdraw(1, USDC);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++  });
++
++  it('Other than RESCUER_ROLE cannot rescue', async () => {
++    try {
++      await proxyWithAbi.rescue(1, USDC);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++  });
++  it('RESCUER_ROLE can rescue', async () => {
++    await proxyWithAbi.connect(firstLenderLiq).rescue(1, USDC);
++  });
++  it('One Rescue / Lender role can void the other', async () => {
++    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(true);
++    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(true);
++
++    await proxyWithAbi.connect(secondLenderLiq).revokeRole(LENDER_LIQ_ROLE, firstLenderLiq.address);
++    await proxyWithAbi.connect(secondLenderLiq).revokeRole(RESCUER_ROLE, firstLenderLiq.address);
++
++    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(false);
++    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(false);
++  });
++
++  // Access Control revocals
++  it('Any aconcagua address can void other aconcagua roles', async () => {
++    // aconcagua0 revokes aconcagua1
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++
++    await proxyWithAbi.connect(aconcagua0).revokeRole(ACONCAGUA_ROLE, aconcagua1.address);
++
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(false);
++
++    // aconcagua2 revokes aconcagua0
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua0.address)).toEqual(true);
++
++    await proxyWithAbi.connect(aconcagua2).revokeRole(ACONCAGUA_ROLE, aconcagua0.address);
++
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua0.address)).toEqual(false);
++  });
++  it('Any lender_liq address can void other lender_liq role', async () => {
++    // lender_liq0 revokes lender_liq1
++    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(true);
++
++    await proxyWithAbi.connect(firstLenderLiq).revokeRole(LENDER_LIQ_ROLE, secondLenderLiq.address);
++
++    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, secondLenderLiq.address)).toEqual(false);
++  });
++  it('Any rescuer address can void other rescuer role', async () => {
++    // firstLenderLiq revokes secondLenderLiq
++    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(true);
++
++    await proxyWithAbi.connect(firstLenderLiq).revokeRole(RESCUER_ROLE, secondLenderLiq.address);
++
++    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, secondLenderLiq.address)).toEqual(false);
++  });
++
++  // Swap happy path
++  it('Can swap with Swapper Role', async () => {
++    expect(await proxyWithAbi.contractAddresses(QUOTER)).toEqual(quoter.address);
++
++    await proxyWithAbi.connect(swapper).swapExactInputs([defaultSwapParams]);
++
++    const quoterCall = await quoter.quoteExactInputCalls(0);
++    const tokenInTransfer = await weth.transferCalls(0);
++    const routerCall = await router.executeCalls(0);
++    const routerCallInputs = await router.getExecuteCallInputs(0);
++
++    const encodedParams = ethers.utils.defaultAbiCoder.encode(
++      ['address', 'uint256', 'uint256', 'bytes', 'bool'],
++      [
++        defaultSwapParams.params.recipient,
++        defaultSwapParams.params.amountIn,
++        defaultSwapParams.params.amountOutMinimum,
++        ethers.utils.hexlify(defaultSwapParams.params.path),
++        false,
++      ]
++    );
++
++    expect([quoterCall[0], quoterCall[1].toString()]).toEqual([pathBytes, BigInt(1).toString()]);
++    expect([tokenInTransfer[0], tokenInTransfer[1], tokenInTransfer[2].toString()]).toEqual([
++      router.address,
++      colateralProxy.address,
++      BigInt(1).toString(),
++    ]);
++    expect([routerCall[0], routerCall[1].toString()]).toEqual([
++      V3_SWAP_EXACT_IN_COMMAND,
++      defaultSwapParams.params.deadline.toString(),
++    ]);
++    expect(routerCallInputs).toEqual(encodedParams);
++  });
++
++  // Withdraw happy path
++  it('LENDER_LIQ_ROLE can withdraw', async () => {
++    await proxyWithAbi.connect(firstLenderLiq).withdraw(1, USDC);
++  });
++
++  // Shouldn't work!
++  it('Can swap with a path != than tokenIn - tokenOut', async () => {
++    const badTokenIn = wbtc.address;
++    const badTokenOut = usdt.address;
++
++    const badPathBytes = ethers.utils.solidityPack(['address', 'address'], [badTokenIn, badTokenOut]);
++
++    const badParams = {
++      path: badPathBytes,
++      recipient: colateralProxy.address,
++      deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 3),
++      amountIn: 1,
++      amountOutMinimum: 1,
++    };
++
++    const badSwapParams = {
++      params: badParams,
++      tokenIn,
++      tokenOut,
++    };
++
++    await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++  });
++});
+diff --git a/contracts/mocks/QuoterMock.sol b/contracts/mocks/QuoterMock.sol
+new file mode 100644
+index 0000000..237cb34
+--- /dev/null
++++ b/contracts/mocks/QuoterMock.sol
+@@ -0,0 +1,45 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.18;
++
++// import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
++
++/*is IQuoter*/ contract QuoterMock {
++  struct QuoteExactInputCall {
++    bytes path;
++    uint256 amountIn;
++  }
++
++  QuoteExactInputCall[] public quoteExactInputCalls;
++
++  function quoteExactInput(
++    bytes memory path,
++    uint256 amountIn
++  ) external returns (uint256 amountOut) {
++    quoteExactInputCalls.push(QuoteExactInputCall(path, amountIn));
++    amountOut = 1;
++  }
++
++  // function quoteExactInputSingle(
++  //     address tokenIn,
++  //     address tokenOut,
++  //     uint24 fee,
++  //     uint256 amountIn,
++  //     uint160 sqrtPriceLimitX96
++  // ) external pure returns (uint256 amountOut) {
++  //     amountOut = 0;
++  // }
++
++  // function quoteExactOutput(bytes memory path, uint256 amountOut) external pure returns (uint256 amountIn) {
++  //     amountIn = 0;
++  // }
++
++  // function quoteExactOutputSingle(
++  //     address tokenIn,
++  //     address tokenOut,
++  //     uint24 fee,
++  //     uint256 amountOut,
++  //     uint160 sqrtPriceLimitX96
++  // ) external pure returns (uint256 amountIn){
++  //     amountIn = 0;
++  // }
++}
+diff --git a/contracts/mocks/TokenMock.sol b/contracts/mocks/TokenMock.sol
+new file mode 100644
+index 0000000..2252b87
+--- /dev/null
++++ b/contracts/mocks/TokenMock.sol
+@@ -0,0 +1,22 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.18;
++
++contract TokenMock {
++  struct TransferCall {
++    address to;
++    address from;
++    uint256 amount;
++  }
++
++  TransferCall[] public transferCalls;
++
++  function balanceOf(address addr) external returns (uint256) {
++    return 1000;
++  }
++
++  function transfer(address to, uint256 amount) external returns (bool) {
++    transferCalls.push(TransferCall(to, msg.sender, amount));
++
++    return true;
++  }
++}
+diff --git a/contracts/mocks/UniversalRouterMock.sol b/contracts/mocks/UniversalRouterMock.sol
+new file mode 100644
+index 0000000..ba38212
+--- /dev/null
++++ b/contracts/mocks/UniversalRouterMock.sol
+@@ -0,0 +1,26 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.18;
++
++contract UniversalRouterMock {
++  struct ExecuteCall {
++    bytes commands;
++    bytes[] inputs;
++    uint256 deadline;
++  }
++
++  ExecuteCall[] public executeCalls;
++
++  function execute(
++    bytes memory commands,
++    bytes[] memory inputs,
++    uint256 deadline
++  ) external returns (bool) {
++    executeCalls.push(ExecuteCall(commands, inputs, deadline));
++
++    return true;
++  }
++
++  function getExecuteCallInputs(uint idx) public view returns (bytes memory) {
++    return executeCalls[idx].inputs[0];
++  }
++}
+diff --git a/tsconfig.json b/tsconfig.json
+index 4232b4c..a2bbad5 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -17,5 +17,5 @@
+     "noUnusedParameters": false
+   },
+   "compileOnSave": true,
+-  "include": ["src"]
++  "include": ["src", "contracts"]
+ }
+-- 
+2.34.1
+
+
+From 7284cf47aeceda649b2da02015eae9cee475af54 Mon Sep 17 00:00:00 2001
+From: Julian Zamt <julian.zamt@coinfabrik.com>
+Date: Fri, 28 Jun 2024 13:11:49 -0300
+Subject: [PATCH 2/2] add colateral2 tests from proxy with mocks
+
+---
+ contracts/index.test.ts        | 557 +++++++++++++++++++++++++++------
+ contracts/mocks/QuoterMock.sol |  30 +-
+ contracts/mocks/TokenMock.sol  |   2 +-
+ 3 files changed, 460 insertions(+), 129 deletions(-)
+
+diff --git a/contracts/index.test.ts b/contracts/index.test.ts
+index e2a896d..ddaf364 100644
+--- a/contracts/index.test.ts
++++ b/contracts/index.test.ts
+@@ -13,20 +13,30 @@ const ACONCAGUA_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('ACONCAGU
+ const LENDER_LIQ_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('LENDER_LIQ'));
+ const RESCUER_ROLE = ethers.utils.keccak256(ethers.utils.toUtf8Bytes('RESCUER'));
+ const V3_SWAP_EXACT_IN_COMMAND = '0x00';
++const tokenNames = [WETH, WBTC, USDC, USDT, TOK4];
++const contractKeys = [ROUTER, QUOTER, SWAPPER];
++const TOKEN_OUT_MULTIPLIER = 10 ** 6;
++const WETH_MULTIPLIER = 10 ** 18;
+ 
+ describe('ColateralContract2 tests (Via Proxy)', function () {
+-  const tokenNames = [WETH, WBTC, USDC, USDT, TOK4];
+-  let weth; let wbtc; let usdc; let usdt; let token4;
++  let weth;
++  let wbtc;
++  let usdc;
++  let usdt;
++  let token4;
+   let tokenAddresses;
+   let aconcagua;
+-  let aconcagua0; let aconcagua1; let aconcagua2;
++  let aconcagua0;
++  let aconcagua1;
++  let aconcagua2;
+   let rescueWallet;
+   let withdrawWallet;
+   let firstLenderLiq;
+   let secondLenderLiq;
+-  const contractKeys = [ROUTER, QUOTER, SWAPPER];
+   let contractAddresses;
+-  let router; let quoter; let swapper;
++  let router;
++  let quoter;
++  let swapper;
+   let colateral2;
+   let colateralProxy;
+   let proxyWithAbi;
+@@ -125,8 +135,8 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+       path: pathBytes,
+       recipient: colateralProxy.address,
+       deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 3),
+-      amountIn: 1,
+-      amountOutMinimum: 1,
++      amountIn: BigInt(1 * WETH_MULTIPLIER),
++      amountOutMinimum: BigInt(1 * TOKEN_OUT_MULTIPLIER),
+     };
+ 
+     defaultSwapParams = {
+@@ -137,6 +147,7 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+   });
+ 
+   // ************ TESTS *************
++  // Init
+   it('Initialize happy path check', async function () {
+     expect(await proxyWithAbi.tokenNames(0)).toEqual(WETH);
+     expect(await proxyWithAbi.tokenNames(1)).toEqual(WBTC);
+@@ -163,34 +174,243 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+ 
+     expect(await proxyWithAbi.version()).toEqual('2.0.0');
+   });
++  it('All three aconcagua admins cannot be set to address zero', async () => {
++    const badAconcagua = [
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++    ];
++
++    const initDataBadAconc = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      badAconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
+ 
+-  // Args checks
+-  it('WithdrawWallet cannot be set to address 0', async () => {
+     try {
+-      await proxyWithAbi.connect(aconcagua1).setWithdrawWalletAddress(ethers.constants.AddressZero);
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initDataBadAconc);
+     } catch (e) {
+-      expect(e.message).toEqual(expect.stringMatching(/.*WithdrawAddressInvalid.*/));
++      expect(e.message).toEqual(expect.stringMatching(/.*AdminAddressInvalid.*/));
+     }
+   });
+-  it('RescueWallet cannot be set to address 0', async () => {
++  it('No Admin privileges should be given to address zero (At least one aconcagua != address(0)) - TRIGGERS ISSUE MI-02', async () => {
++    const oneAconcagua = [
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      aconcagua2.address,
++    ];
++
++    const initDataOneAconc = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      oneAconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
++
+     try {
+-      await proxyWithAbi.connect(aconcagua1).setRescueWalletAddress(ethers.constants.AddressZero);
++      const colProxyOneAconc = await ColateralProxy.deploy(
++        colateral2.address,
++        deployer.address,
++        initDataOneAconc
++      );
++      expect(true).toEqual(false); // Sanity check - should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*AdminAddressInvalid.*/));
++    }
++  });
++  it('RescueWalletAddress cannot be zero', async () => {
++    const initBadRescueWallet = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      ethers.constants.AddressZero,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
++
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadRescueWallet);
+     } catch (e) {
+       expect(e.message).toEqual(expect.stringMatching(/.*RescueAddressInvalid.*/));
+     }
+   });
++  it('WithdrawWalletAddress cannot be zero', async () => {
++    const initBadWithdrawWallet = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      ethers.constants.AddressZero,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
+ 
+-  // Access Control
+-  it('Other than Role admin cannot revoke a role', async () => {
+-    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadWithdrawWallet);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*WithdrawAddressInvalid.*/));
++    }
++  });
++  it('FirstLender cannot be zero', async () => {
++    const initBadFirstLender = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      ethers.constants.AddressZero,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
+ 
+     try {
+-      await proxyWithAbi.revokeRole(ACONCAGUA_ROLE, aconcagua1.address);
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadFirstLender);
+     } catch (e) {
+-      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++      expect(e.message).toEqual(expect.stringMatching(/.*FirstLenderLiqAddressInvalid.*/));
+     }
++  });
++  it('SecondLender cannot be zero', async () => {
++    const initBadSecondLender = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
+ 
+-    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadSecondLender);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*SecondLenderLiqAddressInvalid.*/));
++    }
++  });
++  it('Tokens addresses cannot be zero - TRIGGERS ISSUE MI-01', async () => {
++    const badTokenAddresses = [
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++    ];
++
++    const initBadAddresses = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      badTokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
++
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadAddresses);
++      expect(false).toEqual(true); // Sanity Check, should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*TokenAddressInvalid.*/));
++    }
++  });
++  it('Contracts addresses cannot be zero - TRIGGERS ISSUE MI-01', async () => {
++    const badContractAddresses = [
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++      ethers.constants.AddressZero,
++    ];
++
++    const initBadAddresses = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      badContractAddresses,
++    ]);
++
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadAddresses);
++      expect(false).toEqual(true); // Sanity Check, should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*ContractAddressInvalid.*/));
++    }
++  });
++  it('Token names cannot be different from what is expected - TRIGGERS ISSUE MI-01', async () => {
++    const badTokenNames = ['This', 'is', 'bad', 'very', 'wrong'];
++
++    const initBadAddresses = colateral2Iface.encodeFunctionData('initialize', [
++      badTokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      contractKeys,
++      contractAddresses,
++    ]);
++
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadAddresses);
++      expect(false).toEqual(true); // Sanity Check, should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*TokenNameInvalid.*/));
++    }
++  });
++  it('Contract keys cannot be different from what is expected - TRIGGERS ISSUE MI-01', async () => {
++    const badContractKeys = ['This', 'is', 'bad'];
++
++    const initBadAddresses = colateral2Iface.encodeFunctionData('initialize', [
++      tokenNames,
++      tokenAddresses,
++      aconcagua,
++      rescueWallet.address,
++      withdrawWallet.address,
++      firstLenderLiq.address,
++      secondLenderLiq.address,
++      badContractKeys,
++      contractAddresses,
++    ]);
++
++    try {
++      await ColateralProxy.deploy(colateral2.address, deployer.address, initBadAddresses);
++      expect(false).toEqual(true); // Sanity Check, should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*ContractKeyInvalid.*/));
++    }
++  });
++
++  // setWithdrawWallet
++  it('WithdrawWallet cannot be set to address 0', async () => {
++    try {
++      await proxyWithAbi.connect(aconcagua1).setWithdrawWalletAddress(ethers.constants.AddressZero);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*WithdrawAddressInvalid.*/));
++    }
+   });
+   it('Only Aconcagua Role can set the Withdraw Wallet address', async () => {
+     try {
+@@ -206,6 +426,15 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+     expect(await proxyWithAbi.withdrawWalletAddress()).not.toEqual(withdrawWallet.address);
+     expect(await proxyWithAbi.withdrawWalletAddress()).toEqual(aconcagua0.address);
+   });
++
++  // setRescueWallet
++  it('RescueWallet cannot be set to address 0', async () => {
++    try {
++      await proxyWithAbi.connect(aconcagua1).setRescueWalletAddress(ethers.constants.AddressZero);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*RescueAddressInvalid.*/));
++    }
++  });
+   it('Only Aconcagua Role can set the Rescue Wallet address', async () => {
+     try {
+       await proxyWithAbi.connect(rescueWallet).setRescueWalletAddress(aconcagua0.address);
+@@ -220,6 +449,44 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+     expect(await proxyWithAbi.rescueWalletAddress()).not.toEqual(rescueWallet.address);
+     expect(await proxyWithAbi.rescueWalletAddress()).toEqual(aconcagua0.address);
+   });
++
++  // swapExactInputs
++  it('Can swap with Swapper Role', async () => {
++    expect(await proxyWithAbi.contractAddresses(QUOTER)).toEqual(quoter.address);
++
++    await proxyWithAbi.connect(swapper).swapExactInputs([defaultSwapParams]);
++
++    const quoterCall = await quoter.quoteExactInputCalls(0);
++    const tokenInTransfer = await weth.transferCalls(0);
++    const routerCall = await router.executeCalls(0);
++    const routerCallInputs = await router.getExecuteCallInputs(0);
++
++    const expectedRouterCallInputs = ethers.utils.defaultAbiCoder.encode(
++      ['address', 'uint256', 'uint256', 'bytes', 'bool'],
++      [
++        defaultSwapParams.params.recipient,
++        defaultSwapParams.params.amountIn,
++        defaultSwapParams.params.amountOutMinimum,
++        ethers.utils.hexlify(defaultSwapParams.params.path),
++        false,
++      ]
++    );
++
++    expect([quoterCall[0], quoterCall[1].toString()]).toEqual([
++      pathBytes,
++      BigInt(1 * WETH_MULTIPLIER).toString(),
++    ]);
++    expect([tokenInTransfer[0], tokenInTransfer[1], tokenInTransfer[2].toString()]).toEqual([
++      router.address,
++      colateralProxy.address,
++      BigInt(1 * WETH_MULTIPLIER).toString(),
++    ]);
++    expect([routerCall[0], routerCall[1].toString()]).toEqual([
++      V3_SWAP_EXACT_IN_COMMAND,
++      defaultSwapParams.params.deadline.toString(),
++    ]);
++    expect(routerCallInputs).toEqual(expectedRouterCallInputs);
++  });
+   it('Cannot call swapExactInputs if not Swapper Role', async () => {
+     try {
+       await proxyWithAbi.swapExactInputs([defaultSwapParams]);
+@@ -227,6 +494,151 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+       expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
+     }
+   });
++  it('Can swap with a path != than tokenIn - tokenOut - TRIGGERS ISSUE HI-01', async () => {
++    const badTokenIn = wbtc.address;
++    const badTokenOut = usdt.address;
++
++    const badPathBytes = ethers.utils.solidityPack(
++      ['address', 'address'],
++      [badTokenIn, badTokenOut]
++    );
++
++    const badParams = {
++      ...params,
++      path: badPathBytes,
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check (Should fail)
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*InvalidPathForTokens.*/));
++    }
++  });
++  it('Cannot swap if recipient != proxy address', async () => {
++    const badParams = {
++      ...params,
++      recipient: colateral2.address,
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*RecipientError.*/));
++    }
++  });
++  it('Cannot swap if tokenOut is other than USDC or USDT', async () => {
++    const badSwapParams = {
++      ...defaultSwapParams,
++      tokenOut: token4.address,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*TokenOutError.*/));
++    }
++  });
++  it('Cannot swap if tokenIn is other than WETH or WBTC', async () => {
++    const badSwapParams = {
++      ...defaultSwapParams,
++      tokenIn: token4.address,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*TokenInError.*/));
++    }
++  });
++  it('Cannot swap if amountOutMin is 0', async () => {
++    const badParams = {
++      ...params,
++      amountOutMinimum: 0,
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*AmountOutMinimumTooLow.*/));
++    }
++  });
++  it('Cannot swap if amountOutMin is slippage is greater than 2%', async () => {
++    const badParams = {
++      ...params,
++      amountOutMinimum: BigInt(0.5 * TOKEN_OUT_MULTIPLIER),
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*AmountOutMinimumTooLow.*/));
++    }
++  });
++  it('Cannot swap if amountIn is 0', async () => {
++    const badParams = {
++      ...params,
++      amountIn: 0,
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*AmountInError.*/));
++    }
++  });
++  // eslint-disable-next-line quotes
++  it("Cannot swap if amountIn is greater than contract's token balance", async () => {
++    const badParams = {
++      ...params,
++      amountIn: BigInt(5000 * WETH_MULTIPLIER),
++    };
++
++    const badSwapParams = {
++      ...defaultSwapParams,
++      params: badParams,
++    };
++
++    try {
++      await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++      expect(true).toEqual(false); // Sanity check - Should fail
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*AmountInError.*/));
++    }
++  });
++
++  // Withdraw
+   it('Cannot call withdraw if not LENDER_LIQ_ROLE', async () => {
+     try {
+       await proxyWithAbi.withdraw(1, USDC);
+@@ -234,7 +646,18 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+       expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
+     }
+   });
++  it('Cannot withdraw with a bad tokenSymbol', async () => {
++    try {
++      await proxyWithAbi.connect(firstLenderLiq).withdraw(1, 'bad');
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*call to non-contract.*/));
++    }
++  });
++  it('LENDER_LIQ_ROLE can withdraw', async () => {
++    await proxyWithAbi.connect(firstLenderLiq).withdraw(1, USDC);
++  });
+ 
++  // Rescue
+   it('Other than RESCUER_ROLE cannot rescue', async () => {
+     try {
+       await proxyWithAbi.rescue(1, USDC);
+@@ -245,6 +668,19 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+   it('RESCUER_ROLE can rescue', async () => {
+     await proxyWithAbi.connect(firstLenderLiq).rescue(1, USDC);
+   });
++
++  // Other
++  it('Other than Role admin cannot revoke a role', async () => {
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++
++    try {
++      await proxyWithAbi.revokeRole(ACONCAGUA_ROLE, aconcagua1.address);
++    } catch (e) {
++      expect(e.message).toEqual(expect.stringMatching(/.*missing role.*/));
++    }
++
++    expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
++  });
+   it('One Rescue / Lender role can void the other', async () => {
+     expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(true);
+     expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(true);
+@@ -255,8 +691,6 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+     expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(false);
+     expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(false);
+   });
+-
+-  // Access Control revocals
+   it('Any aconcagua address can void other aconcagua roles', async () => {
+     // aconcagua0 revokes aconcagua1
+     expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua1.address)).toEqual(true);
+@@ -272,84 +706,7 @@ describe('ColateralContract2 tests (Via Proxy)', function () {
+ 
+     expect(await proxyWithAbi.hasRole(ACONCAGUA_ROLE, aconcagua0.address)).toEqual(false);
+   });
+-  it('Any lender_liq address can void other lender_liq role', async () => {
+-    // lender_liq0 revokes lender_liq1
+-    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, firstLenderLiq.address)).toEqual(true);
+-
+-    await proxyWithAbi.connect(firstLenderLiq).revokeRole(LENDER_LIQ_ROLE, secondLenderLiq.address);
+-
+-    expect(await proxyWithAbi.hasRole(LENDER_LIQ_ROLE, secondLenderLiq.address)).toEqual(false);
+-  });
+-  it('Any rescuer address can void other rescuer role', async () => {
+-    // firstLenderLiq revokes secondLenderLiq
+-    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, firstLenderLiq.address)).toEqual(true);
+-
+-    await proxyWithAbi.connect(firstLenderLiq).revokeRole(RESCUER_ROLE, secondLenderLiq.address);
+-
+-    expect(await proxyWithAbi.hasRole(RESCUER_ROLE, secondLenderLiq.address)).toEqual(false);
+-  });
+-
+-  // Swap happy path
+-  it('Can swap with Swapper Role', async () => {
+-    expect(await proxyWithAbi.contractAddresses(QUOTER)).toEqual(quoter.address);
+-
+-    await proxyWithAbi.connect(swapper).swapExactInputs([defaultSwapParams]);
+-
+-    const quoterCall = await quoter.quoteExactInputCalls(0);
+-    const tokenInTransfer = await weth.transferCalls(0);
+-    const routerCall = await router.executeCalls(0);
+-    const routerCallInputs = await router.getExecuteCallInputs(0);
+-
+-    const encodedParams = ethers.utils.defaultAbiCoder.encode(
+-      ['address', 'uint256', 'uint256', 'bytes', 'bool'],
+-      [
+-        defaultSwapParams.params.recipient,
+-        defaultSwapParams.params.amountIn,
+-        defaultSwapParams.params.amountOutMinimum,
+-        ethers.utils.hexlify(defaultSwapParams.params.path),
+-        false,
+-      ]
+-    );
+-
+-    expect([quoterCall[0], quoterCall[1].toString()]).toEqual([pathBytes, BigInt(1).toString()]);
+-    expect([tokenInTransfer[0], tokenInTransfer[1], tokenInTransfer[2].toString()]).toEqual([
+-      router.address,
+-      colateralProxy.address,
+-      BigInt(1).toString(),
+-    ]);
+-    expect([routerCall[0], routerCall[1].toString()]).toEqual([
+-      V3_SWAP_EXACT_IN_COMMAND,
+-      defaultSwapParams.params.deadline.toString(),
+-    ]);
+-    expect(routerCallInputs).toEqual(encodedParams);
+-  });
+-
+-  // Withdraw happy path
+-  it('LENDER_LIQ_ROLE can withdraw', async () => {
+-    await proxyWithAbi.connect(firstLenderLiq).withdraw(1, USDC);
+-  });
+-
+-  // Shouldn't work!
+-  it('Can swap with a path != than tokenIn - tokenOut', async () => {
+-    const badTokenIn = wbtc.address;
+-    const badTokenOut = usdt.address;
+-
+-    const badPathBytes = ethers.utils.solidityPack(['address', 'address'], [badTokenIn, badTokenOut]);
+-
+-    const badParams = {
+-      path: badPathBytes,
+-      recipient: colateralProxy.address,
+-      deadline: BigInt(Math.floor(Date.now() / 1000) + 60 * 3),
+-      amountIn: 1,
+-      amountOutMinimum: 1,
+-    };
+-
+-    const badSwapParams = {
+-      params: badParams,
+-      tokenIn,
+-      tokenOut,
+-    };
+-
+-    await proxyWithAbi.connect(swapper).swapExactInputs([badSwapParams]);
++  it('getRoleCount()', async () => {
++    expect((await proxyWithAbi.getRoleCount()).toString()).toEqual('4');
+   });
+ });
+diff --git a/contracts/mocks/QuoterMock.sol b/contracts/mocks/QuoterMock.sol
+index 237cb34..36132ba 100644
+--- a/contracts/mocks/QuoterMock.sol
++++ b/contracts/mocks/QuoterMock.sol
+@@ -1,9 +1,7 @@
+ // SPDX-License-Identifier: MIT
+ pragma solidity 0.8.18;
+ 
+-// import '@uniswap/v3-periphery/contracts/interfaces/IQuoter.sol';
+-
+-/*is IQuoter*/ contract QuoterMock {
++contract QuoterMock {
+   struct QuoteExactInputCall {
+     bytes path;
+     uint256 amountIn;
+@@ -16,30 +14,6 @@ pragma solidity 0.8.18;
+     uint256 amountIn
+   ) external returns (uint256 amountOut) {
+     quoteExactInputCalls.push(QuoteExactInputCall(path, amountIn));
+-    amountOut = 1;
++    amountOut = 1 * 10 ** 6; // 1 USDC / USDT token
+   }
+-
+-  // function quoteExactInputSingle(
+-  //     address tokenIn,
+-  //     address tokenOut,
+-  //     uint24 fee,
+-  //     uint256 amountIn,
+-  //     uint160 sqrtPriceLimitX96
+-  // ) external pure returns (uint256 amountOut) {
+-  //     amountOut = 0;
+-  // }
+-
+-  // function quoteExactOutput(bytes memory path, uint256 amountOut) external pure returns (uint256 amountIn) {
+-  //     amountIn = 0;
+-  // }
+-
+-  // function quoteExactOutputSingle(
+-  //     address tokenIn,
+-  //     address tokenOut,
+-  //     uint24 fee,
+-  //     uint256 amountOut,
+-  //     uint160 sqrtPriceLimitX96
+-  // ) external pure returns (uint256 amountIn){
+-  //     amountIn = 0;
+-  // }
+ }
+diff --git a/contracts/mocks/TokenMock.sol b/contracts/mocks/TokenMock.sol
+index 2252b87..2522000 100644
+--- a/contracts/mocks/TokenMock.sol
++++ b/contracts/mocks/TokenMock.sol
+@@ -11,7 +11,7 @@ contract TokenMock {
+   TransferCall[] public transferCalls;
+ 
+   function balanceOf(address addr) external returns (uint256) {
+-    return 1000;
++    return 1000 * 10 ** 18;
+   }
+ 
+   function transfer(address to, uint256 amount) external returns (bool) {
+-- 
+2.34.1
+

@@ -5,6 +5,8 @@
 // require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
 import { Pool, FeeAmount } from '@uniswap/v3-sdk';
+import { move } from 'fs-extra';
+import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -20,6 +22,16 @@ const { LoggerHelper } = require('../../vs-core-firebase');
 const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
+const {
+  areRebasingTokensEqualWithDiff,
+  areNonRebasingTokensEqual,
+  getDifferences,
+  formatMoneyWithCurrency,
+  getArsStableValue,
+  getArsVolatileValue,
+  getUsdStableValue,
+  getUsdVolatileValue,
+} = require('../../helpers/coreHelper');
 
 const { CustomError } = require('../../vs-core');
 
@@ -27,6 +39,9 @@ const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
+const { RebasingTokens } = require('../../types/RebasingTokens');
+const { Valuation, Balance } = require('../../types/BalanceTypes');
+const { networkTypes } = require('../../types/networkTypes');
 
 const axios = require('axios');
 const { getParsedEthersError } = require('./errorParser');
@@ -35,10 +50,8 @@ const schemas = require('./schemas');
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
 const { encodePath } = require('../../helpers/uniswapHelper');
+const _ = require('lodash');
 
-const {
-  abi: QuoterABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 const {
   abi: SwapRouterABI,
 } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
@@ -83,20 +96,19 @@ const {
 } = require('../baseEndpoint');
 
 const {
+  SYS_ADMIN_EMAIL,
   DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
-  ALCHEMY_API_KEY,
   PROVIDER_NETWORK_NAME,
+  POLYGONSCAN_API_KEY,
   HARDHAT_API_URL,
-  ETHERSCAN_API_KEY,
   USDC_TOKEN_ADDRESS,
   USDT_TOKEN_ADDRESS,
   USDM_TOKEN_ADDRESS,
   WBTC_TOKEN_ADDRESS,
   WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
-  GAS_STATION_URL,
-  QUOTER_CONTRACT_ADDRESS,
+  VALIDATOR_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
   SWAPPER_ADDRESS,
   OPERATOR1_ADDRESS,
@@ -116,18 +128,12 @@ const { TechnicalError } = require('../../vs-core/error');
 const COLLECTION_NAME = Collections.VAULTS;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
+const COLLECTION_NAME_USERS = Collections.USERS;
+
 const INDEXED_FILTERS = ['userId', 'companyId', 'state'];
 
 const COMPANY_ENTITY_PROPERTY_NAME = 'companyId';
 const USER_ENTITY_PROPERTY_NAME = 'userId';
-
-// const settings = {
-//   apiKey: ALCHEMY_API_KEY,
-//   network: Network.ETH_GOERLI,
-// };
-// const alchemy = new Alchemy(settings);
-
-// const wallet = new Wallet(DEPLOYER_PRIVATE_KEY);
 
 exports.find = async function (req, res) {
   const { limit, offset } = req.query;
@@ -299,6 +305,7 @@ exports.patch = async function (req, res) {
 
     const existentDoc = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
 
+    // MRM TODO revisar si es por esto que no actualiza bien rescuewalletAccount
     const { rescueWalletAccount } = req.body;
     if (existentDoc.rescueWalletAccount !== rescueWalletAccount) {
       console.log('Setting rescueWalletAccount in blockchain to ' + rescueWalletAccount);
@@ -335,6 +342,21 @@ exports.patch = async function (req, res) {
       // Envio el email al empleado que creó la boveda
       EmailSender.send({
         to: employee.email,
+        message: null,
+        template: {
+          name: 'mail-liberate',
+          data: {
+            username: employee.firstName + ' ' + employee.lastName,
+            vaultId: id,
+            lender: lender.name,
+            value: arsBalance.value,
+            currency: 'ars',
+          },
+        },
+      });
+
+      EmailSender.send({
+        to: SYS_ADMIN_EMAIL,
         message: null,
         template: {
           name: 'mail-liberate',
@@ -414,24 +436,55 @@ const parseContractDeploymentToObject = (deploymentResponse) => {
   };
 };
 
-const deployContract = async (contractName, args = null) => {
+const deployContract = async (
+  contractName,
+  args = null,
+  networkName = null,
+  networkConfig = null
+) => {
   if (!contractName) return null;
-  const contract = await hre.ethers.getContractFactory(contractName);
-  let deploymentResponse;
+  let contract;
+  let NETWORK_URL;
+  let alchemy;
+  let signer;
 
-  if (Array.isArray(args)) {
-    deploymentResponse = await contract.deploy(...args);
+  if (networkName) {
+    NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+
+    console.log('deployContract NETWORK_URL ' + NETWORK_URL);
+    console.log('deployContract contractName ' + contractName);
+    console.log('deployContract args ' + JSON.stringify(args));
+    console.log('deployContract networkName ' + networkName);
+    console.log('deployContract networkConfig ' + JSON.stringify(networkConfig));
+
+    alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+    signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+    contract = await hre.ethers.getContractFactory(contractName, signer);
   } else {
-    deploymentResponse = await contract.deploy(args);
+    contract = await hre.ethers.getContractFactory(contractName);
   }
 
+  console.log('Signer: ', signer.address);
+
+  let deploymentResponse;
+  // Verifica si args es null, un valor único, o un array.
+  if (args === null) {
+    deploymentResponse = await contract.deploy(networkConfig);
+  } else if (Array.isArray(args)) {
+    deploymentResponse = await contract.deploy(...args, networkConfig);
+  } else {
+    // Caso en que args es un valor único
+    deploymentResponse = await contract.deploy(args, networkConfig);
+  }
+
+  console.log('deployContract - Contract deployed');
   // Parse
   const contractDeployment = parseContractDeploymentToObject(deploymentResponse);
 
   return { deploymentResponse, contractDeployment };
 };
 
-const getDeployedContract = (vault) => {
+const getDeployedContract = async (vault) => {
   console.log('Dentro de getDeployedContract');
   console.log(
     'Dentro de getDeployedContract - Vault id ',
@@ -439,7 +492,9 @@ const getDeployedContract = (vault) => {
     ' Contractname ',
     vault.contractName,
     ' Contract Version ',
-    vault.contractVersion
+    vault.contractVersion,
+    ' Contract Network ',
+    vault.contractNetwork
   );
   const smartContract = vault;
 
@@ -450,8 +505,18 @@ const getDeployedContract = (vault) => {
     '.json');
   const abi = contractJson.abi;
 
-  // const alchemy = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME, ALCHEMY_API_KEY);
-  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+  const contractNetwork = (vault.contractNetwork || 'POLYGON').toUpperCase();
+  console.log('Contract Network ', vault.contractNetwork || 'Red por defecto: POLYGON');
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', contractNetwork);
+
+  if (!NETWORK_URL) {
+    throw new Error(`No se encontró una URL válida para la red: ${contractNetwork}`);
+  }
+
+  // TODO Validar que la red que tomé de la base es válida
+  console.log('getDeployedContract - NETWORK_URL ' + NETWORK_URL);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
   // Get the deployed contract.
@@ -465,6 +530,9 @@ exports.create = async function (req, res) {
     const { userId } = res.locals;
     const auditUid = userId;
     const { userId: targetUserId, companyId } = req.params;
+    console.log('Req.body es ' + JSON.stringify(req.body));
+    const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
+    console.log('create - networkName = ' + networkName);
 
     if (!targetUserId || !companyId) {
       throw new CustomError.TechnicalError(
@@ -475,8 +543,10 @@ exports.create = async function (req, res) {
       );
     }
 
+    // Asumiendo que tienes una variable `networkName` que especifica la red (Polygon o Rootstock)
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-    if (!lender || !lender.vaultAdminAddress) {
+
+    if (!lender) {
       throw new CustomError.TechnicalError(
         'ERROR_COMPANY_NOT_FOUND',
         null,
@@ -485,92 +555,244 @@ exports.create = async function (req, res) {
       );
     }
 
-    const networkName = hre.network.name;
+    // Inicializamos una variable para almacenar el vaultAdminAddress
+    let vaultAdminAddress;
 
-    const colateralContractName = 'ColateralContract2';
-    const proxyContractName = 'ColateralProxy';
+    // Verificar si hay un vaultAdmin específico para la red
+    if (networkName.toLowerCase() === 'polygon') {
+      vaultAdminAddress = lender.vaultAdminAddressPolygon; // Dirección de Vault Admin para Polygon
+    } else if (networkName.toLowerCase() === 'rootstock') {
+      vaultAdminAddress = lender.vaultAdminAddressRootstock; // Dirección de Vault Admin para Rootstock
+    }
 
-    // Deploy ColateralContract
-    const colateralContractDeploy = await deployContract(colateralContractName);
-    const colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-    const colateralContractSignerAddress = lender.safeLiq1.toLowerCase(); // colateralContractDeploy.contractDeployment.signerAddress;
+    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior (versión anterior)
+    if (!vaultAdminAddress && lender.vaultAdminAddress) {
+      vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
+    }
 
-    if (!colateralContractAddress) {
+    console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
+
+    // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
+    if (!vaultAdminAddress) {
       throw new CustomError.TechnicalError(
-        'ERROR_CREATE_COLATERAL_CONTRACT',
+        'ERROR_VAULT_ADMIN_NOT_FOUND',
         null,
-        'Empty Colateral contract address response',
+        `Vault Admin not found for network ${networkName} or in the previous version`,
         null
       );
     }
 
+    // Defino variables según la red
+    let safeA;
+    let safeB;
+
+    switch (networkName) {
+      case networkTypes.NETWORK_TYPE_POLYGON:
+        console.log('Create - Defino las variables de polygon network');
+        safeA = lender.safeLiq1.toLowerCase();
+        safeB = lender.safeLiq2.toLowerCase();
+        break;
+
+      case networkTypes.NETWORK_TYPE_ROOTSTOCK:
+        console.log('Create - Defino las variables de rootstock network');
+        safeA = lender.safeLiq3.toLowerCase();
+        safeB = lender.safeLiq4.toLowerCase();
+        break;
+
+      default:
+        // Default to Polygon if network name is not provided
+        console.log('Create - No Defino las variables no identifiqué red');
+        break;
+    }
+
+    // Abro wallet
+
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+    const colateralContractName = 'ColateralContract2';
+    const proxyContractName = 'ColateralProxy';
+
+    // Defino el gas
+    const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
+    console.log(
+      'Create - Listo getGasPriceAndLimit - networkConfig es ' +
+        JSON.stringify(networkConfig, null, 2)
+    );
+
     let contractStatus;
     let contractError = '';
+    let colateralContractAddress;
+    let colateralContractDeploy;
+
     try {
-      await colateralContractDeploy.deploymentResponse.deployed();
-      console.log('ColateralContract Deployment success');
+      // Deploy ColateralContract
+      colateralContractDeploy = await deployContract(
+        colateralContractName,
+        null,
+        networkName,
+        networkConfig
+      );
+
+      const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
+      const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
+
+      colateralContractAddress = colateralContractDeploy.contractDeployment.address;
+
+      if (!colateralContractAddress) {
+        throw new CustomError.TechnicalError(
+          ' ERROR_CREATE_COLATERAL_CONTRACT',
+          null,
+          'Empty Colateral contract address response',
+          null
+        );
+      }
+
+      console.log(
+        'Create - ColateralContract Deployment success. Transaction Hash:',
+        transactionHash
+      );
       contractStatus = 'deployed';
     } catch (err) {
       contractStatus = 'error';
-      contractError = err.message;
+      contractError = err.message ? err.message.substring(0, 2000) : '';
+      throw new CustomError.TechnicalError(
+        'ERROR_CREATE_COLATERAL_CONTRACT',
+        null,
+        contractError,
+        null
+      );
     }
 
     // Deploy ColateralProxy
+
     const contractJson = require('../../../artifacts/contracts/' +
       colateralContractName +
       '.sol/' +
       colateralContractName +
       '.json');
+
     const colateralAbi = contractJson.abi;
 
-    const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
-
     const colateralBlockchainContract = new hre.ethers.Contract(
       colateralContractAddress,
       colateralAbi,
       deployerWallet
     );
 
-    const operators = [OPERATOR1_ADDRESS, OPERATOR2_ADDRESS, OPERATOR3_ADDRESS];
+    let args;
+    let abiEncodedArgs;
 
-    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
-    const tokenAddresses = [
-      USDC_TOKEN_ADDRESS,
-      USDT_TOKEN_ADDRESS,
-      USDM_TOKEN_ADDRESS,
-      WBTC_TOKEN_ADDRESS,
-      WETH_TOKEN_ADDRESS,
-    ];
+    const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
+    const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
+    const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
 
-    const contractKeys = ['router', 'swapper', 'quoter'];
-    const contractAddresses = [SWAP_ROUTER_V3_ADDRESS, SWAPPER_ADDRESS, QUOTER_CONTRACT_ADDRESS];
+    // Asignar las direcciones a la lista de operadores
+    const operators = [operator1Address, operator2Address, operator3Address];
 
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
-    const args = [
-      tokenNames,
-      tokenAddresses,
-      operators,
-      DEFAULT_RESCUE_WALLET_ADDRESS,
-      DEFAULT_WITHDRAW_WALLET_ADDRESS,
-      colateralContractSignerAddress, // lender.safeLiq1,
-      lender.safeLiq2.toLowerCase(),
-      contractKeys,
-      contractAddresses,
-    ];
-    console.log('Create - proxy args ');
-    console.log(args);
+    if (colateralContractName === 'ColateralContract2') {
+      // Contrato version 2
+      console.log('Create - creando contrato version 2 ');
+
+      // Usar getEnvVariable para obtener las direcciones desde Firestore
+      const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
+      const defaultRescueWalletAddress = await getEnvVariable(
+        'DEFAULT_RESCUE_WALLET_ADDRESS',
+        networkName
+      );
+      const defaultWithdrawWalletAddress = await getEnvVariable(
+        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+        networkName
+      );
+      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+      const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+
+      const tokenAddresses = [
+        await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+        await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+      ];
+
+      const contractKeys = ['router', 'swapper'];
+      const contractAddresses = [swapRouterV3Address, swapperAddress];
+
+      // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
+      args = [
+        validatorAddress,
+        tokenNames,
+        tokenAddresses,
+        operators,
+        defaultRescueWalletAddress,
+        defaultWithdrawWalletAddress,
+        safeA,
+        safeB,
+        contractKeys,
+        contractAddresses,
+      ];
+
+      console.log('Create - args ' + JSON.stringify(args));
+    } else {
+      // Contrato version 1
+      console.log('Create - creando contrato version 1 ');
+
+      // Usar getEnvVariable para obtener las direcciones desde Firestore
+      const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
+      const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
+      const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
+      const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
+      const defaultRescueWalletAddress = await getEnvVariable(
+        'DEFAULT_RESCUE_WALLET_ADDRESS',
+        networkName
+      );
+      const defaultWithdrawWalletAddress = await getEnvVariable(
+        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+        networkName
+      );
+      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+      // Crear los argumentos para el contrato
+      args = [
+        usdcTokenAddress,
+        usdtTokenAddress,
+        usdmTokenAddress,
+        wbtcTokenAddress,
+        operators, // Supongo que ya tienes esta variable en tu entorno
+        defaultRescueWalletAddress,
+        defaultWithdrawWalletAddress,
+        safeA, // lender.safeLiq1
+        safeB,
+        swapRouterV3Address,
+        swapperAddress,
+      ];
+
+      console.log('Create - args ' + JSON.stringify(args));
+    }
 
     const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
       ...args
     );
 
+    console.log('Create - proxy args ');
+    console.log(args);
+
     const proxyContractArgs = [
       colateralContractAddress,
-      lender.vaultAdminAddress.toLowerCase(),
+      vaultAdminAddress,
       initializeData.data || '0x',
     ];
-    const proxyContractDeploy = await deployContract(proxyContractName, proxyContractArgs);
+
+    const proxyContractDeploy = await deployContract(
+      proxyContractName,
+      proxyContractArgs,
+      networkName,
+      networkConfig
+    );
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
     const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
 
@@ -582,22 +804,6 @@ exports.create = async function (req, res) {
         null
       );
     }
-
-    // Log the ABI encoded constructor arguments
-    const abiEncodedArgs = hre.ethers.utils.defaultAbiCoder.encode(
-      [
-        'string[]',
-        'address[]',
-        'address[]',
-        'address',
-        'address',
-        'address',
-        'address',
-        'string[]',
-        'address[]',
-      ],
-      args
-    );
 
     // Build entity
     const collectionName = COLLECTION_NAME;
@@ -611,7 +817,7 @@ exports.create = async function (req, res) {
     body.balances = [];
 
     body.contractAddress = colateralContractAddress;
-    body.contractSignerAddress = colateralContractSignerAddress;
+    body.contractSignerAddress = lender.safeLiq1.toLowerCase();
     body.contractDeployment = colateralContractDeploy.contractDeployment;
     body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
@@ -682,45 +888,124 @@ exports.create = async function (req, res) {
   }
 };
 
-const getGasPriceAndLimit = async (gasLimit) => {
-  // Fallback values
-  const gasLimitFallback = 500000;
-  const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
+  console.log(' getGasPriceAndLimit - networkName - ', networkName, ' actionName - ', actionName);
+  const functionName = 'getGasPriceAndLimit'; // Nombre de la función para los mensajes de error
+  const gasPriceFallback = 50000000000; // Fallback gas price (en wei)
+
+  // Lista fija de acciones permitidas
+  const allowedActions = ['CREATE', 'TRANSFER', 'SWAP'];
+
+  // Definición de gasLimit por acción (valores por defecto)
+  const gasLimitActionFallback = {
+    CREATE: 5000000, // 5,000,000 para CREATE
+    TRANSFER: 500000, // 500,000 para TRANSFER
+    SWAP: 1000000, // 1,000,000 para SWAP
+  };
+
+  // Convertir el enum en una lista de valores válidos
+  const validNetworks = Object.values(networkTypes);
+  // Verificaciones iniciales
+  if (!networkName || !validNetworks.includes(networkName)) {
+    const errorMessage = `${functionName} - Invalid or undefined networkName: ${networkName}. Supported networks are: ${validNetworks.join(
+      ', '
+    )}. Called with networkName=${networkName}, actionName=${actionName}`;
+    throw new Error(errorMessage);
+  }
+
+  // Verificar que actionName esté en la lista de acciones permitidas
+  if (!actionName || !allowedActions.includes(actionName)) {
+    const errorMessage = `${functionName} - Invalid or undefined actionName: ${actionName}. Allowed actions are: ${allowedActions.join(
+      ', '
+    )}. Called with networkName=${networkName}, actionName=${actionName}`;
+    throw new Error(errorMessage);
+  }
+
+  // Inicialización y valores de fallback
+  let gasPrice = gasPriceFallback;
+  let gasLimit = gasLimitActionFallback[actionName]; // Inicializar con el valor de fallback correspondiente a la acción
+  let maxFeePerGas;
+  let maxPriorityFeePerGas;
+  let gasLimitEnv;
+  const gasLimitVariable = `GAS_LIMIT_${actionName.toUpperCase()}`;
+  let networkConfig;
 
   try {
-    const feeData = await alchemy.getFeeData();
-    // Not needed const maxFeePerGas = feeData.maxFeePerGas || null;
-    // Not needed const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas || null;
+    // Obtener URL del proveedor RPC usando el networkName
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
 
-    const gasPrice = feeData.gasPrice || null;
-
-    console.log('feeData:', feeData);
-
-    const networkConfig = PROVIDER_NETWORK_NAME === 'rsk' ? { gasPrice } : { gasPrice };
-
-    if (gasLimit) {
-      networkConfig.gasLimit = gasLimit;
+    gasLimitEnv = await getEnvVariable(gasLimitVariable, networkName);
+    if (gasLimitEnv) {
+      gasLimit = parseInt(gasLimitEnv, 10); // Sobrescribir el fallback con el valor encontrado
     } else {
-      networkConfig.gasLimit = gasLimitFallback;
+      const errorMessage = `${functionName} - Error getting price limit from database. Called with networkName=${networkName}`;
+      console.error(functionName, errorMessage);
+      throw new Error(errorMessage);
     }
 
-    console.log('networkConfig:', networkConfig);
+    // Obtener el valor de OVERRIDE_GAS_PRICE para saber si hay que usar el valor por override
+    const OVERRIDE_GAS_PRICE = await getEnvVariable('OVERRIDE_GAS_PRICE', networkName);
+
+    // Step 1: Cálculo del Gas Price
+    if (OVERRIDE_GAS_PRICE === 'TRUE') {
+      // Si OVERRIDE_GAS_PRICE está activado, obtener el valor del gasPrice de OVERRIDE_GAS_PRICE_VALUE
+      gasPrice = await getEnvVariable('OVERRIDE_GAS_PRICE_VALUE', networkName);
+      networkConfig = {
+        gasPrice, // gasPrice ya está en el formato correcto, no es necesario volver a aplicarlo a BigNumber
+        gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+      };
+    } else {
+      // Si OVERRIDE_GAS_PRICE es false, determinar gasPrice basado en la red
+      const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+      if (networkName === 'ROOTSTOCK') {
+        // Obtener gas price para RSK
+        const gasPriceData = await provider.getGasPrice();
+        gasPrice = Math.round(hre.ethers.BigNumber.from(gasPriceData).toString() * 1.1); // Convertir de hex a decimal y aumentar un 10%
+        networkConfig = {
+          gasPrice, // gasPrice ya está en el formato correcto, no es necesario volver a aplicarlo a BigNumber
+          gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+        };
+      } else if (networkName === 'POLYGON') {
+        // Obtener fee data para Polygon
+        const feeData = await provider.getFeeData();
+        // Pruebo usar fees
+        maxFeePerGas = feeData.maxFeePerGas ? feeData.maxFeePerGas.toString() : null;
+        maxPriorityFeePerGas = feeData.maxPriorityFeePerGas
+          ? feeData.maxPriorityFeePerGas.toString()
+          : null;
+
+        // Intentar obtener el valor de gas limit desde las variables de entorno, si existe, sobreescribir el fallback
+        networkConfig = {
+          maxPriorityFeePerGas,
+          maxFeePerGas,
+          gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
+        };
+      }
+    }
+
+    console.log(`${functionName} - networkConfig:`, networkConfig);
     return networkConfig;
   } catch (error) {
-    console.error('Error fetching feeData:', error);
-    return {
-      gasPrice: null,
-      maxFeePerGas: null,
-      maxPriorityFeePerGas: null,
-      gasLimit: gasLimit || gasLimitFallback,
+    const errorMessage = `${functionName} - Error fetching gas price or gas limit. Called with networkName=${networkName}, actionName=${actionName}. Error: ${error.message}`;
+    console.error(errorMessage);
+
+    // Valores por defecto en caso de error (ya inicializados con valores fallback)
+    const fallbackConfig = {
+      gasPrice: gasPriceFallback,
+      gasLimit: gasLimitActionFallback[actionName], // Usar el gasLimit específico para la acción (fallback)
     };
+
+    console.log(`${functionName} - Fallback networkConfig:`, fallbackConfig);
+    return fallbackConfig;
   }
 };
 
 // Se sustituirá por transacción de OPERATOR (adaptada por ahora a DEPLOYER)
 const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccount }) {
   const blockchainContract = getDeployedContract(vault);
-  const networkConfig = getGasPriceAndLimit();
+  const networkName = vault.contractNetwork;
+  const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
   const setTx1 = await blockchainContract.setRescueWalletAddress(
     rescueWalletAccount,
     networkConfig
@@ -734,7 +1019,7 @@ const fetchVaultBalances = async (vault) => {
   console.log('fetchVaultBalances- Vault version vale ' + vault.contractVersion);
 
   // Get the deployed contract.
-  const blockchainContract = getDeployedContract(vault);
+  const blockchainContract = await getDeployedContract(vault);
   const contractBalances = await blockchainContract.getBalances();
   console.log('BALANCES FOR ' + vault.id + ': ' + JSON.stringify(contractBalances));
   let balancesWithCurrencies = [];
@@ -876,13 +1161,42 @@ exports.getVaultBalances = async function (req, res) {
     console.log('Entro a getVaultBalances ' + id);
     const vault = await fetchSingleItem({ collectionName: COLLECTION_NAME, id });
     const allBalances = await fetchVaultBalances(vault);
-    console.log('La vault que estoy procesando es');
+    console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
+    console.log(
+      'getVaultBalances - Balances en la base es: ',
+      JSON.stringify(vault.balances, null, 2)
+    );
+    console.log(
+      'getVaultBalances - Balances obtenidos del contrato: ',
+      JSON.stringify(allBalances, null, 2)
+    );
 
-    // actualizo
+    let balancesNeedUpdate = true;
+
+    if (
+      areNonRebasingTokensEqual(vault.balances, allBalances) &&
+      areRebasingTokensEqualWithDiff(vault.balances, allBalances, 1)
+    ) {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - All Non Rebasing tokens balances are the same and rebasing within allowable difference'
+      );
+      balancesNeedUpdate = false;
+    } else {
+      console.log(
+        'getVaultBalances - ',
+        vault.id,
+        ' - Non Rebasing tokens are different, or rebasing tokens outside allowable difference'
+      );
+      balancesNeedUpdate = true;
+    }
+
+    // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
-      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      data: { balances: allBalances, mustUpdate: balancesNeedUpdate, balancesUpdateRetries: 0 },
       auditUid,
       id: vault.id,
     });
@@ -942,6 +1256,7 @@ exports.withdraw = async function (req, res) {
   const { userId } = res.locals;
   const auditUid = userId;
   const { id, companyId, userId: targetUserId } = req.params;
+  console.log('Empiezo withdraw - ' + req.params.id);
 
   const { amount, token } = req.body;
 
@@ -1006,7 +1321,8 @@ exports.withdraw = async function (req, res) {
     const blockchainContract = getDeployedContract(smartContract);
     const decimals = CurrencyDecimals.get(token); // decimales
     const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-    const networkConfig = await getGasPriceAndLimit();
+    const networkName = smartContract.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
     // dry run so if it fails it gives a reason, also transaction is not launch to avoid unnecesart money spending
@@ -1021,7 +1337,7 @@ exports.withdraw = async function (req, res) {
     const withdrawTotalAmountUSD = smartContract.withdrawTotalAmountUSD
       ? smartContract.withdrawTotalAmountUSD
       : 0;
-
+    console.log('withdraw - actualizo la bóveda con  el nuevo crédito ' + id);
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
       id,
@@ -1038,8 +1354,25 @@ exports.withdraw = async function (req, res) {
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
     const borrower = await fetchSingleItem({ collectionName: Collections.USERS, id: targetUserId });
 
+    console.log('withdraw - mando mails de liquidación ' + id);
     await EmailSender.send({
       to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-liquidate',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: withdrawInARS,
+          vaultType: smartContract.vaultType,
+          creditType: smartContract.creditType,
+        },
+      },
+    });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-liquidate',
@@ -1189,8 +1522,8 @@ exports.rescue = async function (req, res) {
     const decimals = CurrencyDecimals.get(token); // decimales
     const ethAmount =
       token === decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-
-    const networkConfig = await getGasPriceAndLimit();
+    const networkName = smartContract.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
     // Dry run it helps gettint the error reason and fails without spending money
@@ -1237,6 +1570,22 @@ exports.rescue = async function (req, res) {
         },
       },
     });
+
+    await EmailSender.send({
+      to: SYS_ADMIN_EMAIL,
+      message: null,
+      template: {
+        name: 'mail-rescue',
+        data: {
+          username: borrower.firstName + ' ' + borrower.lastName,
+          vaultId: id,
+          lender: lender.name,
+          value: rescueInARS,
+          currency,
+        },
+      },
+    });
+
     return res.status(200).send({ ethAmount });
   } catch (err) {
     const parsedErr = getParsedEthersError(err);
@@ -1258,7 +1607,7 @@ const getVaultsToUpdate = async function () {
   const db = admin.firestore();
   const ref = db.collection(COLLECTION_NAME);
 
-  console.log('Consultando vaults para actualizar');
+  console.log('getVaultsToUpdate - Consultando vaults para actualizar');
   const querySnapshot = await ref
     .where('state', '==', Types.StateTypes.STATE_ACTIVE)
 
@@ -1282,34 +1631,60 @@ const getVaultsToUpdate = async function () {
       return { id, ...data };
     });
   }
-
+  // Extract vault IDs from the initial list for logging
+  const vaultIdsToUpdate = vaults.map((vault) => vault.id);
+  console.log(
+    `getVaultsToUpdate - Initial list of vaults to update: ${
+      vaults.length
+    }, IDs: ${vaultIdsToUpdate.join(', ')}`
+  );
   return vaults;
 };
 
 const getVaultsToEvaluate = async function () {
   const tokens = Object.values(TokenTypes).map((token) => token.toString());
 
-  // Duplicar código de getVaultsToUpdate adaptado?
+  // Retrieve vaults that potentially need updates
   const vaultsToUpdate = await getVaultsToUpdate();
+
+  // Extract vault IDs from the initial list for logging
+  const initialVaultIds = vaultsToUpdate.map((vault) => vault.id);
+  console.log(
+    `getVaultsToEvaluate - Initial list of vaults to Evaluate: ${
+      vaultsToUpdate.length
+    }, IDs: ${initialVaultIds.join(', ')}`
+  );
+
+  // Filter the vaults to identify those with volatile token balances
+  // Duplicar código de getVaultsToUpdate adaptado?
   const vaults = vaultsToUpdate.filter((vault) =>
     vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)
   );
-  console.log(`Vaults con tokens volátiles a evaluar: ${vaults.length}`);
+
+  // Extract vault IDs from the filtered list for logging
+  const filteredVaultIds = vaults.map((vault) => vault.id);
+  console.log(
+    `getVaultsToEvaluate - Filtered list of vaults con tokens volátiles a evaluar: ${
+      vaults.length
+    }, IDs: ${filteredVaultIds.join(', ')}`
+  );
 
   return vaults;
 };
 
 const MAX_BALANCES_RETRIES = 5;
 const markVaultsToUpdate = async function () {
+  console.log('Starting markVaultsToUpdate');
   const db = admin.firestore();
 
-  // TODO MICHEL HACER LOTES
+  // Prepare batch operation
   const batch = db.batch();
 
+  // Retrieve vaults that potentially need updates
   const vaults = await getVaultsToUpdate();
 
-  // const boundaryStartDate = new Date(Date.now());
-  // boundaryStartDate.setDate(boundaryStartDate.getDate() - 45);
+  // Initialize an array to keep track of the operations for logging purposes
+  const batchOperations = [];
 
   vaults.forEach((vault) => {
     const ref = db.collection(COLLECTION_NAME).doc(vault.id);
@@ -1328,12 +1703,20 @@ const markVaultsToUpdate = async function () {
       balancesUpdateCount: balancesUpdateRetries,
     };
 
-    const updates = { ...assistanceUpdateData };
+    // Log each batch operation
+    console.log('markVaultsToUpdate - Adding to the bach ', vault.id, assistanceUpdateData);
+    batchOperations.push({ vaultId: vault.id, ...assistanceUpdateData });
 
-    batch.update(ref, updates);
+    // Queue the update in the batch
+    batch.update(ref, assistanceUpdateData);
   });
 
+  // Log all batch operations before committing
+  console.log('Batch operations queued:', JSON.stringify(batchOperations));
+
+  // Commit the batch
   await batch.commit();
+  console.log('Batch commit successful');
 };
 
 const MAX_EVALUATE_RETRIES = 5;
@@ -1398,11 +1781,15 @@ exports.cronFetchVaultsBalances = functions
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenUpdateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenUpdateBalances - after.mustUpdate ',
+      after.mustUpdate,
+      ' docId ',
+      docId
+    );
     if (!after.mustUpdate) return;
 
     const allBalances = await fetchVaultBalances({ ...after, id: docId });
-
-    console.log('onVaultUpdate post fetch smart contract data' + docId);
 
     const updateData = {
       lastBalanceUpdate: admin.firestore.FieldValue.serverTimestamp(), // new Date(Date.now())
@@ -1483,6 +1870,21 @@ const sendDepositEmails = async (vault, movementAmount) => {
     });
   });
 
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-cripto',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        value: movementAmount.toFixed(2),
+        currency: 'ARS',
+      },
+    },
+  });
+
   // Envio el email al borrower de esta boveda
   EmailSender.send({
     to: borrower.email,
@@ -1495,6 +1897,82 @@ const sendDepositEmails = async (vault, movementAmount) => {
         lender: lender.name,
         value: movementAmount.toFixed(2),
         currency: 'ARS',
+      },
+    },
+  });
+};
+
+const sendCreditEmails = async (vault, beforeAmount) => {
+  // TODO refactor along the others email sending into a generic fx (event, vault, args)
+  console.log(
+    'sendCreditEmails - Envio mails por modificación del monto del crédito.' +
+      vault.id +
+      ' before ' +
+      beforeAmount +
+      ' after ' +
+      vault.amount
+  );
+
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, 'ars');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, 'ars');
+
+  const lender = await fetchSingleItem({
+    collectionName: Collections.COMPANIES,
+    id: vault.companyId,
+  });
+  const borrower = await fetchSingleItem({
+    collectionName: Collections.USERS,
+    id: vault.userId,
+  });
+  const employees = await getVaultCompanyEmployees(vault);
+
+  // Envio aviso a los employees de la companía
+  employees.forEach((compEmployee) => {
+    const employee = compEmployee.userId_SOURCE_ENTITIES[0];
+
+    EmailSender.send({
+      to: employee.email,
+      message: null,
+      template: {
+        name: 'mail-update',
+        data: {
+          username: employee.firstName + ' ' + employee.lastName,
+          vaultId: vault.id,
+          lender: lender.name,
+          amountBefore: bAmount,
+          amount: movementAmount,
+        },
+      },
+    });
+  });
+
+  EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: bAmount,
+        amount: movementAmount,
+      },
+    },
+  });
+
+  // Envio el email al borrower de esta boveda
+  EmailSender.send({
+    to: borrower.email,
+    message: null,
+    template: {
+      name: 'mail-update',
+      data: {
+        username: borrower.firstName + ' ' + borrower.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+        amountBefore: bAmount,
+        amount: movementAmount,
       },
     },
   });
@@ -1531,6 +2009,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       console.log(
         'transactionType:',
         transactionType,
+        'proxyContractAddress:',
+        JSON.stringify(after.proxyContractAddress),
         'before balances:',
         JSON.stringify(before.balances),
         'after balances:',
@@ -1619,11 +2099,11 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
         movementAmount = after.amount - before.amount;
-
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
+        await sendCreditEmails(after, before.amount);
       }
     }
 
@@ -1639,6 +2119,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
   // Mails ingreso crypto
   if (transactionType === VaultTransactionTypes.CRYPTO_UPDATE && movementType === 'plus') {
+    console.log('Mail ingreso crypto ', after.balances, '  ', movementAmount);
     await sendDepositEmails(after, movementAmount);
   }
 
@@ -1670,10 +2151,25 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, documentPath }) => {
   try {
-    if (!before.balances && !after.balances) return;
+    console.log(
+      'onVaultUpdate_ThenCreateTransaction - after.mustUpdate ',
+      after.mustUpdate,
+      ' after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
 
-    if (before.balances.length !== after.balances.length) {
-      console.log('Son distintos por cantidad ' + docId);
+    if (!before.balances && !after.balances) {
+      console.log('onVaultUpdate_ThenCreateTransaction - No hay información de balances ' + docId);
+      return;
+    }
+
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (before.balances.length !== after.balances.length && after.mustUpdate) {
+      console.log(
+        'onVaultUpdate_ThenCreateTransaction - Son distintos por cantidad de activos ' + docId
+      );
       await createVaultTransaction({
         docId,
         before,
@@ -1683,8 +2179,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances)) {
-      console.log('Son distintos por comparacion ' + docId);
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (JSON.stringify(before.balances) !== JSON.stringify(after.balances) && after.mustUpdate) {
+      console.log('onVaultUpdate_ThenCreateTransaction Son distintos por balance ' + docId);
 
       await createVaultTransaction({
         docId,
@@ -1695,7 +2192,9 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
       return;
     }
 
-    if (!before.balances && after.balances) {
+    // MRM Junio 2024 agrego flag update false en la condición para evitar CRYPTO_UPDATE duplicados
+    if (!before.balances && after.balances && after.mustUpdate) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Balance Nuevo ' + docId);
       await createVaultTransaction({
         docId,
         before,
@@ -1706,13 +2205,16 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
     }
 
     if (before.amount !== after.amount) {
+      console.log('onVaultUpdate_ThenCreateTransaction - Actualización de crédito ' + docId);
       await createVaultTransaction({
         docId,
         before,
         after,
         transactionType: VaultTransactionTypes.CREDIT_UPDATE,
       });
+      return;
     }
+    console.log('onVaultUpdate_ThenCreateTransaction - Ninguna transacción identificada ' + docId);
   } catch (e) {
     console.error('Error creando la transaccion ' + docId + '. ' + e.message);
     throw e;
@@ -1722,6 +2224,12 @@ const onVaultUpdate_ThenCreateTransaction = async ({ before, after, docId, docum
 // eslint-disable-next-line camelcase
 const onVaultUpdate_ThenEvaluateBalances = async ({ after, docId }) => {
   try {
+    console.log(
+      'onVaultUpdate_ThenEvaluateBalances - after.mustEvaluate ',
+      after.mustEvaluate,
+      ' docId ',
+      docId
+    );
     if (!after.mustEvaluate) return;
     console.log(`Evaluación contrato ${docId}`);
 
@@ -1798,13 +2306,19 @@ exports.onVaultUpdate = functions.firestore
 
     // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
-      console.log('onVaultUpdate ' + documentPath);
+      console.log(
+        'onVaultUpdate ' +
+          documentPath +
+          ' differences ' +
+          JSON.stringify(getDifferences(before, after))
+      );
+
       const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
-
+      console.log('onVaultUpdate ' + documentPath + ' updateData ' + JSON.stringify(updateData));
       if (Object.keys(updateData).length > 0) {
         const db = admin.firestore();
         const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
@@ -1860,6 +2374,19 @@ const sendCreateEmails = async (vault) => {
 
   await EmailSender.send({
     to: employee.email,
+    message: null,
+    template: {
+      name: 'mail-vault',
+      data: {
+        username: employee.firstName + ' ' + employee.lastName,
+        vaultId: vault.id,
+        lender: lender.name,
+      },
+    },
+  });
+
+  await EmailSender.send({
+    to: SYS_ADMIN_EMAIL,
     message: null,
     template: {
       name: 'mail-vault',
@@ -2080,10 +2607,22 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     id: evalVault.vault.userId,
   });
 
+  const usdBalance = evalVault.vault.balances.find(
+    (item) => item.currency === 'usd' && item.isValuation === true
+  );
+
+  // Inicializar variables
+  const usdStablesSum = getUsdStableValue(evalVault.vault.balances);
+  const usdVolatileSum = getUsdVolatileValue(evalVault.vault.balances);
+
+  const ARSrequiredIncrease = evalVault.vault.amount - evalVault.arsLimits.notificationLimit;
+  console.log(`evalVault vale ${JSON.stringify(evalVault)}`);
+
   if (evalVault.actionType === ActionTypes.NOTIFICATION) {
     console.log(`Enviando mail de acción NOTIFICATION para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-mc2',
@@ -2091,9 +2630,23 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          requiredIdx: evalVault.arsLimits.notificationLimit,
-          idx: evalVault.vault.amount,
-          liquidateIdx: evalVault.arsLimits.actionLimit,
+          requiredCryptoValue: formatMoneyWithCurrency(
+            ARSrequiredIncrease,
+            2,
+            undefined,
+            undefined,
+            'ars'
+          ),
+          loan: formatMoneyWithCurrency(evalVault.vault.amount, 2, undefined, undefined, 'ars'),
+          cryptoValue: formatMoneyWithCurrency(usdBalance.balance, 2, undefined, undefined, 'usd'),
+          volatileCryptoValue: formatMoneyWithCurrency(
+            usdVolatileSum,
+            2,
+            undefined,
+            undefined,
+            'usd'
+          ),
+          stableCryptoValue: formatMoneyWithCurrency(usdStablesSum, 2, undefined, undefined, 'usd'),
         },
       },
     });
@@ -2101,6 +2654,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
     console.log(`Enviando mail de acción SWAP para vault ${evalVault.vault.id}`);
     await EmailSender.send({
       to: borrower.email,
+      SYS_ADMIN_EMAIL,
       message: null,
       template: {
         name: 'mail-swap',
@@ -2174,7 +2728,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       'swapVaultExactInputs - Final total gas estimation for all swaps:',
       swapsGasEstimation.toString()
     );
-    const networkConfig = await getGasPriceAndLimit(swapsGasEstimation);
+    const networkName = vault.contractNetwork;
+    const networkConfig = await getGasPriceAndLimit(networkName, 'SWAP');
     console.log('swapVaultExactInputs - swapsParams', JSON.stringify(swapsParams));
     console.log('swapVaultExactInputs - networkConfig', JSON.stringify(networkConfig));
 
@@ -2351,9 +2906,9 @@ const swapVaultTokenBalances = async (vault) => {
 
 exports.evaluate = async function (req, res) {
   try {
-    console.log('Pedido de evaluación de vaults entrante.');
+    console.log('evaluate - Pedido de evaluación de vaults entrante.');
     await markVaultsToEvaluate();
-    return res.status(200).send('Ok: vaults marcadas para evaluar');
+    return res.status(200).send('evaluate - Ok: vaults marcadas para evaluar');
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -2361,26 +2916,80 @@ exports.evaluate = async function (req, res) {
 
 exports.createVaultAdmin = async (req, res) => {
   try {
-    const { owner } = req.params;
-    if (!owner || typeof owner !== 'string' || owner.length !== 42) {
+    console.log(' Comienzo createVaultAdmin');
+    console.log(' Comienzo createVaultAdmin req ', JSON.stringify(req.body));
+    const { safeLiq1, safeLiq3 } = req.body;
+    // Validar owners de Polygon y Rootstock
+    if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
       throw new CustomError.TechnicalError(
-        'ERROR_INVALID_ARGS',
+        'createVaultAdmin - ERROR_INVALID_ARGS_POLYGON',
         null,
-        'Invalida args creating ProxyAdmin contract',
+        'createVaultAdmin - Invalid Polygon owner address',
         null
       );
     }
-    console.log(`Pedido creacion ProxyAdmin con owner ${owner}`);
+
+    if (!safeLiq3 || typeof safeLiq3 !== 'string' || safeLiq3.length !== 42) {
+      throw new CustomError.TechnicalError(
+        'createVaultAdmin - ERROR_INVALID_ARGS_ROOTSTOCK',
+        null,
+        'createVaultAdmin - Invalid Rootstock owner address',
+        null
+      );
+    }
+
+    console.log(
+      `createVaultAdmin - Requested creation of ProxyAdmin with owners: Polygon (${safeLiq1}), Rootstock (${safeLiq3})`
+    );
 
     const contractName = 'ColateralProxyAdmin';
-    // We use .toLowerCase() because RSK has a different address checksum (capitalizationof letters) that Ethereum
+
+    // Deploy en Polygon con el owner de Polygon
+    const polygonConfig = await getGasPriceAndLimit('POLYGON', 'CREATE');
+    const polygonDeployment = await deployProxyAdminInNetwork(
+      contractName,
+      safeLiq1.toLowerCase(), // Owner de Polygon
+      'POLYGON',
+      polygonConfig
+    );
+
+    // Deploy en Rootstock con el owner de Rootstock
+    const rootstockConfig = await getGasPriceAndLimit('ROOTSTOCK', 'CREATE');
+    const rootstockDeployment = await deployProxyAdminInNetwork(
+      contractName,
+      safeLiq3.toLowerCase(), // Owner de Rootstock
+      'ROOTSTOCK',
+      rootstockConfig
+    );
+
+    // Combinar los deployments en una sola respuesta
+    const proxyAdminDeploymentResult = {
+      polygon: polygonDeployment,
+      rootstock: rootstockDeployment,
+    };
+
+    return res.status(201).send(proxyAdminDeploymentResult);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+// Helper function to deploy a contract in a specific network
+async function deployProxyAdminInNetwork(contractName, owner, network, networkConfig) {
+  try {
+    console.log(
+      `createVaultAdmin - Starting deployment of contract ${contractName} on ${network} for owner ${owner}`
+    );
+
     const { deploymentResponse, contractDeployment } = await deployContract(
       contractName,
-      owner.toLowerCase()
+      owner,
+      network,
+      networkConfig
     );
 
     await deploymentResponse.deployed();
-    console.log('Deployment success');
+    console.log(`createVaultAdmin - ${network} deployment success`);
 
     const contractAddress = contractDeployment.address;
 
@@ -2388,23 +2997,26 @@ exports.createVaultAdmin = async (req, res) => {
       throw new CustomError.TechnicalError(
         'ERROR_CREATE_CONTRACT',
         null,
-        'Empty contract address response',
+        `Empty contract address response for ${network}`,
         null
       );
     }
 
-    const proxyAdmin = {
+    return {
       proxyAdminAddress: contractAddress.toLowerCase(),
-      owner: owner.toLowerCase(),
+      owner,
       contractDeployment,
     };
-
-    console.log(`ProxyAdmin ${contractAddress} creado con exito con owner ${owner}`);
-    return res.status(201).send(proxyAdmin);
   } catch (err) {
-    return ErrorHelper.handleError(req, res, err);
+    console.error(`createVaultAdmin - Error during ${network} deployment:`, err);
+    throw new CustomError.TechnicalError(
+      `createVaultAdmin - ERROR_DEPLOY_${network}`,
+      err,
+      `Error deploying on ${network}`,
+      null
+    );
   }
-};
+}
 
 // Se desestima. MUMBAI para crear SAFE asociada a un lender
 exports.createSafeAccount = async (req, res) => {
@@ -2426,7 +3038,7 @@ exports.createSafeAccount = async (req, res) => {
     }
 
     // Init
-    // const provider = new hre.ethers.providers.AlchemyProvider(PROVIDER_NETWORK_NAME,ALCHEMY_API_KEY);
+
     const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
     const deployerOwnerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
 
@@ -2515,3 +3127,92 @@ exports.amountToConversions = async (req, res) => {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.sendEmailBalance = functions.pubsub
+  .schedule('every sunday 08:00')
+  .timeZone('America/New_York')
+  .onRun(async (context) => {
+    try {
+      const db = admin.firestore();
+      const ref = db.collection(COLLECTION_NAME);
+
+      console.log('getVaultsToUpdate - Consultando vaults para actualizar');
+      const savingsVaultsSnapshot = await ref
+        .where('state', '==', Types.StateTypes.STATE_ACTIVE)
+        .where('vaultType', 'in', [Types.VaultTypes.VAULT_TYPE_SAVINGS])
+        .get();
+
+      if (savingsVaultsSnapshot.empty) {
+        console.log('No savings vaults found.');
+        return;
+      }
+
+      for (const vaultDoc of savingsVaultsSnapshot.docs) {
+        const vault = vaultDoc.data();
+        const userId = vault.userId;
+
+        // Fetch user details
+        const userDoc = await fetchSingleItem({
+          collectionName: COLLECTION_NAME_USERS,
+          id: userId,
+        });
+        if (!userDoc) {
+          console.log(`No user found for ID: ${userId}`);
+          continue;
+        }
+
+        const firstName = userDoc.firstName;
+        const userEmail = userDoc.email;
+
+        // Extract balance details from vault.balances
+        const balances = vault.balances || [];
+        let usdValuation = 0;
+        let arsValuation = 0;
+        let totalTokenValueUSD = 0;
+
+        balances.forEach((balanceData) => {
+          if (balanceData.isValuation) {
+            if (balanceData.currency === 'usd') {
+              usdValuation = balanceData.balance;
+            } else if (balanceData.currency === 'ars') {
+              arsValuation = balanceData.balance;
+            }
+          } else {
+            const usdValue = balanceData.valuations.find(
+              (valuation) => valuation.currency === 'usd'
+            ).value;
+            totalTokenValueUSD += usdValue;
+          }
+        });
+
+        // Send email
+        const emailContent = `
+          Hola ${firstName}, te mandamos el balance semanal de tu bóveda.
+          El total de tu bóveda valuado en USD es ${usdValuation}
+          El total de tu bóveda valuado en ARS es ${arsValuation}
+          El valor total de tus tokens en USD es ${totalTokenValueUSD}
+          Gracias por trabajar con nosotros.
+        `;
+
+        EmailSender.send({
+          to: userEmail,
+          SYS_ADMIN_EMAIL,
+          message: null,
+          template: {
+            name: 'mail-balance-semanal',
+            data: {
+              username: firstName,
+              vaultId: vaultDoc.id,
+              USDAmount: Math.round(totalTokenValueUSD), // Use Math.floor() or Math.ceil() if preferred
+            },
+          },
+        });
+
+        console.log(
+          `Email sent to ${userEmail} for ${firstName} on vault ${vaultDoc.id}, usdValuation es ${totalTokenValueUSD}`
+        );
+      }
+    } catch (error) {
+      console.error('Error sending email balance:', error);
+    }
+  });
