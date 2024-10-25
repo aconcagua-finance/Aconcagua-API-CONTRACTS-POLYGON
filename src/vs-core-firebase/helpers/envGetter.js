@@ -1,5 +1,15 @@
 const admin = require('firebase-admin'); // Para Firestore
-const { CONFIG_NETWORK_COLLECTION } = require('../../config/appConfig');
+const {
+  CONFIG_NETWORK_COLLECTION,
+  DEPLOYER_PRIVATE_KEY_POLYGON,
+  DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
+} = require('../../config/appConfig');
+
+const envVariablesMap = {
+  DEPLOYER_PRIVATE_KEY_POLYGON,
+  DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
+};
+
 const hre = require('hardhat');
 
 function isBasicAddressFormat(address) {
@@ -32,7 +42,7 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
 
       // Obtener el valor de la variable de entorno
-      const envValue = process.env[fullVariableName];
+      const envValue = envVariablesMap[fullVariableName];
 
       if (!envValue) {
         throw new Error(`La variable ${fullVariableName} no está definida en el entorno`);
