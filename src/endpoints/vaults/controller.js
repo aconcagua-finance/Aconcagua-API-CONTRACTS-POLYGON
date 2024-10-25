@@ -97,7 +97,6 @@ const {
 
 const {
   SYS_ADMIN_EMAIL,
-  DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   PROVIDER_NETWORK_NAME,
   POLYGONSCAN_API_KEY,
@@ -447,9 +446,11 @@ const deployContract = async (
   let NETWORK_URL;
   let alchemy;
   let signer;
+  let DEPLOYER_PRIVATE_KEY;
 
   if (networkName) {
     NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
 
     console.log('deployContract NETWORK_URL ' + NETWORK_URL);
     console.log('deployContract contractName ' + contractName);
@@ -516,6 +517,7 @@ const getDeployedContract = async (vault) => {
 
   // TODO Validar que la red que tomé de la base es válida
   console.log('getDeployedContract - NETWORK_URL ' + NETWORK_URL);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', contractNetwork);
   const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
   const userWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
 
@@ -608,6 +610,7 @@ exports.create = async function (req, res) {
     // Abro wallet
 
     const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
     const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
     const colateralContractName = 'ColateralContract2';
@@ -3020,7 +3023,7 @@ async function deployProxyAdminInNetwork(contractName, owner, network, networkCo
   }
 }
 
-// Se desestima. MUMBAI para crear SAFE asociada a un lender
+/* Se desestima. MUMBAI para crear SAFE asociada a un lender
 exports.createSafeAccount = async (req, res) => {
   try {
     // Inputs: address (str) lenderLiqAddress, (int) threshold, (int 1 o 2) safeLiqAddressNumber, optional: aconLiqAddress
@@ -3094,6 +3097,7 @@ exports.createSafeAccount = async (req, res) => {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+*/
 
 exports.amountToConversions = async (req, res) => {
   try {
