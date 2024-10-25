@@ -1,6 +1,5 @@
 const admin = require('firebase-admin');
-
-import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
+import { getEnvVariable } from '../helpers/envGetter';
 
 // import * as Config from '../config';
 

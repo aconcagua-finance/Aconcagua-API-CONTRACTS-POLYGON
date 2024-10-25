@@ -11,6 +11,12 @@ function isBasicAddressFormat(address) {
 exports.getEnvVariable = async function (variableName, networkName = null) {
   // Lista de variables que deben ser devueltas desde los secretos de GitHub
   const secretsVariables = ['DEPLOYER_PRIVATE_KEY', 'SWAPPER_PRIVATE_KEY'];
+  // Mapa de equivalencias de redes
+  const networkEquivalences = {
+    SEPOLIA: 'POLYGON',
+    ROOTSTOCKTESTNET: 'ROOTSTOCK',
+    // Puedes agregar más equivalencias de redes aquí
+  };
 
   let finalNetworkName;
 
