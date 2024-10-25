@@ -35,9 +35,9 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
   try {
     if (secretsVariables.includes(variableName)) {
       // Si es una de las variables sensibles, construir el nombre de la variable según la red final
-      const normalizedNetworkName = networkName
-        ? networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase()
-        : 'GENERAL';
+      const normalizedNetworkName = networkName ?
+        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
+        'GENERAL';
 
       // Construir el nombre completo de la variable según la red (por ejemplo, DEPLOYER_PRIVATE_KEY_POLYGON)
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
