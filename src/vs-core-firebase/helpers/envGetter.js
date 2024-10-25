@@ -11,11 +11,12 @@ function isBasicAddressFormat(address) {
 exports.getEnvVariable = async function (variableName, networkName = null) {
   // Lista de variables que deben ser devueltas desde los secretos de GitHub
   const secretsVariables = ['DEPLOYER_PRIVATE_KEY', 'SWAPPER_PRIVATE_KEY'];
+
   // Mapa de equivalencias de redes
   const networkEquivalences = {
     SEPOLIA: 'POLYGON',
     ROOTSTOCKTESTNET: 'ROOTSTOCK',
-    // Puedes agregar más equivalencias de redes aquí
+    // Agrega más equivalencias de redes aquí si es necesario
   };
 
   let finalNetworkName;
@@ -23,11 +24,21 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
   try {
     // **1. Verificar si la variable solicitada es una de los secretos definidos**
     if (secretsVariables.includes(variableName)) {
-      // Si es una de las variables sensibles, siempre devolver desde el entorno
-      const envValue = process.env[variableName];
+      // Si es una de las variables sensibles, construir el nombre de la variable según la red final
+      const normalizedNetworkName = networkName ?
+        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
+        'GENERAL';
+
+      // Construir el nombre completo de la variable según la red (por ejemplo, DEPLOYER_PRIVATE_KEY_POLYGON)
+      const fullVariableName = `${variableName}_${normalizedNetworkName}`;
+
+      // Obtener el valor de la variable de entorno
+      const envValue = process.env[fullVariableName];
+
       if (!envValue) {
-        throw new Error(`La variable ${variableName} no está definida en el entorno`);
+        throw new Error(`La variable ${fullVariableName} no está definida en el entorno`);
       }
+
       return envValue; // Devuelve el valor desde las variables de entorno
     }
 
