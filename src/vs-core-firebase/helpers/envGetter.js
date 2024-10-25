@@ -5,6 +5,7 @@ const {
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
 } = require('../../config/appConfig');
 
+// Crear un mapa de variables
 const envVariablesMap = {
   DEPLOYER_PRIVATE_KEY_POLYGON,
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
