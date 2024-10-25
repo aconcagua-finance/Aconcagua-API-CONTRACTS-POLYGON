@@ -1,5 +1,6 @@
-const admin = require('firebase-admin');
 import { getEnvVariable } from '../helpers/envGetter';
+
+const admin = require('firebase-admin');
 
 // import * as Config from '../config';
 
