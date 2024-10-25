@@ -22,12 +22,11 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
   let finalNetworkName;
 
   try {
-    // **1. Verificar si la variable solicitada es una de los secretos definidos**
     if (secretsVariables.includes(variableName)) {
       // Si es una de las variables sensibles, construir el nombre de la variable según la red final
-      const normalizedNetworkName = networkName ?
-        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
-        'GENERAL';
+      const normalizedNetworkName = networkName
+        ? networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase()
+        : 'GENERAL';
 
       // Construir el nombre completo de la variable según la red (por ejemplo, DEPLOYER_PRIVATE_KEY_POLYGON)
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
@@ -41,8 +40,6 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
 
       return envValue; // Devuelve el valor desde las variables de entorno
     }
-
-    // **2. Si no es una de las variables de secretos, buscar en Firestore**
 
     // Si no se proporciona networkName o es null, usar 'GENERAL' para buscar en Firestore
     if (!networkName) {
