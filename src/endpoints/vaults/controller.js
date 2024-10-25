@@ -97,7 +97,6 @@ const {
 
 const {
   SYS_ADMIN_EMAIL,
-  DEPLOYER_PRIVATE_KEY,
   SWAPPER_PRIVATE_KEY,
   PROVIDER_NETWORK_NAME,
   POLYGONSCAN_API_KEY,
@@ -447,9 +446,11 @@ const deployContract = async (
   let NETWORK_URL;
   let alchemy;
   let signer;
+  let DEPLOYER_PRIVATE_KEY;
 
   if (networkName) {
     NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
 
     console.log('deployContract NETWORK_URL ' + NETWORK_URL);
     console.log('deployContract contractName ' + contractName);
@@ -509,6 +510,7 @@ const getDeployedContract = async (vault) => {
   console.log('Contract Network ', vault.contractNetwork || 'Red por defecto: POLYGON');
 
   const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', contractNetwork);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', contractNetwork);
 
   if (!NETWORK_URL) {
     throw new Error(`No se encontró una URL válida para la red: ${contractNetwork}`);
@@ -608,6 +610,7 @@ exports.create = async function (req, res) {
     // Abro wallet
 
     const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
     const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
     const colateralContractName = 'ColateralContract2';
@@ -3019,81 +3022,6 @@ async function deployProxyAdminInNetwork(contractName, owner, network, networkCo
     );
   }
 }
-
-// Se desestima. MUMBAI para crear SAFE asociada a un lender
-exports.createSafeAccount = async (req, res) => {
-  try {
-    // Inputs: address (str) lenderLiqAddress, (int) threshold, (int 1 o 2) safeLiqAddressNumber, optional: aconLiqAddress
-
-    // threshold = cantidad de firmantes para aprobar una transaccion
-    // safeLiqAddressNumber >> 1 = ALIQ1_ADDRESS / 2 = ALIQ2_ADDRESS
-    // aconLiqAddress >> si e envia este parametro, define el segundo rol del safe con esta address
-    const body = req.body;
-
-    if (!body.lenderLiqAddress || !body.threshold || !body.safeLiqAddressNumber) {
-      throw new CustomError.TechnicalError(
-        'ERROR_INVALID_ARGS',
-        null,
-        'Invalids args for creating safe account',
-        null
-      );
-    }
-
-    // Init
-
-    const provider = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-    const deployerOwnerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
-
-    const ethAdapterDeployer = new EthersAdapter({
-      ethers: hre.ethers,
-      signerOrProvider: deployerOwnerWallet,
-    });
-
-    // Init Safe
-    const chainId = await ethAdapterDeployer.getChainId();
-    // Se utiliza versión 1.3.0 L2 como la UI de Safe. https://github.com/safe-global/safe-deployments/blob/main/src/assets/v1.3.0
-    const safeVersion = '1.3.0';
-    const contractNetworks = {
-      [chainId]: {
-        safeMasterCopyAddress: '0x3E5c63644E683549055b9Be8653de26E0B4CD36E',
-        safeProxyFactoryAddress: '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2',
-        multiSendAddress: '0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761',
-        multiSendCallOnlyAddress: '0x40A2aCCbd92BCA938b02010E17A5b8929b49130D',
-        fallbackHandlerAddress: '0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4',
-        signMessageLibAddress: '0xA65387F16B013cf2Af4605Ad8aA5ec25a2cbA3a2',
-        createCallAddress: '0x7cbB62EaA69F79e6873cD1ecB2392971036cFAa4',
-        simulateTxAccessorAddress: '0x59AD6735bCd8152B84860Cb256dD9e96b85F69Da',
-      },
-    };
-
-    const safeFactory = await SafeFactory.create({
-      ethAdapter: ethAdapterDeployer,
-      safeVersion,
-      isL1SafeMasterCopy: false,
-      contractNetworks,
-    });
-
-    // Create Safe
-    let aconLiqAddress; // Optional: aconLiqAddress (ALIQ1_ADDRESS or ALIQ2_ADDRESS if missing, depending on safeLiqAddressNumber)
-    if (!body.aconLiqAddress) {
-      aconLiqAddress = body.safeLiqAddressNumber === 1 ? ALIQ1_ADDRESS : ALIQ2_ADDRESS;
-    } else {
-      aconLiqAddress = body.aconLiqAddress;
-    }
-
-    const safeAccountConfig = {
-      owners: [body.lenderLiqAddress, aconLiqAddress],
-      threshold: body.threshold, // 2
-      // ... (optional params)
-    };
-
-    const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
-    const safeLiqAddress = safeSdk.getAddress();
-    return res.status(201).send({ safeLiqAddress });
-  } catch (err) {
-    return ErrorHelper.handleError(req, res, err);
-  }
-};
 
 exports.amountToConversions = async (req, res) => {
   try {
