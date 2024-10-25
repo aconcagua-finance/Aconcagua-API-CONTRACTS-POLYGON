@@ -5,6 +5,7 @@ const {
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
 } = require('../../config/appConfig');
 
+// Crear un mapa de variables
 const envVariablesMap = {
   DEPLOYER_PRIVATE_KEY_POLYGON,
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
@@ -43,6 +44,8 @@ exports.getEnvVariable = async function (variableName, networkName = null) {
 
       // Obtener el valor de la variable de entorno
       const envValue = envVariablesMap[fullVariableName];
+      console.log(' fullVariableName es ', fullVariableName);
+      console.log(' envVariablesMap[fullVariableName] es ', envVariablesMap[fullVariableName]);
 
       if (!envValue) {
         throw new Error(`La variable ${fullVariableName} no está definida en el entorno`);
