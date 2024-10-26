@@ -98,14 +98,8 @@ const {
 const {
   SYS_ADMIN_EMAIL,
   SWAPPER_PRIVATE_KEY,
-  PROVIDER_NETWORK_NAME,
   POLYGONSCAN_API_KEY,
   HARDHAT_API_URL,
-  USDC_TOKEN_ADDRESS,
-  USDT_TOKEN_ADDRESS,
-  USDM_TOKEN_ADDRESS,
-  WBTC_TOKEN_ADDRESS,
-  WETH_TOKEN_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   VALIDATOR_CONTRACT_ADDRESS,
   API_PATH_QUOTES,
@@ -1042,7 +1036,7 @@ const fetchVaultBalances = async (vault) => {
       // Loop through tokenNames and fetch balances
       for (let i = 0; i < tokenNames.length; i++) {
         const tokenName = tokenNames[i];
-        const tokenBalance = contractBalances[i + 1];
+        const tokenBalance = contractBalances[i + 1]; // i+1 porque 0 es el balance de token nativo
 
         const currencyType = Types.CurrencyTypes[tokenName];
         const formattedBalance = parseFloat(
