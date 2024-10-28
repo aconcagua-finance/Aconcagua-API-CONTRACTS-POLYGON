@@ -1,7 +1,7 @@
 /* eslint-disable operator-linebreak */
 const { Alchemy, Network, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
-const { SupportedChainId, CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
+const { CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
 const {
   abi: QuoterABI,
 } = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
@@ -57,8 +57,6 @@ const {
 } = require('../baseEndpoint');
 const {
   HARDHAT_API_URL,
-  PROVIDER_NETWORK_NAME,
-  VALIDATOR_CONTRACT_ADDRESS,
   SWAP_ROUTER_V3_ADDRESS,
   COINGECKO_URL,
   KRAKEN_URL,

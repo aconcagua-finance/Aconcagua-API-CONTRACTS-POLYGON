@@ -2292,6 +2292,84 @@
         "ACON6USDT",
         "ACON8WBTC"
       ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ValidatorContractRSK.sol": {
+      "lastModificationDate": 1730117461164,
+      "contentHash": "0827ab35714ff46ffa722c4bdc963600",
+      "sourceName": "contracts/ValidatorContractRSK.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol",
+        "./IColateralContract2.sol",
+        "./IValidatorContractRSK.sol",
+        "./IPriceConsumerV3.sol"
+      ],
+      "versionPragmas": [
+        "0.8.18"
+      ],
+      "artifacts": [
+        "ValidatorContractRSK"
+      ]
+    },
+    "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\IValidatorContractRSK.sol": {
+      "lastModificationDate": 1729977841281,
+      "contentHash": "c72f5b82635e01d474e54e293e9be28d",
+      "sourceName": "contracts/IValidatorContractRSK.sol",
+      "solcConfig": {
+        "version": "0.8.18",
+        "settings": {
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./IColateralContract2.sol"
+      ],
+      "versionPragmas": [
+        "0.8.18"
+      ],
+      "artifacts": [
+        "IValidatorContractRSK"
+      ]
     }
   }
 }

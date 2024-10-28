@@ -6,22 +6,41 @@ import { Token, SupportedChainId, Percent } from '@uniswap/sdk-core';
 import { FeeAmount } from '@uniswap/v3-sdk';
 import { SwapType } from '@uniswap/smart-order-router';
 import { ContractTypes } from '../types/contractTypes';
-import {
-  PROVIDER_NETWORK_NAME,
-  USDC_TOKEN_ADDRESS,
-  USDT_TOKEN_ADDRESS,
-  USDM_TOKEN_ADDRESS,
-  WBTC_TOKEN_ADDRESS,
-  WETH_TOKEN_ADDRESS,
-} from './appConfig';
+import { getEnvVariable, networkEquivalences } from '../vs-core-firebase/helpers/envGetter';
 
-export const CurrencyDecimals = new Map([
-  [CurrencyTypes.USDC, PROVIDER_NETWORK_NAME === 'rootstock' ? 18 : 6],
-  [CurrencyTypes.USDT, PROVIDER_NETWORK_NAME === 'rootstock' ? 18 : 6],
+export const CurrencyDecimalsRootstock = new Map([
+  [CurrencyTypes.USDC, 18],
+  [CurrencyTypes.USDT, 18],
   [CurrencyTypes.USDM, 18],
-  [CurrencyTypes.WBTC, PROVIDER_NETWORK_NAME === 'rootstock' ? 18 : 8],
-  [CurrencyTypes.WETH, PROVIDER_NETWORK_NAME === 'rootstock' ? 18 : 18],
+  [CurrencyTypes.WBTC, 18],
+  [CurrencyTypes.WETH, 18],
 ]);
+
+export const CurrencyDecimalsPolygon = new Map([
+  [CurrencyTypes.USDC, 6],
+  [CurrencyTypes.USDT, 6],
+  [CurrencyTypes.USDM, 18],
+  [CurrencyTypes.WBTC, 8],
+  [CurrencyTypes.WETH, 18],
+]);
+
+/* Custom enum for additional chains */
+export enum customSupportedChainId {
+  ROOTSTOCK = 30,
+  ROOTSTOCKTESTNET = 31,
+}
+
+export const getCurrencyDecimalsMap = (networkName) => {
+  const networkNameUpperCase = networkName.toUpperCase();
+
+  if (networkNameUpperCase === 'ROOTSTOCK') {
+    return CurrencyDecimalsRootstock;
+  } else if (networkNameUpperCase === 'POLYGON') {
+    return CurrencyDecimalsPolygon;
+  }
+
+  throw new Error(`Unsupported network: ${networkName}`);
+};
 
 export const getTokenReference = (token: Types.CurrencyTypes): string => {
   if (!token) {
@@ -49,23 +68,39 @@ export const getTokenReference = (token: Types.CurrencyTypes): string => {
   }
 };
 
-export const chainId =
-  PROVIDER_NETWORK_NAME === 'matic'
-    ? SupportedChainId.POLYGON
-    : // : PROVIDER_NETWORK_NAME === 'rsk' ? SupportedChainId.RSK
-      SupportedChainId.SEPOLIA;
+// Función para obtener el chainId según la red actual
+export const getChainId = (networkName: string): number => {
+  const networkNameUpperCase = networkName.toUpperCase();
 
-export const swapOptions = {
-  recipient: ContractTypes.EMPTY_ADDRESS, // Can be replaced with vault's
-  slippageTolerance:
-    PROVIDER_NETWORK_NAME === 'matic'
-      ? new Percent(5, 1000)
-      : PROVIDER_NETWORK_NAME === 'rootstock'
-      ? new Percent(5, 1000)
-      : new Percent(10, 100), // 0.5% for Polygon; 10% for Sepolia
-  deadline: () => Math.floor(Date.now() / 1000 + 60 * 10), // 10 min it's a function so we calculate the date every time.
-  type: SwapType.SWAP_ROUTER_02, // Ver Universal Router
+  // Try to find the chain ID in SupportedChainId
+  if (SupportedChainId[networkNameUpperCase as keyof typeof SupportedChainId] !== undefined) {
+    return SupportedChainId[networkNameUpperCase as keyof typeof SupportedChainId];
+  }
+
+  // Try to find the chain ID in customSupportedChainId
+  if (
+    customSupportedChainId[networkNameUpperCase as keyof typeof customSupportedChainId] !==
+    undefined
+  ) {
+    return customSupportedChainId[networkNameUpperCase as keyof typeof customSupportedChainId];
+  }
+
+  // Throw an error if the chain is not supported
+  throw new Error(`Unsupported chain ID: ${networkName}`);
 };
+
+// Función para obtener la configuración de swapOptions según la red
+export const getSwapOptions = (networkName) => ({
+  recipient: ContractTypes.EMPTY_ADDRESS,
+  slippageTolerance:
+    networkName === 'polygon'
+      ? new Percent(5, 1000) // 0.5% para Polygon
+      : networkName === 'rootstock'
+      ? new Percent(5, 1000) // 0.5% para Rootstock
+      : new Percent(10, 100), // 10% para Sepolia (o la red de prueba)
+  deadline: () => Math.floor(Date.now() / 1000 + 60 * 10), // 10 minutos
+  type: SwapType.SWAP_ROUTER_02,
+});
 
 // Default quotes
 export const quoteAmounts = {
@@ -73,78 +108,106 @@ export const quoteAmounts = {
   weth: 2,
 };
 
-// Supported tokens
-export const tokens = {
-  wbtc: new Token(
-    chainId,
-    WBTC_TOKEN_ADDRESS,
-    CurrencyDecimals.get(CurrencyTypes.WBTC),
-    'wbtc',
-    'Wrapped Bitcoin'
-  ),
-  weth: new Token(chainId, WETH_TOKEN_ADDRESS, 18, 'weth', 'Wrapped Ether'),
+// Función para obtener las direcciones de los tokens de forma asíncrona
+export const getTokenAddress = async (tokenName, networkName) => {
+  return await getEnvVariable(`${tokenName}_TOKEN_ADDRESS`, networkName);
 };
 
-export const stableCoins = {
-  usdc: new Token(
-    chainId,
-    USDC_TOKEN_ADDRESS,
-    CurrencyDecimals.get(CurrencyTypes.USDC),
-    'usdc',
-    'USD Coin'
-  ),
-  usdt: new Token(
-    chainId,
-    USDT_TOKEN_ADDRESS,
-    CurrencyDecimals.get(CurrencyTypes.USDT),
-    'usdt',
-    'USD Tether'
-  ),
-  usdm: new Token(
-    chainId,
-    USDM_TOKEN_ADDRESS,
-    CurrencyDecimals.get(CurrencyTypes.USDM),
-    'usdm',
-    'USD Mountain'
-  ),
+// Función para obtener los tokens soportados según la red
+export const getTokens = async (networkName) => {
+  const chainId = getChainId(networkName);
+  const currencyDecimals = getCurrencyDecimalsMap(networkName);
+
+  return {
+    wbtc: new Token(
+      chainId,
+      await getTokenAddress('WBTC', networkName),
+      currencyDecimals.get(CurrencyTypes.WBTC),
+      'wbtc',
+      'Wrapped Bitcoin'
+    ),
+    weth: new Token(
+      chainId,
+      await getTokenAddress('WETH', networkName),
+      18,
+      'weth',
+      'Wrapped Ether'
+    ),
+  };
 };
 
-// TokenOut: quotations and swaps depending on paths relies on.
-export const tokenOut = PROVIDER_NETWORK_NAME == 'rootstock' ? stableCoins.usdt : stableCoins.usdc;
+// Función para obtener las stablecoins según la red
+export const getStableCoins = async (networkName) => {
+  const chainId = getChainId(networkName);
+  const currencyDecimals = getCurrencyDecimalsMap(networkName);
 
-export const staticPaths =
-  PROVIDER_NETWORK_NAME === 'matic'
-    ? {
-        // Prod
-        wbtc: {
-          tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
-          fees: [FeeAmount.LOW, FeeAmount.LOW],
-        },
-        weth: {
-          tokens: [tokens.weth.address, tokenOut.address],
-          fees: [FeeAmount.LOW],
-        },
-      }
-    : PROVIDER_NETWORK_NAME === 'rootstock'
-    ? {
-        // RSK
-        wbtc: {
-          tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.LOW],
-        },
-        weth: {
-          tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.LOW],
-        },
-      }
-    : {
-        // Catedral
-        wbtc: {
-          tokens: [tokens.wbtc.address, tokenOut.address],
-          fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli
-        },
-        weth: {
-          tokens: [tokens.weth.address, tokenOut.address],
-          fees: [FeeAmount.LOW], // https://app.uniswap.org/pools/89645?chain=goerli
-        },
-      };
+  return {
+    usdc: new Token(
+      chainId,
+      await getTokenAddress('USDC', networkName),
+      currencyDecimals.get(CurrencyTypes.USDC),
+      'usdc',
+      'USD Coin'
+    ),
+    usdt: new Token(
+      chainId,
+      await getTokenAddress('USDT', networkName),
+      currencyDecimals.get(CurrencyTypes.USDT),
+      'usdt',
+      'USD Tether'
+    ),
+    usdm: new Token(
+      chainId,
+      await getTokenAddress('USDM', networkName),
+      currencyDecimals.get(CurrencyTypes.USDM),
+      'usdm',
+      'USD Mountain'
+    ),
+  };
+};
+
+// Función para obtener el tokenOut según la red
+export const getTokenOut = async (networkName) => {
+  const stableCoins = await getStableCoins(networkName);
+  return networkName === 'rootstock' ? stableCoins.usdt : stableCoins.usdc;
+};
+
+// Función para obtener staticPaths según la red
+export const getStaticPaths = async (networkName) => {
+  const tokens = await getTokens(networkName);
+  const tokenOut = await getTokenOut(networkName);
+
+  if (networkName === 'polygon') {
+    return {
+      wbtc: {
+        tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
+        fees: [FeeAmount.LOW, FeeAmount.LOW],
+      },
+      weth: {
+        tokens: [tokens.weth.address, tokenOut.address],
+        fees: [FeeAmount.LOW],
+      },
+    };
+  } else if (networkName === 'rootstock') {
+    return {
+      wbtc: {
+        tokens: [tokens.wbtc.address, tokenOut.address],
+        fees: [FeeAmount.LOW],
+      },
+      weth: {
+        tokens: [tokens.wbtc.address, tokenOut.address],
+        fees: [FeeAmount.LOW],
+      },
+    };
+  }
+  return {
+    wbtc: {
+      tokens: [tokens.wbtc.address, tokenOut.address],
+      fees: [FeeAmount.LOW],
+    },
+    weth: {
+      tokens: [tokens.weth.address, tokenOut.address],
+      fees: [FeeAmount.LOW],
+    },
+  };
+};
