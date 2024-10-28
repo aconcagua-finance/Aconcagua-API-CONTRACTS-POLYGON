@@ -24,6 +24,12 @@ export const CurrencyDecimalsPolygon = new Map([
   [CurrencyTypes.WETH, 18],
 ]);
 
+/* Custom enum for additional chains */
+export enum customSupportedChainId {
+  ROOTSTOCK = 30,
+  ROOTSTOCKTESTNET = 31,
+}
+
 export const getCurrencyDecimalsMap = (networkName) => {
   const networkNameUpperCase = networkName.toUpperCase();
 
@@ -63,18 +69,24 @@ export const getTokenReference = (token: Types.CurrencyTypes): string => {
 };
 
 // Función para obtener el chainId según la red actual
-export const getChainId = (networkName) => {
-  const normalizedNetworkName =
-    networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase();
+export const getChainId = (networkName: string): number => {
+  const networkNameUpperCase = networkName.toUpperCase();
 
-  switch (normalizedNetworkName) {
-    case 'POLYGON':
-      return SupportedChainId.POLYGON;
-    case 'ROOTSTOCK':
-      return SupportedChainId.ROOTSTOCK; // Asegúrate de definir ROOTSTOCK en SupportedChainId si aún no lo está.
-    default:
-      return SupportedChainId.SEPOLIA; // Default o de prueba
+  // Try to find the chain ID in SupportedChainId
+  if (SupportedChainId[networkNameUpperCase as keyof typeof SupportedChainId] !== undefined) {
+    return SupportedChainId[networkNameUpperCase as keyof typeof SupportedChainId];
   }
+
+  // Try to find the chain ID in customSupportedChainId
+  if (
+    customSupportedChainId[networkNameUpperCase as keyof typeof customSupportedChainId] !==
+    undefined
+  ) {
+    return customSupportedChainId[networkNameUpperCase as keyof typeof customSupportedChainId];
+  }
+
+  // Throw an error if the chain is not supported
+  throw new Error(`Unsupported chain ID: ${networkName}`);
 };
 
 // Función para obtener la configuración de swapOptions según la red
