@@ -60,7 +60,7 @@ const {
 } = require('../../../artifacts/@openzeppelin/contracts/token/ERC20/IERC20.sol/IERC20.json');
 
 const {
-  CurrencyDecimals,
+  getCurrencyDecimalsMap,
   tokens,
   getTokenReference,
   tokenOut,
@@ -1019,6 +1019,8 @@ const fetchVaultBalances = async (vault) => {
   let balancesWithCurrencies = [];
 
   const isMultiToken = vault.contractVersion === '2.0.0';
+  let networkName;
+  let decimalsMap;
 
   if (isMultiToken) {
     // Handle new version of the contract
@@ -1039,8 +1041,10 @@ const fetchVaultBalances = async (vault) => {
         const tokenBalance = contractBalances[i + 1]; // i+1 porque 0 es el balance de token nativo
 
         const currencyType = Types.CurrencyTypes[tokenName];
+        networkName = vault.contractNetwork;
+        decimalsMap = getCurrencyDecimalsMap(networkName);
         const formattedBalance = parseFloat(
-          Utils.formatUnits(tokenBalance, CurrencyDecimals.get(currencyType))
+          Utils.formatUnits(tokenBalance, decimalsMap.get(currencyType))
         );
 
         console.log(
@@ -1063,29 +1067,32 @@ const fetchVaultBalances = async (vault) => {
     }
   } else {
     // Handle old version of the contract
+    // Old version is always polygon
+    networkName = 'POLYGON';
+    decimalsMap = getCurrencyDecimalsMap(networkName);
     balancesWithCurrencies = [
       {
         currency: Types.CurrencyTypes.USDC,
         balance: parseFloat(
-          Utils.formatUnits(contractBalances[1], CurrencyDecimals.get(Types.CurrencyTypes.USDC))
+          Utils.formatUnits(contractBalances[1], decimalsMap.get(Types.CurrencyTypes.USDC))
         ), // 6 decimales
       },
       {
         currency: Types.CurrencyTypes.USDT,
         balance: parseFloat(
-          Utils.formatUnits(contractBalances[2], CurrencyDecimals.get(Types.CurrencyTypes.USDT))
+          Utils.formatUnits(contractBalances[2], decimalsMap.get(Types.CurrencyTypes.USDT))
         ), // 6 decimales
       },
       {
         currency: Types.CurrencyTypes.USDM,
         balance: parseFloat(
-          Utils.formatUnits(contractBalances[3], CurrencyDecimals.get(Types.CurrencyTypes.USDM))
+          Utils.formatUnits(contractBalances[3], decimalsMap.get(Types.CurrencyTypes.USDM))
         ), // 18 decimales
       },
       {
         currency: Types.CurrencyTypes.WBTC,
         balance: parseFloat(
-          Utils.formatUnits(contractBalances[4], CurrencyDecimals.get(Types.CurrencyTypes.WBTC))
+          Utils.formatUnits(contractBalances[4], decimalsMap.get(Types.CurrencyTypes.WBTC))
         ), // 8 decimales
       },
     ];
@@ -1311,11 +1318,13 @@ exports.withdraw = async function (req, res) {
       );
     }
 
-    // Get the deployed contract.
-    const blockchainContract = getDeployedContract(smartContract);
-    const decimals = CurrencyDecimals.get(token); // decimales
-    const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
+    // Get the deployed contract
     const networkName = smartContract.contractNetwork;
+    const decimalsMap = getCurrencyDecimalsMap(networkName);
+    const blockchainContract = getDeployedContract(smartContract);
+    const decimals = decimalsMap.get(token); // decimales
+    const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
+
     const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
@@ -1512,11 +1521,11 @@ exports.rescue = async function (req, res) {
 
     // Get the deployed contract.
     const blockchainContract = getDeployedContract(smartContract);
-
-    const decimals = CurrencyDecimals.get(token); // decimales
+    const networkName = smartContract.contractNetwork;
+    const decimalsMap = getCurrencyDecimalsMap(networkName);
+    const decimals = decimalsMap.get(token); // decimales
     const ethAmount =
       token === decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-    const networkName = smartContract.contractNetwork;
     const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 

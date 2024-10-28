@@ -25,13 +25,15 @@ export const CurrencyDecimalsPolygon = new Map([
 ]);
 
 export const getCurrencyDecimalsMap = (networkName) => {
-  if (networkName === 'rootstock') {
+  const networkNameUpperCase = networkName.toUpperCase();
+
+  if (networkNameUpperCase === 'ROOTSTOCK') {
     return CurrencyDecimalsRootstock;
-  } else if (networkName === 'polygon') {
+  } else if (networkNameUpperCase === 'POLYGON') {
     return CurrencyDecimalsPolygon;
-  } else {
-    throw new Error(`Unsupported network: ${networkName}`);
   }
+
+  throw new Error(`Unsupported network: ${networkName}`);
 };
 
 export const getTokenReference = (token: Types.CurrencyTypes): string => {
@@ -185,16 +187,15 @@ export const getStaticPaths = async (networkName) => {
         fees: [FeeAmount.LOW],
       },
     };
-  } else {
-    return {
-      wbtc: {
-        tokens: [tokens.wbtc.address, tokenOut.address],
-        fees: [FeeAmount.LOW],
-      },
-      weth: {
-        tokens: [tokens.weth.address, tokenOut.address],
-        fees: [FeeAmount.LOW],
-      },
-    };
   }
+  return {
+    wbtc: {
+      tokens: [tokens.wbtc.address, tokenOut.address],
+      fees: [FeeAmount.LOW],
+    },
+    weth: {
+      tokens: [tokens.weth.address, tokenOut.address],
+      fees: [FeeAmount.LOW],
+    },
+  };
 };

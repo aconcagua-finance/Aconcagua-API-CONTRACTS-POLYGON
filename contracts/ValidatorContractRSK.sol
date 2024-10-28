@@ -7,10 +7,10 @@ import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 // Private Librarries
 import './IColateralContract2.sol'; // Import the SwapParams struct
-import './IValidatorContract.sol';
+import './IValidatorContractRSK.sol';
 import './IPriceConsumerV3.sol';
 
-contract ValidatorContract is IValidatorContract {
+contract ValidatorContractRSK is IValidatorContractRSK {
     // Custom Errors
     error AdminAddressInvalid();
     error RescueAddressInvalid();
@@ -183,9 +183,9 @@ contract ValidatorContract is IValidatorContract {
 
         // Get tokenOut decimals
         if (swapParams.tokenOut == USDC) {
-            tokenOutDecimals = 18; // USDC has 6 decimals
+            tokenOutDecimals = 18; // USDC on RSK has 18 decimals
         } else if (swapParams.tokenOut == USDT) {
-            tokenOutDecimals = 18; // USDT has 6 decimals
+            tokenOutDecimals = 18; // USDT on RSK has 18 decimals
         } else {
             revert TokenOutError();
         }
@@ -193,13 +193,13 @@ contract ValidatorContract is IValidatorContract {
         // Convert price to 18 decimals
         priceIn18Decimal = price / (10**8) * (10**18);
 
-        // Calculate oracleAmountOut in 6 decimals
+        // Calculate oracleAmountOut in 18 decimals
         uint256 oracleAmountOut18Decimal = (swapParams.params.amountIn * uint256(priceIn18Decimal)) / (10**(tokenInDecimals));
 
-        // Calculate amountOutMinimum in 6 decimals
+        // Calculate amountOutMinimum in 18 decimals
         uint256 amountOutMinimum18Decimal = swapParams.params.amountOutMinimum * (10**18) / (10**tokenOutDecimals);
 
-        // Calculate the minimum allowed amount considering slippage in 6 decimals
+        // Calculate the minimum allowed amount considering slippage in 18 decimals
         uint256 minAllowedAmount18Decimal = (oracleAmountOut18Decimal * oracleSlippage) / 100;
 
         // Compare amountOutMinimum with minAllowedAmount

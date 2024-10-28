@@ -33,9 +33,9 @@ export async function getEnvVariable(variableName, networkName = null) {
 
   try {
     if (secretsVariables.includes(variableName)) {
-      const normalizedNetworkName = networkName
-        ? networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase()
-        : 'GENERAL';
+      const normalizedNetworkName = networkName ?
+        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
+        'GENERAL';
 
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
       const envValue = envVariablesMap[fullVariableName];
