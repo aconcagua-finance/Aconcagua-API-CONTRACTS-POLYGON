@@ -1324,7 +1324,7 @@ exports.withdraw = async function (req, res) {
     const blockchainContract = getDeployedContract(smartContract);
     const decimals = decimalsMap.get(token); // decimales
     const ethAmount = decimals ? Utils.parseUnits(amount, decimals) : Utils.parseEther(amount);
-
+    console.log('Withdraw - tokens - ', JSON.stringify(token), ' cantidad ', ethAmount);
     const networkConfig = await getGasPriceAndLimit(networkName, 'TRANSFER');
     const tokenReference = getTokenReference(token);
 
