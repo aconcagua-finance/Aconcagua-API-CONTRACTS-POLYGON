@@ -33,9 +33,12 @@ export enum customSupportedChainId {
 export const getCurrencyDecimalsMap = (networkName) => {
   const networkNameUpperCase = networkName.toUpperCase();
 
-  if (networkNameUpperCase === 'ROOTSTOCK') {
+  // Buscar la equivalencia de la red si existe
+  const equivalentNetwork = networkEquivalences[networkNameUpperCase] || networkNameUpperCase;
+
+  if (equivalentNetwork === 'ROOTSTOCK') {
     return CurrencyDecimalsRootstock;
-  } else if (networkNameUpperCase === 'POLYGON') {
+  } else if (equivalentNetwork === 'POLYGON') {
     return CurrencyDecimalsPolygon;
   }
 
