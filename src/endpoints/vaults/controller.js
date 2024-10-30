@@ -61,7 +61,7 @@ const {
 
 const {
   getCurrencyDecimalsMap,
-  tokens,
+  getTokens,
   getTokenReference,
   tokenOut,
   staticPaths,
@@ -1645,8 +1645,6 @@ const getVaultsToUpdate = async function () {
 };
 
 const getVaultsToEvaluate = async function () {
-  const tokens = Object.values(TokenTypes).map((token) => token.toString());
-
   // Retrieve vaults that potentially need updates
   const vaultsToUpdate = await getVaultsToUpdate();
 
@@ -1660,6 +1658,8 @@ const getVaultsToEvaluate = async function () {
 
   // Filter the vaults to identify those with volatile token balances
   // Duplicar código de getVaultsToUpdate adaptado?
+  const tokens = Object.values(TokenTypes).map((token) => token.toString());
+
   const vaults = vaultsToUpdate.filter((vault) =>
     vault.balances.some((bal) => tokens.includes(bal.currency) && bal.balance > 0)
   );
@@ -2765,6 +2765,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       console.log('swapVaultExactInputs - Swap tx:', JSON.stringify(tx));
     }
 
+    const tokens = getTokens(vault.contractNetwork);
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
     const swapsResults = swapEvents.map((event) => {
       const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
@@ -2878,6 +2879,7 @@ const swapVaultTokenBalances = async (vault) => {
   );
 
   // Preparo swaps para el monto total de cada balance
+  const tokens = getTokens(vault.contractNetwork);
   const swapsData = tokenBalances.map((bal) => {
     console.log(`Balance de token ${bal.currency} a swapear: ${bal.balance}`);
 
