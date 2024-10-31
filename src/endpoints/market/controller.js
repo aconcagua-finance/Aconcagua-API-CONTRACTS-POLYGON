@@ -126,8 +126,8 @@ const getUniPathQuotes = async (quoteAmounts) => {
   const tokensSymbols = Object.keys(quoteAmounts);
 
   for (const symbol of tokensSymbols) {
-    const tokenIn = tokens[symbol];
     const tokens = await getTokens();
+    const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
     console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
@@ -178,7 +178,6 @@ exports.getPathQuotes = async function (req, res) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
       return res.status(400).send('getPathQuotes - Invalid input format: expected an object');
     }
-    // TOKENS !!!
     const tokens = await getTokens();
     const suppTokens = tokens;
     const quoteAmounts = {};
