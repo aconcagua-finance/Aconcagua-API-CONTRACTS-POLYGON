@@ -119,6 +119,14 @@ export const getTokenAddress = async (tokenName, networkName) => {
   return await getEnvVariable(`${tokenName}_TOKEN_ADDRESS`, networkName);
 };
 
+export const getRouterV3 = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
+  return getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+};
+
+export const getUniswapURL = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
+  return getEnvVariable('HARDHAT_API_URL', networkName);
+};
+
 // Función para obtener los tokens soportados según la red
 export const getTokens = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   const chainId = getChainId(networkName);
@@ -143,7 +151,7 @@ export const getTokens = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
 };
 
 // Función para obtener las stablecoins según la red
-export const getStableCoins = async (networkName) => {
+export const getStableCoins = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   const chainId = getChainId(networkName);
   const currencyDecimals = getCurrencyDecimalsMap(networkName);
 
