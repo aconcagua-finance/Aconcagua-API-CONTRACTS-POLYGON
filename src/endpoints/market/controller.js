@@ -2,9 +2,7 @@
 const { Alchemy, Network, Utils } = require('alchemy-sdk');
 const { AlphaRouter, SwapType } = require('@uniswap/smart-order-router');
 const { CurrencyAmount, TradeType, Percent } = require('@uniswap/sdk-core');
-const {
-  abi: QuoterABI,
-} = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
+
 const hre = require('hardhat');
 const axios = require('axios');
 const JSBI = require('jsbi');
@@ -34,6 +32,7 @@ const {
   getTokenOut,
   getUniswapURL,
   getRouterV3,
+  getQuoterV2,
 } = require('../../config/uniswapConfig');
 const {
   find,
@@ -126,6 +125,7 @@ const getUniPathQuotes = async () => {
   const tokensSymbols = Object.keys(quoteAmounts);
   const tokens = await getTokens();
   const staticPaths = await getStaticPaths();
+  const tokenOut = await getTokenOut();
 
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
@@ -143,34 +143,32 @@ const getUniPathQuotes = async () => {
     const swapDataforQuote = {
       path: encodedPath,
       amountIn,
-      recipient: hre.ethers.constants.AddressZero, // Your wallet address
-      deadline: Math.floor(Date.now() / 1000) + 60 * 20, // 20 minutes from now
-      amountOutMinimum: 0, // No slippage protection in this example
     };
-    // Universal Router ABI and address
+    // Uniswap QuoterV2 ABI and address
     const {
-      abi: UniversalRouterABI,
-    } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
+      abi: QuoterABI,
+    } = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/Quoter.json');
 
     // Initialize the contract
-    const SWAP_ROUTER_V3_ADDRESS = await getRouterV3();
-    const UniversalRouter = new Contract(SWAP_ROUTER_V3_ADDRESS, UniversalRouterABI, alchemy);
+    const UNISWAP_QUOTERV2_ADDRESS = await getQuoterV2();
+    const UniswapQuoterV2 = new Contract(UNISWAP_QUOTERV2_ADDRESS, QuoterABI, alchemy);
 
     // Call the Universal Router's swap function to get the quote
     console.log(`getUniPathQuotes - Llamada quotes Uniswap Quoter para token ${symbol}`);
     let quote;
     try {
       console.log('getUniPathQuotes - HARHDAT_API_URL ', HARDHAT_API_URL);
-      console.log('getUniPathQuotes - SWAP_ROUTER_V3_ADDRESS ', SWAP_ROUTER_V3_ADDRESS);
-      console.log('getUniPathQuotes - UniversalRouter ', JSON.stringify(UniversalRouter));
+      console.log('getUniPathQuotes - UNISWAP_QUOTERV2_ADDRESS ', UNISWAP_QUOTERV2_ADDRESS);
+      console.log('getUniPathQuotes - UniswapQuoterV2 ', JSON.stringify(UniswapQuoterV2));
 
-      quote = await UniversalRouter.callStatic.swapExactInput(swapDataforQuote);
-      console.log(`Quote: ${hre.ethers.utils.formatUnits(quote.amountOut, 18)} tokens`);
+      quote = await UniswapQuoterV2.callStatic.quoteExactInput(swapDataforQuote);
+      console.log(
+        `Quote: ${hre.ethers.utils.formatUnits(quote.amountOut, tokenOut.decimals)} tokens`
+      );
     } catch (error) {
       console.error('Error getting quote:', error);
     }
 
-    const tokenOut = await getTokenOut();
     const amountOutFormatted = Utils.formatUnits(quote, tokenOut.decimals);
     const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
       2

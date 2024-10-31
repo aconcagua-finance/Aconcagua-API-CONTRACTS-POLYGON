@@ -123,6 +123,10 @@ export const getRouterV3 = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   return getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
 };
 
+export const getQuoterV2 = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
+  return getEnvVariable('UNISWAP_QUOTERV2_ADDRESS', networkName);
+};
+
 export const getUniswapURL = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   return getEnvVariable('HARDHAT_API_URL', networkName);
 };
