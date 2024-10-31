@@ -30,7 +30,7 @@ const {
   quoteAmounts,
   getTokens,
   stableCoins,
-  staticPaths,
+  getStaticPaths,
   getTokenOut,
   UNISWAP_NETWORK_FOR_QUOTES,
 } = require('../../config/uniswapConfig');
@@ -124,13 +124,11 @@ const getUniPathQuotes = async (quoteAmounts) => {
   // Quote data
   const quotes = {};
   const tokensSymbols = Object.keys(quoteAmounts);
+  const tokens = await getTokens();
+  const staticPaths = await getStaticPaths();
 
   for (const symbol of tokensSymbols) {
-    const tokens = await getTokens();
-    console.log('getUniPathQuotes - tokens - ', JSON.stringify(tokens));
-    console.log('getUniPathQuotes - symbol - ', symbol);
     const tokenIn = tokens[symbol];
-    console.log('getUniPathQuotes - tokenIn - ', JSON.stringify(tokenIn));
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
     console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
