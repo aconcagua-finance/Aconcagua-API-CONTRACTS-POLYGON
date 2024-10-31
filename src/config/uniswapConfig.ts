@@ -181,11 +181,11 @@ export const getTokenOut = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
 };
 
 // Función para obtener staticPaths según la red
-export const getStaticPaths = async (networkName) => {
+export const getStaticPaths = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   const tokens = await getTokens(networkName);
   const tokenOut = await getTokenOut(networkName);
 
-  if (networkName === 'polygon') {
+  if (networkName === networkTypes.NETWORK_TYPE_POLYGON) {
     return {
       wbtc: {
         tokens: [tokens.wbtc.address, tokens.weth.address, tokenOut.address],
@@ -196,7 +196,7 @@ export const getStaticPaths = async (networkName) => {
         fees: [FeeAmount.LOW],
       },
     };
-  } else if (networkName === 'rootstock') {
+  } else if (networkName === networkTypes.NETWORK_TYPE_ROOTSTOCK) {
     return {
       wbtc: {
         tokens: [tokens.wbtc.address, tokenOut.address],
