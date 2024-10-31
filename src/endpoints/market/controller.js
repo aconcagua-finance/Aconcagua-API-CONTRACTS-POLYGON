@@ -29,10 +29,11 @@ const {
   swapOptions,
   quoteAmounts,
   getTokens,
-  stableCoins,
+  getStableCoins,
   getStaticPaths,
   getTokenOut,
-  UNISWAP_NETWORK_FOR_QUOTES,
+  getUniswapURL,
+  getRouterV3,
 } = require('../../config/uniswapConfig');
 const {
   find,
@@ -59,10 +60,10 @@ const {
   fetchItems,
   filterItems,
 } = require('../baseEndpoint');
-const { SWAP_ROUTER_V3_ADDRESS, COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
+const { COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
 
 const getUniswapQuotes = async () => {
-  const tokens = await getTokens(); // Usa UNISWAP_NETWORK_FOR_QUOTES como red por defecto
+  const tokens = await getTokens();
   const provider = 'uniswap';
   const quotes = await getUniPathQuotes(tokens);
 
@@ -74,7 +75,7 @@ const getUniswapQuotes = async () => {
 
 const getUniSmartRouterQuotes = async (quoteAmounts) => {
   // Provider
-  const HARDHAT_API_URL = await getEnvVariable('HARDHAT_API_URL', UNISWAP_NETWORK_FOR_QUOTES);
+  const HARDHAT_API_URL = await getUniswapURL();
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde smart router');
 
@@ -98,7 +99,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
     // Get Quote
     console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
-    const tokenOut = await getTokenOut(UNISWAP_NETWORK_FOR_QUOTES);
+    const tokenOut = await getTokenOut();
     const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
     const quotation = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
 
@@ -115,8 +116,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
 const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
-
-  const HARDHAT_API_URL = await getEnvVariable('HARDHAT_API_URL', UNISWAP_NETWORK_FOR_QUOTES);
+  const HARDHAT_API_URL = await getUniswapURL();
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('getUniPathQuotes - Preparo llamada quotes Uniswap desde quoter');
   console.log('getUniPathQuotes - quoteAmounts - ', JSON.stringify(quoteAmounts));
@@ -147,6 +147,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
     } = require('@uniswap/universal-router/artifacts/contracts/UniversalRouter.sol/UniversalRouter.json');
 
     // Initialize the contract
+    const SWAP_ROUTER_V3_ADDRESS = await getRouterV3();
     const UniversalRouter = new Contract(SWAP_ROUTER_V3_ADDRESS, UniversalRouterABI, alchemy);
 
     // Call the Universal Router's swap function to get the quote
@@ -159,7 +160,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
       console.error('Error getting quote:', error);
     }
 
-    const tokenOut = await getTokenOut(UNISWAP_NETWORK_FOR_QUOTES);
+    const tokenOut = await getTokenOut();
     const amountOutFormatted = Utils.formatUnits(quote, tokenOut.decimals);
     const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
       2
