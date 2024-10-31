@@ -1,5 +1,6 @@
 import { CustomError, Types } from '../vs-core';
 import { CurrencyTypes } from '../vs-core/types/currencyTypes';
+import { networkTypes } from '../types/networkTypes';
 
 /* eslint-disable operator-linebreak */
 import { Token, SupportedChainId, Percent } from '@uniswap/sdk-core';
@@ -36,9 +37,9 @@ export const getCurrencyDecimalsMap = (networkName) => {
   // Buscar la equivalencia de la red si existe
   const equivalentNetwork = networkEquivalences[networkNameUpperCase] || networkNameUpperCase;
 
-  if (equivalentNetwork === 'ROOTSTOCK') {
+  if (equivalentNetwork === networkTypes.NETWORK_TYPE_ROOTSTOCK) {
     return CurrencyDecimalsRootstock;
-  } else if (equivalentNetwork === 'POLYGON') {
+  } else if (equivalentNetwork === networkTypes.NETWORK_TYPE_POLYGON) {
     return CurrencyDecimalsPolygon;
   }
 
@@ -172,7 +173,9 @@ export const getStableCoins = async (networkName) => {
 // Función para obtener el tokenOut según la red
 export const getTokenOut = async (networkName) => {
   const stableCoins = await getStableCoins(networkName);
-  return networkName === 'rootstock' ? stableCoins.usdt : stableCoins.usdc;
+  return networkName.toUpperCase() === networkTypes.NETWORK_TYPE_ROOTSTOCK
+    ? stableCoins.usdt
+    : stableCoins.usdc;
 };
 
 // Función para obtener staticPaths según la red

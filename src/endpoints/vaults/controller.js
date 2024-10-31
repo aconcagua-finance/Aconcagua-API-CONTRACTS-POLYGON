@@ -63,9 +63,9 @@ const {
   getCurrencyDecimalsMap,
   getTokens,
   getTokenReference,
-  tokenOut,
   staticPaths,
   swapOptions,
+  getTokenOut,
 } = require('../../config/uniswapConfig');
 
 const {
@@ -2068,6 +2068,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
       if (isCryptoUpdate) {
         transactionType = VaultTransactionTypes.CRYPTO_UPDATE;
+        const tokenOut = await getTokenOut(before.contractNetwork);
 
         const tokens = Object.values(TokenTypes).map((token) => token.toString());
         console.log('Tokens volátiles: ', tokens);
@@ -2765,7 +2766,8 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       console.log('swapVaultExactInputs - Swap tx:', JSON.stringify(tx));
     }
 
-    const tokens = getTokens(vault.contractNetwork);
+    const tokenOut = await getTokenOut(vault.contractNetwork);
+    const tokens = await getTokens(vault.contractNetwork);
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
     const swapsResults = swapEvents.map((event) => {
       const [tokenIn, swapTokenOut, amountIn, amountOut] = event.args;
@@ -2879,7 +2881,8 @@ const swapVaultTokenBalances = async (vault) => {
   );
 
   // Preparo swaps para el monto total de cada balance
-  const tokens = getTokens(vault.contractNetwork);
+  const tokenOut = await getTokenOut(vault.contractNetwork);
+  const tokens = await getTokens(vault.contractNetwork);
   const swapsData = tokenBalances.map((bal) => {
     console.log(`Balance de token ${bal.currency} a swapear: ${bal.balance}`);
 
