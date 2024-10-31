@@ -95,23 +95,7 @@ const {
   filterItems,
 } = require('../baseEndpoint');
 
-const {
-  SYS_ADMIN_EMAIL,
-  SWAPPER_PRIVATE_KEY,
-  POLYGONSCAN_API_KEY,
-  HARDHAT_API_URL,
-  SWAP_ROUTER_V3_ADDRESS,
-  VALIDATOR_CONTRACT_ADDRESS,
-  API_PATH_QUOTES,
-  SWAPPER_ADDRESS,
-  OPERATOR1_ADDRESS,
-  OPERATOR2_ADDRESS,
-  OPERATOR3_ADDRESS,
-  DEFAULT_RESCUE_WALLET_ADDRESS,
-  DEFAULT_WITHDRAW_WALLET_ADDRESS,
-  ALIQ1_ADDRESS,
-  ALIQ2_ADDRESS,
-} = require('../../config/appConfig');
+const { SYS_ADMIN_EMAIL, API_PATH_QUOTES } = require('../../config/appConfig');
 
 const hre = require('hardhat');
 const { debug } = require('firebase-functions/logger');
@@ -688,20 +672,22 @@ exports.create = async function (req, res) {
     // Asignar las direcciones a la lista de operadores
     const operators = [operator1Address, operator2Address, operator3Address];
 
+    const defaultRescueWalletAddress = await getEnvVariable(
+      'DEFAULT_RESCUE_WALLET_ADDRESS',
+      networkName
+    );
+    const defaultWithdrawWalletAddress = await getEnvVariable(
+      'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+      networkName
+    );
+
     if (colateralContractName === 'ColateralContract2') {
       // Contrato version 2
       console.log('Create - creando contrato version 2 ');
 
       // Usar getEnvVariable para obtener las direcciones desde Firestore
       const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
-      const defaultRescueWalletAddress = await getEnvVariable(
-        'DEFAULT_RESCUE_WALLET_ADDRESS',
-        networkName
-      );
-      const defaultWithdrawWalletAddress = await getEnvVariable(
-        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
-        networkName
-      );
+
       const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
       const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
 
@@ -742,14 +728,7 @@ exports.create = async function (req, res) {
       const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
       const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
       const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
-      const defaultRescueWalletAddress = await getEnvVariable(
-        'DEFAULT_RESCUE_WALLET_ADDRESS',
-        networkName
-      );
-      const defaultWithdrawWalletAddress = await getEnvVariable(
-        'DEFAULT_WITHDRAW_WALLET_ADDRESS',
-        networkName
-      );
+
       const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
       const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
 
@@ -809,8 +788,8 @@ exports.create = async function (req, res) {
     const body = req.body;
     body.userId = targetUserId;
     body.companyId = companyId;
-    body.rescueWalletAccount = DEFAULT_RESCUE_WALLET_ADDRESS;
-    body.withdrawWalletAccount = DEFAULT_WITHDRAW_WALLET_ADDRESS;
+    body.rescueWalletAccount = defaultRescueWalletAddress;
+    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
     body.balances = [];
 
     body.contractAddress = colateralContractAddress;
@@ -2696,7 +2675,9 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       vault.contractName +
       '.json');
     const abi = contractJson.abi;
+    const HARDHAT_API_URL = await getEnvVariable('HARDHAT_API_URL', vault.contractNetwork);
     const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
+    const SWAPPER_PRIVATE_KEY = await getEnvVariable('SWAPPER_PRIVATE_KEY', vault.contractNetwork);
     const signer = new hre.ethers.Wallet(SWAPPER_PRIVATE_KEY, alchemy);
     const swaperAddress = await signer.getAddress();
     const blockchainContract = new hre.ethers.Contract(vault.id, abi, signer);
