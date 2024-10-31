@@ -90,7 +90,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
   for (const symbol of tokensSymbols) {
     // Setup token data
-    const tokens = getTokens();
+    const tokens = await getTokens();
     const tokenIn = tokens[symbol];
     const quoteAmount = quoteAmounts[tokenIn.symbol];
     const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
@@ -127,7 +127,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
 
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
-    const tokens = getTokens();
+    const tokens = await getTokens();
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
     console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
@@ -179,7 +179,7 @@ exports.getPathQuotes = async function (req, res) {
       return res.status(400).send('getPathQuotes - Invalid input format: expected an object');
     }
     // TOKENS !!!
-    const tokens = getTokens();
+    const tokens = await getTokens();
     const suppTokens = tokens;
     const quoteAmounts = {};
     Object.entries(input).forEach(([token, amount]) => {
