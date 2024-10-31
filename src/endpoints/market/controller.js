@@ -141,7 +141,7 @@ const getUniPathQuotes = async () => {
     console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
     const swapDataforQuote = {
       path: encodedPath,
-      amountIn: amountIn,
+      amountIn,
     };
     // Uniswap QuoterV2 ABI and address
     const {
@@ -156,8 +156,6 @@ const getUniPathQuotes = async () => {
     console.log(`getUniPathQuotes - Llamada quotes Uniswap Quoter para token ${symbol}`);
     let quote;
     try {
-      console.log('getUniPathQuotes - HARHDAT_API_URL ', HARDHAT_API_URL);
-      console.log('getUniPathQuotes - UNISWAP_QUOTERV2_ADDRESS ', UNISWAP_QUOTERV2_ADDRESS);
       console.log('getUniPathQuotes - UniswapQuoterV2 ', JSON.stringify(UniswapQuoterV2));
       console.log('getUniPathQuotes - swapDataforQuote ', JSON.stringify(swapDataforQuote));
 
