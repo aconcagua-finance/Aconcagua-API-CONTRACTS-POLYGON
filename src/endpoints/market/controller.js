@@ -65,7 +65,7 @@ const { COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
 const getUniswapQuotes = async () => {
   const tokens = await getTokens();
   const provider = 'uniswap';
-  const quotes = await getUniPathQuotes(tokens);
+  const quotes = await getUniPathQuotes();
 
   return {
     provider,
@@ -114,7 +114,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
   return quotes;
 };
 
-const getUniPathQuotes = async (quoteAmounts) => {
+const getUniPathQuotes = async () => {
   // Provider
   const HARDHAT_API_URL = await getUniswapURL();
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
@@ -130,8 +130,14 @@ const getUniPathQuotes = async (quoteAmounts) => {
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
-    console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
-    console.log('encodedPath es ', encodedPath);
+    console.log('getUniPathQuotes - staticPaths para ', symbol, ' es ', staticPaths[symbol]);
+    console.log('getUniPathQuotes - encodedPath es ', encodedPath);
+    console.log('getUniPathQuotes - quoteAmounts ', JSON.stringify(quoteAmounts));
+    console.log(
+      'getUniPathQuotes - quoteAmounts[symbol].toString() ',
+      quoteAmounts[symbol].toString()
+    );
+    console.log('getUniPathQuotes - tokenIn.decimals ', tokenIn.decimals);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
     console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
     const swapDataforQuote = {
@@ -151,9 +157,13 @@ const getUniPathQuotes = async (quoteAmounts) => {
     const UniversalRouter = new Contract(SWAP_ROUTER_V3_ADDRESS, UniversalRouterABI, alchemy);
 
     // Call the Universal Router's swap function to get the quote
-    console.log(`Llamada quotes Uniswap Quoter para token ${symbol}`);
+    console.log(`getUniPathQuotes - Llamada quotes Uniswap Quoter para token ${symbol}`);
     let quote;
     try {
+      console.log('getUniPathQuotes - HARHDAT_API_URL ', HARDHAT_API_URL);
+      console.log('getUniPathQuotes - SWAP_ROUTER_V3_ADDRESS ', SWAP_ROUTER_V3_ADDRESS);
+      console.log('getUniPathQuotes - UniversalRouter ', JSON.stringify(UniversalRouter));
+
       quote = await UniversalRouter.callStatic.swapExactInput(swapDataforQuote);
       console.log(`Quote: ${hre.ethers.utils.formatUnits(quote.amountOut, 18)} tokens`);
     } catch (error) {
@@ -208,7 +218,7 @@ exports.getPathQuotes = async function (req, res) {
       return res.status(400).send('getPathQuotes - No supported token has been provided');
     }
 
-    const quotes = await getUniPathQuotes(quoteAmounts);
+    const quotes = await getUniPathQuotes();
     res.status(200).send(quotes);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
