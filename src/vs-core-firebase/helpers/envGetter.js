@@ -37,8 +37,6 @@ export async function getEnvVariable(variableName, networkName = null) {
 
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
       const envValue = envVariablesMap[fullVariableName];
-      console.log(' fullVariableName es ', fullVariableName);
-      console.log(' envVariablesMap[fullVariableName] es ', envVariablesMap[fullVariableName]);
 
       if (!envValue) {
         throw new Error(`La variable ${fullVariableName} no está definida en el entorno`);

@@ -2562,6 +2562,16 @@ const evaluateVaultTokenBalance = async (vault) => {
   const tokenRatios = await fetchTokenRatios();
   const arsLimits = getVaultLimits(vault, tokenRatios);
   const arsCredit = vault.amount;
+  console.log(
+    ' Obtenidos los limites de ',
+    vault.id,
+    ' notification ',
+    arsLimits.notificationLimit,
+    ' action limit ',
+    arsLimits.actionLimit,
+    ' credito ',
+    arsCredit
+  );
 
   const evaluation = {
     arsLimits,
