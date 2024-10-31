@@ -10,6 +10,7 @@ const axios = require('axios');
 const JSBI = require('jsbi');
 
 const { Contract } = hre.ethers;
+const { getEnvVariable } = require('../../vs-core-firebase/helpers/envGetter');
 
 // eslint-disable-next-line camelcase
 const { invoke_get_api } = require('../../helpers/httpInvoker');
@@ -21,14 +22,17 @@ const { KrakenTypes } = require('../../types/krakenTypes');
 const { CoingeckoTypes } = require('../../types/coingeckoTypes');
 const { TokenTypes } = require('../../types/tokenTypes');
 const { Collections } = require('../../types/collectionsTypes');
+const { networkTypes } = require('../../types/networkTypes');
+
 const {
   chainId,
   swapOptions,
   quoteAmounts,
-  tokens,
-  tokenOut,
+  getTokens,
   stableCoins,
   staticPaths,
+  getTokenOut,
+  UNISWAP_NETWORK_FOR_QUOTES,
 } = require('../../config/uniswapConfig');
 const {
   find,
@@ -55,19 +59,13 @@ const {
   fetchItems,
   filterItems,
 } = require('../baseEndpoint');
-const {
-  HARDHAT_API_URL,
-  SWAP_ROUTER_V3_ADDRESS,
-  COINGECKO_URL,
-  KRAKEN_URL,
-} = require('../../config/appConfig');
+const { SWAP_ROUTER_V3_ADDRESS, COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
 
-const getUniswapQuotes = async (tokens) => {
-  // TODO: Refactor config file for market provider name
+const getUniswapQuotes = async () => {
+  const tokens = await getTokens(); // Usa UNISWAP_NETWORK_FOR_QUOTES como red por defecto
   const provider = 'uniswap';
-
-  // const quotes = await getUniSmartRouterQuotes(tokens);
   const quotes = await getUniPathQuotes(tokens);
+
   return {
     provider,
     quotes,
@@ -76,6 +74,7 @@ const getUniswapQuotes = async (tokens) => {
 
 const getUniSmartRouterQuotes = async (quoteAmounts) => {
   // Provider
+  const HARDHAT_API_URL = await getEnvVariable('HARDHAT_API_URL', UNISWAP_NETWORK_FOR_QUOTES);
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
   console.log('Preparo llamada quotes Uniswap desde smart router');
 
@@ -91,6 +90,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
   for (const symbol of tokensSymbols) {
     // Setup token data
+    const tokens = getTokens();
     const tokenIn = tokens[symbol];
     const quoteAmount = quoteAmounts[tokenIn.symbol];
     const wei = Utils.parseUnits(quoteAmount.toString(), tokenIn.decimals);
@@ -98,6 +98,7 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 
     // Get Quote
     console.log(`Llamada quotes Uniswap smart router para token ${tokenIn.symbol}`);
+    const tokenOut = await getTokenOut(UNISWAP_NETWORK_FOR_QUOTES);
     const route = await router.route(inputAmount, tokenOut, TradeType.EXACT_INPUT, swapOptions);
     const quotation = Number((route.quote.toFixed(2) / quoteAmount).toFixed(2));
 
@@ -115,8 +116,10 @@ const getUniSmartRouterQuotes = async (quoteAmounts) => {
 const getUniPathQuotes = async (quoteAmounts) => {
   // Provider
 
+  const HARDHAT_API_URL = await getEnvVariable('HARDHAT_API_URL', UNISWAP_NETWORK_FOR_QUOTES);
   const alchemy = new hre.ethers.providers.JsonRpcProvider(HARDHAT_API_URL);
-  console.log('Preparo llamada quotes Uniswap desde quoter');
+  console.log('getUniPathQuotes - Preparo llamada quotes Uniswap desde quoter');
+  console.log('getUniPathQuotes - quoteAmounts - ', JSON.stringify(quoteAmounts));
 
   // Quote data
   const quotes = {};
@@ -124,6 +127,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
 
   for (const symbol of tokensSymbols) {
     const tokenIn = tokens[symbol];
+    const tokens = getTokens();
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
     console.log('staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('encodedPath es ', encodedPath);
@@ -154,6 +158,7 @@ const getUniPathQuotes = async (quoteAmounts) => {
       console.error('Error getting quote:', error);
     }
 
+    const tokenOut = await getTokenOut(UNISWAP_NETWORK_FOR_QUOTES);
     const amountOutFormatted = Utils.formatUnits(quote, tokenOut.decimals);
     const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
       2
@@ -171,14 +176,36 @@ exports.getPathQuotes = async function (req, res) {
     // Input validations
     const input = JSON.parse(req.params.quoteAmounts);
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
-      return res.status(400).send('Invalid input format: expected an object');
+      return res.status(400).send('getPathQuotes - Invalid input format: expected an object');
     }
+    // TOKENS !!!
+    const tokens = getTokens();
     const suppTokens = tokens;
     const quoteAmounts = {};
     Object.entries(input).forEach(([token, amount]) => {
-      if (suppTokens[token] && amount > 0) quoteAmounts[token] = amount;
+      console.log(`Procesando token: ${token}, cantidad: ${amount}`);
+
+      if (suppTokens[token]) {
+        console.log(`Token ${token} está en suppTokens.`);
+      } else {
+        console.log(`Token ${token} NO está en suppTokens.`);
+      }
+
+      if (amount > 0) {
+        console.log(`Cantidad válida para ${token}: ${amount}`);
+      } else {
+        console.log(`Cantidad no válida para ${token}: ${amount}`);
+      }
+
+      if (suppTokens[token] && amount > 0) {
+        quoteAmounts[token] = amount;
+        console.log(`Asignando ${amount} a quoteAmounts para ${token}`);
+      }
     });
-    if (!quoteAmounts) return res.status(400).send('No supported token has been provided');
+
+    if (!quoteAmounts) {
+      return res.status(400).send('getPathQuotes - No supported token has been provided');
+    }
 
     const quotes = await getUniPathQuotes(quoteAmounts);
     res.status(200).send(quotes);

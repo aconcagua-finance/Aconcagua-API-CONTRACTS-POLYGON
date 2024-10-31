@@ -9,6 +9,8 @@ import { SwapType } from '@uniswap/smart-order-router';
 import { ContractTypes } from '../types/contractTypes';
 import { getEnvVariable, networkEquivalences } from '../vs-core-firebase/helpers/envGetter';
 
+export const UNISWAP_NETWORK_FOR_QUOTES = networkTypes.NETWORK_TYPE_POLYGON;
+
 export const CurrencyDecimalsRootstock = new Map([
   [CurrencyTypes.USDC, 18],
   [CurrencyTypes.USDT, 18],
@@ -118,7 +120,7 @@ export const getTokenAddress = async (tokenName, networkName) => {
 };
 
 // Función para obtener los tokens soportados según la red
-export const getTokens = async (networkName) => {
+export const getTokens = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   const chainId = getChainId(networkName);
   const currencyDecimals = getCurrencyDecimalsMap(networkName);
 
@@ -171,7 +173,7 @@ export const getStableCoins = async (networkName) => {
 };
 
 // Función para obtener el tokenOut según la red
-export const getTokenOut = async (networkName) => {
+export const getTokenOut = async (networkName = UNISWAP_NETWORK_FOR_QUOTES) => {
   const stableCoins = await getStableCoins(networkName);
   return networkName.toUpperCase() === networkTypes.NETWORK_TYPE_ROOTSTOCK
     ? stableCoins.usdt
