@@ -132,7 +132,6 @@ const getUniPathQuotes = async () => {
     const encodedPath = encodePath(staticPaths[symbol].tokens, staticPaths[symbol].fees);
     console.log('getUniPathQuotes - staticPaths para ', symbol, ' es ', staticPaths[symbol]);
     console.log('getUniPathQuotes - encodedPath es ', encodedPath);
-    console.log('getUniPathQuotes - quoteAmounts ', JSON.stringify(quoteAmounts));
     console.log(
       'getUniPathQuotes - quoteAmounts[symbol].toString() ',
       quoteAmounts[symbol].toString()
