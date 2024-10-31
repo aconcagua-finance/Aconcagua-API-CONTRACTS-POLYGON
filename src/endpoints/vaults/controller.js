@@ -2765,7 +2765,7 @@ const swapVaultExactInputs = async (vault, swapsParams) => {
       console.log('swapVaultExactInputs - Swap tx:', JSON.stringify(tx));
     }
 
-    const tokenOut = getTokenOut(vault.contractNetwork);
+    const tokenOut = await getTokenOut(vault.contractNetwork);
     const tokens = await getTokens(vault.contractNetwork);
     const swapEvents = tx.events.filter((event) => event.event === 'Swap');
     const swapsResults = swapEvents.map((event) => {
@@ -2880,7 +2880,7 @@ const swapVaultTokenBalances = async (vault) => {
   );
 
   // Preparo swaps para el monto total de cada balance
-  const tokenOut = getTokenOut(vault.contractNetwork);
+  const tokenOut = await getTokenOut(vault.contractNetwork);
   const tokens = await getTokens(vault.contractNetwork);
   const swapsData = tokenBalances.map((bal) => {
     console.log(`Balance de token ${bal.currency} a swapear: ${bal.balance}`);
