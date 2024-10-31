@@ -1547,8 +1547,8 @@
       ]
     },
     "C:\\Users\\manue\\localDocuments\\GitHubNew\\CTO\\Aconcagua-API-CONTRACTS-POLYGON\\contracts\\ColateralContract2.sol": {
-      "lastModificationDate": 1726272162380,
-      "contentHash": "71376b3f67531f0849caaa84d2749058",
+      "lastModificationDate": 1730318923868,
+      "contentHash": "a5e5ecd0ccf308c2ed3a56221d1ef927",
       "sourceName": "contracts/ColateralContract2.sol",
       "solcConfig": {
         "version": "0.8.18",

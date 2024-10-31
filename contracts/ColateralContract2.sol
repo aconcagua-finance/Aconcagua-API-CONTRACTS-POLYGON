@@ -232,7 +232,7 @@ contract ColateralContract2 is
   receive() external payable {
     // If its RSK network
     if (block.chainid == RSK_ID) {
-      IWETH(tokenTable['WETH']).deposit{value: msg.value}();
+      IWETH(tokenTable['WBTC']).deposit{value: msg.value}();
     } else {
       revert("Not payable on this chain");
     }
