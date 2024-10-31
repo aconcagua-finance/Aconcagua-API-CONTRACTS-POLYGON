@@ -141,7 +141,7 @@ const getUniPathQuotes = async () => {
     console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
     const swapDataforQuote = {
       path: encodedPath,
-      amountIn: amountIn,
+      amountIn,
     };
     // Uniswap QuoterV2 ABI and address
     const {
