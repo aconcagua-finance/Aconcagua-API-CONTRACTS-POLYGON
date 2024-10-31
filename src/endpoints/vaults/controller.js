@@ -2068,6 +2068,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
 
       if (isCryptoUpdate) {
         transactionType = VaultTransactionTypes.CRYPTO_UPDATE;
+        const tokenOut = await getTokenOut(before.contractNetwork);
 
         const tokens = Object.values(TokenTypes).map((token) => token.toString());
         console.log('Tokens volátiles: ', tokens);
