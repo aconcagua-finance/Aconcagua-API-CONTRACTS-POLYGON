@@ -138,7 +138,11 @@ const getUniPathQuotes = async () => {
     );
     console.log('getUniPathQuotes - tokenIn.decimals ', tokenIn.decimals);
     const amountIn = Utils.parseUnits(quoteAmounts[symbol].toString(), tokenIn.decimals).toString();
-    console.log('amountIn es ', Utils.formatUnits(amountIn, tokenIn.decimals));
+    console.log('getUniPathQuotes - amountIn ', amountIn);
+    console.log(
+      'getUniPathQuotes - Utils.formatUnits(amountIn, tokenIn.decimals) ',
+      Utils.formatUnits(amountIn, tokenIn.decimals)
+    );
     const swapDataforQuote = {
       path: encodedPath,
       amountIn,
@@ -161,14 +165,18 @@ const getUniPathQuotes = async () => {
 
       quote = await UniswapQuoterV2.callStatic.quoteExactInput(encodedPath, amountIn);
 
+      console.log('getUniPathQuotes - quote ', JSON.stringify(quote));
       console.log(
-        `Quote: ${hre.ethers.utils.formatUnits(quote.amountOut, tokenOut.decimals)} tokens`
+        `getUniPathQuotes - Quote: ${hre.ethers.utils.formatUnits(
+          quote.amountOut,
+          tokenOut.decimals
+        )} tokens`
       );
     } catch (error) {
       console.error('Error getting quote:', error);
     }
 
-    const amountOutFormatted = Utils.formatUnits(quote, tokenOut.decimals);
+    const amountOutFormatted = Utils.formatUnits(quote.amountOut, tokenOut.decimals);
     const quotation = (amountOutFormatted / Utils.formatUnits(amountIn, tokenIn.decimals)).toFixed(
       2
     );
