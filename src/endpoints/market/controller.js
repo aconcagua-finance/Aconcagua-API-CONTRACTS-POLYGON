@@ -150,7 +150,7 @@ const getUniPathQuotes = async () => {
     // Uniswap QuoterV2 ABI and address
     const {
       abi: QuoterABI,
-    } = require('@uniswap/v3-periphery/artifacts/contracts/lens/Quoter.sol/QuoterV2.sol');
+    } = require('@uniswap/v3-periphery/artifacts/contracts/lens/QuoterV2.sol/QuoterV2.json');
 
     // Initialize the contract
     const UNISWAP_QUOTERV2_ADDRESS = await getQuoterV2();
