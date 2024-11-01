@@ -63,7 +63,7 @@ const {
   getCurrencyDecimalsMap,
   getTokens,
   getTokenReference,
-  staticPaths,
+  getStaticPaths,
   swapOptions,
   getTokenOut,
 } = require('../../config/uniswapConfig');
@@ -2807,64 +2807,69 @@ const buildSwapsParams = async (swapsData) => {
   }
   const quotes = apiResponse.data;
 
-  // Build swap objects.
-  return swapsData
-    .map((swapData) => {
-      const tokenIn = swapData.tokenIn;
-      const tokenOut = swapData.tokenOut;
-      const path = encodePath(staticPaths[tokenIn.symbol].tokens, staticPaths[tokenIn.symbol].fees);
-      const amountIn = hre.ethers.BigNumber.from(
-        Utils.parseUnits(swapData.amountIn.toString(), tokenIn.decimals)
-      );
+  // Build swap objects asynchronously
+  const swapParamsPromises = swapsData.map(async (swapData) => {
+    const tokenIn = swapData.tokenIn;
+    const tokenOut = swapData.tokenOut;
+    const staticPaths = await getStaticPaths(swapData.netWork);
+    const path = encodePath(staticPaths[tokenIn.symbol].tokens, staticPaths[tokenIn.symbol].fees);
+    const amountIn = hre.ethers.BigNumber.from(
+      Utils.parseUnits(swapData.amountIn.toString(), tokenIn.decimals)
+    );
 
-      // Apply slippage.
-      const quote = quotes[tokenIn.symbol];
+    // Apply slippage
+    const quote = quotes[tokenIn.symbol];
 
-      if (quote <= 0) {
-        console.log(
-          `Quote for swapping token ${tokenIn.symbol} with amount ${swapData.amountIn} is 0. Swap disregarded.`
-        );
-        return;
-      }
-
-      // Calculate amountOutMinimum considering slippage
-      const slippageTolerance = 0.995;
-      const amountOutMinimumDecimal = swapData.amountIn * quote * slippageTolerance;
+    if (quote <= 0) {
       console.log(
-        'buildSwapsParams - swapData.amountIn - ',
-        swapData.amountIn,
-        ' quote ',
-        quote,
-        ' slippageTolerance',
-        slippageTolerance
+        `Quote for swapping token ${tokenIn.symbol} with amount ${swapData.amountIn} is 0. Swap disregarded.`
       );
-      // Convert amountOutMinimumDecimal to BigNumber with tokenOut decimals
-      const amountOutMinimum = hre.ethers.BigNumber.from(
-        Utils.parseUnits(amountOutMinimumDecimal.toFixed(tokenOut.decimals), tokenOut.decimals)
-      );
+      return null; // Return null to filter out later
+    }
 
-      console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
+    // Calculate amountOutMinimum considering slippage
+    const slippageTolerance = 0.995;
+    const amountOutMinimumDecimal = swapData.amountIn * quote * slippageTolerance;
+    console.log(
+      'buildSwapsParams - swapData.amountIn - ',
+      swapData.amountIn,
+      ' quote ',
+      quote,
+      ' slippageTolerance',
+      slippageTolerance
+    );
 
-      return {
-        params: {
-          path,
-          recipient: swapData.recipient,
-          deadline: swapOptions.deadline(),
-          amountIn,
-          amountOutMinimum: hre.ethers.BigNumber.from(amountOutMinimum),
-        },
-        tokenIn: tokenIn.address,
-        tokenOut: tokenOut.address,
-      };
-    })
-    .filter((swapParams) => {
-      return swapParams !== undefined;
-    });
+    // Convert amountOutMinimumDecimal to BigNumber with tokenOut decimals
+    const amountOutMinimum = hre.ethers.BigNumber.from(
+      Utils.parseUnits(amountOutMinimumDecimal.toFixed(tokenOut.decimals), tokenOut.decimals)
+    );
+
+    console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
+
+    return {
+      params: {
+        path,
+        recipient: swapData.recipient,
+        deadline: swapOptions.deadline(),
+        amountIn,
+        amountOutMinimum: hre.ethers.BigNumber.from(amountOutMinimum),
+      },
+      tokenIn: tokenIn.address,
+      tokenOut: tokenOut.address,
+    };
+  });
+
+  // Await all promises and filter out any null results
+  const resolvedSwapParams = (await Promise.all(swapParamsPromises)).filter(
+    (swapParams) => swapParams !== null
+  );
+
+  return resolvedSwapParams;
 };
 
 const swapVaultTokenBalances = async (vault) => {
   // Swapea todos los balances de tokens volátiles por TokenOut en config file.
-
+  console.log('Entro a swapVaultTokenBalances - para bóveda ', vault.id);
   // Obtengo balances de tokens volátiles
   const tokenTypes = Object.values(TokenTypes).map((token) => token.toString());
   const tokenBalances = vault.balances.filter(
@@ -2882,6 +2887,7 @@ const swapVaultTokenBalances = async (vault) => {
       tokenIn: tokens[bal.currency],
       tokenOut,
       amountIn: bal.balance,
+      netWork: vault.contractNetwork,
     };
   });
 
@@ -2891,6 +2897,8 @@ const swapVaultTokenBalances = async (vault) => {
     console.log('No se logro construir ningún swap');
     return { tokenOutAmount: 0 };
   }
+
+  console.log('Se construyeron - ', swapsParams.length, ' swaps para la bóveda ', vault.id);
 
   // Ejecuto swaps
   const swapsResults = await swapVaultExactInputs(vault, swapsParams);
