@@ -96,12 +96,12 @@ export const getChainId = (networkName: string): number => {
 };
 
 // Función para obtener la configuración de swapOptions según la red
-export const getSwapOptions = (networkName) => ({
+export const getSwapOptions = (networkName = UNISWAP_NETWORK_FOR_QUOTES) => ({
   recipient: ContractTypes.EMPTY_ADDRESS,
   slippageTolerance:
-    networkName === 'polygon'
+    networkName === networkTypes.NETWORK_TYPE_POLYGON
       ? new Percent(5, 1000) // 0.5% para Polygon
-      : networkName === 'rootstock'
+      : networkName === networkTypes.NETWORK_TYPE_ROOTSTOCK
       ? new Percent(5, 1000) // 0.5% para Rootstock
       : new Percent(10, 100), // 10% para Sepolia (o la red de prueba)
   deadline: () => Math.floor(Date.now() / 1000 + 60 * 10), // 10 minutos
