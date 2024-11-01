@@ -64,7 +64,7 @@ const {
   getTokens,
   getTokenReference,
   getStaticPaths,
-  swapOptions,
+  getSwapOptions,
   getTokenOut,
 } = require('../../config/uniswapConfig');
 
@@ -2845,6 +2845,7 @@ const buildSwapsParams = async (swapsData) => {
     );
 
     console.log('buildSwapsParams - amountOutMinimum - ', amountOutMinimum);
+    const swapOptions = await getSwapOptions(swapData.netWork);
 
     return {
       params: {
