@@ -3,12 +3,16 @@ const {
   CONFIG_NETWORK_COLLECTION,
   DEPLOYER_PRIVATE_KEY_POLYGON,
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
+  SWAPPER_PRIVATE_KEY_POLYGON,
+  SWAPPER_PRIVATE_KEY_ROOTSTOCK,
 } = require('../../config/appConfig');
 
 // Crear un mapa de variables
 const envVariablesMap = {
   DEPLOYER_PRIVATE_KEY_POLYGON,
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK,
+  SWAPPER_PRIVATE_KEY_POLYGON,
+  SWAPPER_PRIVATE_KEY_ROOTSTOCK,
 };
 
 function isBasicAddressFormat(address) {
@@ -31,9 +35,9 @@ export async function getEnvVariable(variableName, networkName = null) {
 
   try {
     if (secretsVariables.includes(variableName)) {
-      const normalizedNetworkName = networkName ?
-        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
-        'GENERAL';
+      const normalizedNetworkName = networkName
+        ? networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase()
+        : 'GENERAL';
 
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
       const envValue = envVariablesMap[fullVariableName];
