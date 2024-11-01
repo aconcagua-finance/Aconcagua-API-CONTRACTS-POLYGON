@@ -224,6 +224,7 @@ exports.getPathQuotes = async function (req, res) {
     }
 
     const quotes = await getUniPathQuotes();
+    console.log('getPathQuotes - quotes - ', JSON.stringify(quotes));
     res.status(200).send(quotes);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
