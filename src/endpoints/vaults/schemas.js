@@ -31,6 +31,7 @@ const createSchema = Joi.object({
   ...basicData,
   vaultType: Joi.string().required(),
   creditType: Joi.string().required(),
+  serviceLevel: Joi.string().required(),
   balances: Joi.array(),
   dueDate: Joi.alternatives().conditional('creditType', {
     is: [
@@ -94,6 +95,7 @@ const requiredBaseFields = [
   'rescueWalletAccount',
   'withdrawWalletAccount',
   'vaultType',
+  'serviceLevel',
   'creditType',
   'loanStatus',
   'currency',

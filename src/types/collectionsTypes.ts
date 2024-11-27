@@ -30,6 +30,7 @@ export enum Collections {
   COMPANY_DEPARTMENTS = 'companyDepartments',
 
   VAULTS = 'vaults',
+  VAULTS_BALANCE_HISTORY = 'vaultsBalanceHistory',
   VAULT_INSTALLMENTS = 'vaultInstallments',
   VAULT_TRANSACTIONS = 'vaultTransactions',
   TRANSACTION_REQUESTS = 'transactionRequests',

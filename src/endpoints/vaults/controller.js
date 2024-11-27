@@ -102,6 +102,7 @@ const { TechnicalError } = require('../../vs-core/error');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
+const COLLECTION_VAULTS_BALANCE_HISTORY = Collections.VAULTS_BALANCE_HISTORY;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
 const COLLECTION_NAME_USERS = Collections.USERS;
@@ -858,6 +859,17 @@ exports.create = async function (req, res) {
         'Updated deployment status error of ProxyContract for Vault ' + proxyContractAddress
       );
     }
+
+    // Add balance history record when balances change
+    await createFirestoreDocument({
+      collectionName: COLLECTION_VAULTS_BALANCE_HISTORY,
+      itemData: {
+        vaultId: vault.id,
+        timestamp: new Date(),
+        balances: allBalances
+      },
+      auditUid // this is available from the top of the function
+    });
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -1348,6 +1360,7 @@ exports.withdraw = async function (req, res) {
           value: withdrawInARS,
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
@@ -1364,6 +1377,7 @@ exports.withdraw = async function (req, res) {
           value: withdrawInARS,
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
@@ -1380,6 +1394,7 @@ exports.withdraw = async function (req, res) {
           value: withdrawInARS,
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
