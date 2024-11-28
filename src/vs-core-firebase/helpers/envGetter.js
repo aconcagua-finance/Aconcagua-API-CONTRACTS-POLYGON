@@ -25,6 +25,7 @@ function isBasicAddressFormat(address) {
 export const networkEquivalences = {
   SEPOLIA: 'POLYGON',
   ROOTSTOCKTESTNET: 'ROOTSTOCK',
+  RSK: 'ROOTSTOCK',
   // Agrega más equivalencias de redes aquí si es necesario
 };
 
