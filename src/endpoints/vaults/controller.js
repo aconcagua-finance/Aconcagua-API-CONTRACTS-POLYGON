@@ -1173,16 +1173,6 @@ exports.getVaultBalances = async function (req, res) {
       balancesNeedUpdate = true;
     }
 
-    // Add balance history record when balances change
-    await createFirestoreDocument({
-      collectionName: COLLECTION_VAULTS_BALANCE_HISTORY,
-      itemData: {
-        vaultId: vault.id,
-        timestamp: new Date(),
-        balances: allBalances,
-      },
-      auditUid // this is available from the top of the function
-    });
     // actualizo y pongo flag de update si el balance cambió
     await updateSingleItem({
       collectionName: COLLECTION_NAME,
