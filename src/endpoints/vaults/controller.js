@@ -2300,7 +2300,6 @@ exports.onVaultUpdate = functions.firestore
     const before = change.before.data();
     const after = change.after.data();
 
-    // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
       console.log(
         'onVaultUpdate ' +
@@ -2309,15 +2308,29 @@ exports.onVaultUpdate = functions.firestore
           JSON.stringify(getDifferences(before, after))
       );
 
-      const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
+      const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId });
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
       console.log('onVaultUpdate ' + documentPath + ' updateData ' + JSON.stringify(updateData));
       if (Object.keys(updateData).length > 0) {
+        console.log('onVaultUpdate actualizando ', updateData);
         const db = admin.firestore();
-        const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+        await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+
+        // Guardar en el histórico de balances si hay nuevos balances
+        if (balanceUpdateData?.balances) {
+          await createFirestoreDocument({
+            collectionName: COLLECTION_VAULTS_BALANCE_HISTORY,
+            itemData: {
+              vaultId: docId,
+              timestamp: new Date(),
+              balances: balanceUpdateData.balances,
+            },
+            auditUid: 'system' // Como es una función automática, usamos 'system' como auditUid
+          });
+        }
       }
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
