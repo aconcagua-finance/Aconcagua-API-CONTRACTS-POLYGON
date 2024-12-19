@@ -14,7 +14,7 @@ const JSBI = require('jsbi');
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 
-const { EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
+const {Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
 
 const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit');
 const { ErrorHelper } = require('../../vs-core-firebase');
@@ -505,91 +505,35 @@ const getDeployedContract = async (vault) => {
   return blockchainContract;
 };
 
-exports.create = async function (req, res) {
-  try {
-    const { userId } = res.locals;
-    const auditUid = userId;
-    const { userId: targetUserId, companyId } = req.params;
-    console.log('Req.body es ' + JSON.stringify(req.body));
-    const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
-    console.log('create - networkName = ' + networkName);
+const createCreditVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  vaultAdminAddress,
+  auditUid,
+  body // Pass the prepared body instead of full req
+}) => {
+  // Extract existing credit vault creation logic
+  let safeA;
+  let safeB;
 
-    if (!targetUserId || !companyId) {
-      throw new CustomError.TechnicalError(
-        'ERROR_INVALID_ARGS',
-        null,
-        'Invalid args creating contract',
-        null
-      );
-    }
+  switch (networkName) {
+    case networkTypes.NETWORK_TYPE_POLYGON:
+      safeA = lender.safeLiq1.toLowerCase();
+      safeB = lender.safeLiq2.toLowerCase();
+      break;
+    case networkTypes.NETWORK_TYPE_ROOTSTOCK:
+      safeA = lender.safeLiq3.toLowerCase();
+      safeB = lender.safeLiq4.toLowerCase();
+      break;
+    default:
+      break;
+  }
 
-    // Asumiendo que tienes una variable `networkName` que especifica la red (Polygon o Rootstock)
-    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-
-    if (!lender) {
-      throw new CustomError.TechnicalError(
-        'ERROR_COMPANY_NOT_FOUND',
-        null,
-        'Company not found for Vault creation',
-        null
-      );
-    }
-
-    // Inicializamos una variable para almacenar el vaultAdminAddress
-    let vaultAdminAddress;
-
-    // Verificar si hay un vaultAdmin específico para la red
-    if (networkName.toLowerCase() === 'polygon') {
-      vaultAdminAddress = lender.vaultAdminAddressPolygon; // Dirección de Vault Admin para Polygon
-    } else if (networkName.toLowerCase() === 'rootstock') {
-      vaultAdminAddress = lender.vaultAdminAddressRootstock; // Dirección de Vault Admin para Rootstock
-    }
-
-    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior (versión anterior)
-    if (!vaultAdminAddress && lender.vaultAdminAddress) {
-      vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
-    }
-
-    console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
-
-    // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
-    if (!vaultAdminAddress) {
-      throw new CustomError.TechnicalError(
-        'ERROR_VAULT_ADMIN_NOT_FOUND',
-        null,
-        `Vault Admin not found for network ${networkName} or in the previous version`,
-        null
-      );
-    }
-
-    // Defino variables según la red
-    let safeA;
-    let safeB;
-
-    switch (networkName) {
-      case networkTypes.NETWORK_TYPE_POLYGON:
-        console.log('Create - Defino las variables de polygon network');
-        safeA = lender.safeLiq1.toLowerCase();
-        safeB = lender.safeLiq2.toLowerCase();
-        break;
-
-      case networkTypes.NETWORK_TYPE_ROOTSTOCK:
-        console.log('Create - Defino las variables de rootstock network');
-        safeA = lender.safeLiq3.toLowerCase();
-        safeB = lender.safeLiq4.toLowerCase();
-        break;
-
-      default:
-        // Default to Polygon if network name is not provided
-        console.log('Create - No Defino las variables no identifiqué red');
-        break;
-    }
-
-    // Abro wallet
-
-    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
-    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
-    const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
     const colateralContractName = 'ColateralContract2';
     const proxyContractName = 'ColateralProxy';
@@ -770,7 +714,6 @@ exports.create = async function (req, res) {
       networkConfig
     );
     const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
-    const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
 
     if (!proxyContractAddress) {
       throw new CustomError.TechnicalError(
@@ -781,84 +724,187 @@ exports.create = async function (req, res) {
       );
     }
 
-    // Build entity
-    const collectionName = COLLECTION_NAME;
-    const validationSchema = schemas.create;
-
-    const body = req.body;
-    body.userId = targetUserId;
-    body.companyId = companyId;
-    body.rescueWalletAccount = defaultRescueWalletAddress;
-    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
-    body.balances = [];
-
+    // Add credit-specific fields
     body.contractAddress = colateralContractAddress;
     body.contractSignerAddress = lender.safeLiq1.toLowerCase();
     body.contractDeployment = colateralContractDeploy.contractDeployment;
     body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
     body.contractStatus = contractStatus;
-    body.contractNetwork = networkName;
-    body.contractVersion = '';
-    contractError ? (body.contractError = contractError) : null;
-
+    body.contractVersion = '2.0.0';
+    body.contractError = contractError || null;
     body.proxyContractAddress = proxyContractAddress;
-    body.proxyContractSignerAddress = proxyContractSignerAddress;
+    body.proxyContractSignerAddress = lender.safeLiq1.toLowerCase();
     body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
     body.proxyContractName = proxyContractName;
     body.proxyContractStatus = 'pending-deployment-verification';
     body.proxyContractVersion = 'TransparentUpgradeable';
+    body.rescueWalletAccount = defaultRescueWalletAddress;
+    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
 
-    // Store entity and response
-    const itemData = await sanitizeData({ data: body, validationSchema });
+    // Store entity
+    const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
     const dbItemData = await createFirestoreDocument({
-      collectionName,
+      collectionName: COLLECTION_NAME,
       itemData,
       auditUid,
       documentId: proxyContractAddress,
     });
 
-    res.status(201).send(dbItemData);
+  return dbItemData;
+};
 
-    // Check Proxy deployment and update status & contract version
-    try {
-      await proxyContractDeploy.deploymentResponse.deployed();
-      console.log('ProxyContract Deployment success');
+const createSavingsVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body
+}) => {
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
 
-      const blockchainContract = new hre.ethers.Contract(
-        proxyContractAddress,
-        colateralAbi,
-        deployerWallet
-      );
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
 
-      const contractVersion = await blockchainContract.version();
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider
+  });
 
-      await updateSingleItem({
-        collectionName,
-        data: { proxyContractStatus: 'deployed', contractVersion },
-        auditUid,
-        id: proxyContractAddress,
-      });
+  // Configure Safe Account
+  const safeAccountConfig = {
+    owners: [
+      await getEnvVariable('OPERATOR1_ADDRESS', networkName),
+      await getEnvVariable('OPERATOR2_ADDRESS', networkName)
+    ],
+    threshold: 2
+  };
 
-      console.log('Updated deployment status of ProxyContract for Vault' + proxyContractAddress);
-    } catch (e) {
-      console.log(
-        'Deployment error while waiting for Proxy contract deploy confirmation for Vault ' +
-          proxyContractAddress,
-        JSON.stringify(e)
-      );
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
 
-      await updateSingleItem({
-        collectionName,
-        data: { proxyContractError: e.message },
-        auditUid,
-        id: proxyContractAddress,
-      });
+  // Deploy Safe
+  const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
 
-      console.log(
-        'Updated deployment status error of ProxyContract for Vault ' + proxyContractAddress
+  // Get safe address
+  const safeAddress = await safeSdk.getAddress();
+
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeOwners = safeAccountConfig.owners;
+  body.safeThreshold = safeAccountConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress; // Use safe address as contract address
+  body.contractSignerAddress = safeAddress;
+  body.contractName = 'GnosisSafe'; // Standard name for Safe contracts
+  body.proxyContractAddress = safeAddress; // Safe contracts are proxies
+  body.proxyContractVersion = '1.3.0'; // Standard Safe version
+  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+
+  // Store entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+// Modified create function to handle both types
+exports.create = async function (req, res) {
+  try {
+    const { userId } = res.locals;
+    const auditUid = userId;
+    const { userId: targetUserId, companyId } = req.params;
+    const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
+    const vaultType = req.body.vaultType || 'credit'; // Default to credit for backward compatibility
+
+    // Validate required params
+    if (!targetUserId || !companyId) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_ARGS',
+        null,
+        'Invalid args creating contract',
+        null
       );
     }
+
+    // Get and validate lender
+    const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
+    if (!lender) {
+      throw new CustomError.TechnicalError(
+        'ERROR_COMPANY_NOT_FOUND',
+        null,
+        'Company not found for Vault creation',
+        null
+      );
+    }
+
+    // Get vault admin address based on network
+    let vaultAdminAddress;
+    if (networkName.toLowerCase() === 'polygon') {
+      vaultAdminAddress = lender.vaultAdminAddressPolygon;
+    } else if (networkName.toLowerCase() === 'rootstock') {
+      vaultAdminAddress = lender.vaultAdminAddressRootstock;
+    }
+    if (!vaultAdminAddress && lender.vaultAdminAddress) {
+      vaultAdminAddress = lender.vaultAdminAddress;
+    }
+    if (!vaultAdminAddress) {
+      throw new CustomError.TechnicalError(
+        'ERROR_VAULT_ADMIN_NOT_FOUND',
+        null,
+        `Vault Admin not found for network ${networkName} or in the previous version`,
+        null
+      );
+    }
+
+    // Prepare common entity fields
+    const body = {
+      ...req.body,
+      userId: targetUserId,
+      companyId,
+      contractNetwork: networkName,
+      vaultType,
+      balances: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      state: Types.StateTypes.STATE_ACTIVE
+    };
+
+    // Create vault based on type
+    const dbItemData = vaultType === 'savings'
+      ? await createSavingsVault({
+          networkName,
+          targetUserId,
+          companyId,
+          lender,
+          auditUid,
+          body
+        })
+      : await createCreditVault({
+          networkName,
+          targetUserId,
+          companyId,
+          lender,
+          vaultAdminAddress,
+          auditUid,
+          body
+        });
+
+    return res.status(201).send(dbItemData);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -987,9 +1033,106 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
   console.log('after: ' + (await blockchainContract.rescueWalletAddress()));
 };
 
-const fetchVaultBalances = async (vault) => {
-  console.log('fetchVaultBalances- Dentro de fetchVaultBalances ' + vault.id);
-  console.log('fetchVaultBalances- Vault version vale ' + vault.contractVersion);
+const fetchSavingsVaultBalances = async (vault) => {
+  const networkName = vault.contractNetwork.toLowerCase();
+  const safeAddress = vault.id;
+
+  // Determine API URL based on network
+  const apiBaseUrl = networkName === 'polygon'
+    ? 'https://safe-transaction-sepolia.safe.global/api/v1'
+    : `https://transaction-testnet.safe.rootstock.io/api/v1`;
+
+  try {
+    // Fetch balances from Safe API using config
+    const response = await axios.get(`${apiBaseUrl}/safes/${safeAddress}/balances`);
+    const safeBalances = response.data;
+
+    // Initialize arrays for our formatted balances
+    const formattedBalances = [];
+    let totalUsdValue = 0;
+    let totalArsValue = 0;
+
+    // Get valuations for conversion rates
+    const valuations = await getCurrenciesValuations();
+    const usdToArsValuation = valuations.find((valuation) =>
+      valuation.currency === Types.CurrencyTypes.ARS &&
+      valuation.targetCurrency === Types.CurrencyTypes.USD
+    );
+
+    // Process each token balance
+    for (const tokenBalance of safeBalances) {
+      const token = tokenBalance.token;
+      if (!token) continue; // Skip native token (ETH) for now
+
+      // Normalize token symbol
+      let normalizedSymbol = token.symbol.toLowerCase();
+      if (normalizedSymbol === 'acon18usdm') {
+        normalizedSymbol = Types.CurrencyTypes.USDM;
+      }
+
+      // Convert balance to number based on decimals
+      const balance = parseFloat(hre.ethers.utils.formatUnits(
+        tokenBalance.balance,
+        token.decimals
+      ));
+
+      // Find token valuation using normalized symbol
+      const tokenValuation = valuations.find((valuation) =>
+        valuation.currency === normalizedSymbol &&
+        valuation.targetCurrency === Types.CurrencyTypes.USD
+      );
+
+      // Calculate USD and ARS values
+      const usdValue = balance * (tokenValuation?.value || 0);
+      const arsValue = usdValue * (usdToArsValuation?.value || 0);
+
+      // Add to totals
+      totalUsdValue += usdValue;
+      totalArsValue += arsValue;
+
+      // Create formatted balance entry
+      formattedBalances.push({
+        currency: normalizedSymbol,
+        balance,
+        valuations: [
+          {
+            currency: Types.CurrencyTypes.USD,
+            value: usdValue
+          },
+          {
+            currency: Types.CurrencyTypes.ARS,
+            value: arsValue
+          }
+        ]
+      });
+    }
+
+    // Add summary valuations
+    formattedBalances.push(
+      {
+        currency: Types.CurrencyTypes.USD,
+        value: totalUsdValue,
+        balance: totalUsdValue,
+        isValuation: true
+      },
+      {
+        currency: Types.CurrencyTypes.ARS,
+        value: totalArsValue,
+        balance: totalArsValue,
+        isValuation: true
+      }
+    );
+
+    return formattedBalances;
+  } catch (error) {
+    console.error('Error fetching Safe balances:', error);
+    throw error;
+  }
+};
+
+const fetchCreditVaultBalances = async (vault) => {
+  console.log('fetchCreditVaultBalances- Dentro de fetchVaultBalances ' + vault.id);
+  console.log('fetchCreditVaultBalances- Vault version vale ' + vault.contractVersion);
 
   // Get the deployed contract.
   const blockchainContract = await getDeployedContract(vault);
@@ -1003,13 +1146,13 @@ const fetchVaultBalances = async (vault) => {
 
   if (isMultiToken) {
     // Handle new version of the contract
-    console.log('fetchVaultBalances- Vault ' + vault.id + ' es multitoken');
+    console.log('fetchCreditVaultBalances- Vault ' + vault.id + ' es multitoken');
 
     try {
       // Fetch the tokenNames array
       const tokenNames = await blockchainContract.getTokenNames();
-      console.log('fetchVaultBalances- tokenNames length: ' + tokenNames.length);
-      console.log('fetchVaultBalances- tokenNames: ' + JSON.stringify(tokenNames));
+      console.log('fetchCreditVaultBalances- tokenNames length: ' + tokenNames.length);
+      console.log('fetchCreditVaultBalances- tokenNames: ' + JSON.stringify(tokenNames));
 
       // Fetch the contract balances (assuming this is needed for the new version as well)
       const contractBalances = await blockchainContract.getBalances();
@@ -1027,7 +1170,7 @@ const fetchVaultBalances = async (vault) => {
         );
 
         console.log(
-          'fetchVaultBalances - Balance de ',
+          'fetchCreditVaultBalances - Balance de ',
           tokenName,
           ' es ',
           tokenBalance,
@@ -1078,7 +1221,7 @@ const fetchVaultBalances = async (vault) => {
   }
 
   console.log(
-    'fetchVaultBalances - vault ',
+    'fetchCreditVaultBalances - vault ',
     vault.id,
     ' - balancesWithCurrencies es ',
     JSON.stringify(balancesWithCurrencies)
@@ -1109,6 +1252,13 @@ const fetchVaultBalances = async (vault) => {
   const allBalances = [...balancesWithValuations, ...sumarizedBalances];
   console.log('BALANCES WITH TOKEN FOR ' + vault.id + ': ' + JSON.stringify(allBalances));
   return allBalances;
+};
+
+const fetchVaultBalances = async (vault) => {
+  if (vault.vaultType === 'savings') {
+    return await fetchSavingsVaultBalances(vault);
+  }
+    return await fetchCreditVaultBalances(vault);
 };
 
 exports.getVaultBalances = async function (req, res) {
@@ -1193,23 +1343,27 @@ const getCurrenciesValuations = async () => {
 
 const balancesToValuations = (balancesWithToken, valuations) => {
   const newBalances = [];
-  const usdToarsValuation = valuations.find((item) => {
-    return (
-      item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
-    );
-  });
+  const usdToarsValuation = valuations.find((item) =>
+    item.currency === Types.CurrencyTypes.ARS &&
+    item.targetCurrency === Types.CurrencyTypes.USD
+  );
 
   balancesWithToken.forEach((balanceWithToken) => {
-    const usdValuation = valuations.find((item) => {
-      return (
-        item.currency === balanceWithToken.currency &&
-        item.targetCurrency === Types.CurrencyTypes.USD
-      );
-    });
+    // Normalize token symbol
+    let normalizedSymbol = balanceWithToken.currency;
+    if (normalizedSymbol === 'acon18usdm') {
+      normalizedSymbol = Types.CurrencyTypes.USDM;
+    }
+
+    const usdValuation = valuations.find((item) =>
+      item.currency === normalizedSymbol &&
+      item.targetCurrency === Types.CurrencyTypes.USD
+    );
 
     if (usdValuation) {
       const newBalance = {
         ...balanceWithToken,
+        currency: normalizedSymbol, // Use normalized symbol
         valuations: [
           {
             currency: Types.CurrencyTypes.USD,
@@ -1898,8 +2052,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
       vault.amount
   );
 
-  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, 'ars');
-  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, 'ars');
+  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, undefined, undefined, 'ars');
+  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, undefined, undefined, 'ars');
 
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
@@ -3165,3 +3319,110 @@ exports.sendEmailBalance = functions.pubsub
       console.error('Error sending email balance:', error);
     }
   });
+
+
+exports.getBalanceHistory = async function (req, res) {
+  try {
+    const { id: vaultId } = req.params;
+    const { currency = 'usd', period = 1, backCount = 6 } = req.query;
+
+    // Validate inputs
+    if (!vaultId) {
+      throw new CustomError.TechnicalError('ERROR_MISSING_ARGS', null, 'Missing vaultId', null);
+    }
+    if (![0, 1, 2].includes(Number(period))) {
+      throw new CustomError.TechnicalError('ERROR_INVALID_PERIOD', null, 'Invalid period value', null);
+    }
+    if (!['usd', 'ars'].includes(currency.toLowerCase())) {
+      throw new CustomError.TechnicalError('ERROR_INVALID_CURRENCY', null, 'Invalid currency', null);
+    }
+
+    // Get target dates based on period
+    const targetDates = getTargetDates(Number(period), Number(backCount));
+
+    // Query Firestore for all relevant documents
+    const db = admin.firestore();
+    const oldestDate = targetDates[targetDates.length - 1];
+
+    const snapshot = await db.collection(COLLECTION_VAULTS_BALANCE_HISTORY)
+      .where('vaultId', '==', vaultId)
+      .where('timestamp', '>=', oldestDate)
+      .orderBy('timestamp', 'desc')
+      .get();
+
+    const documents = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp.toDate()
+    }));
+
+    // Get max values for each target date
+    const results = targetDates.map((targetDate) => {
+      const nextDate = new Date(targetDate);
+      nextDate.setDate(targetDate.getDate() + 1);
+
+      // Find documents for this date range
+      const periodDocs = documents.filter((doc) =>
+        doc.timestamp >= targetDate && doc.timestamp < nextDate
+      );
+
+      if (periodDocs.length === 0) return null;
+
+      // Find max value for this period
+      const maxDoc = periodDocs.reduce((max, doc) => {
+        const balance = doc.balances.find((balanceItem) =>
+          balanceItem.isValuation === true &&
+          balanceItem.currency.toLowerCase() === currency.toLowerCase()
+        )?.balance || 0;
+
+        return (!max || balance > max.balance) ? {
+          timestamp: doc.timestamp,
+          balance,
+          id: doc.id,
+          vaultId: doc.vaultId
+        } : max;
+      }, null);
+
+      return maxDoc;
+    }).filter(Boolean); // Remove null entries
+
+    return res.status(200).send(results);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+function getTargetDates(period, backCount) {
+  const dates = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < backCount; i++) {
+    let targetDate = new Date(now);
+
+    if (period === 0) { // Daily
+      targetDate.setDate(now.getDate() - i);
+    }
+    else if (period === 1) { // Weekly
+      // Go back i weeks and find the Saturday
+      targetDate.setDate(now.getDate() - (i * 7));
+      while (targetDate.getDay() !== 6) { // 6 is Saturday
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
+    }
+    else { // Monthly
+      // Go back i months and find last day of month
+      targetDate.setMonth(now.getMonth() - i);
+      targetDate = new Date(
+        targetDate.getFullYear(),
+        targetDate.getMonth() + 1,
+        0
+      ); // Last day of month
+    }
+
+    dates.push(targetDate);
+  }
+
+  // Sort descending using more descriptive variable names
+  return dates.sort((date1, date2) => date2 - date1);
+}

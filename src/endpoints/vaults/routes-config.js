@@ -14,6 +14,7 @@ const {
   findVaultsLimitsByCompany,
   findVaultsLimitsByUser,
   amountToConversions,
+  getBalanceHistory,
 } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
@@ -92,6 +93,17 @@ exports.vaultsRoutesConfig = function (app) {
       isEnterpriseEmployee: true,
     }),
     getVaultBalances,
+  ]);
+
+  app.get('/:userId/:id/balances-history', [
+    Audit.logger,
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+      allowSameUser: true,
+      isEnterpriseEmployee: true,
+    }),
+    getBalanceHistory,
   ]);
 
   // consulta las conversiones de el monto y moneda enviada a usd y target token recibido (se usa al momento de aprobar una liquidacion/rescate)
