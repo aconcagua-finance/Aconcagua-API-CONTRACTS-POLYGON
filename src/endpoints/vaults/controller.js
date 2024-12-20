@@ -1068,6 +1068,14 @@ const fetchSavingsVaultBalances = async (vault) => {
       let normalizedSymbol = token.symbol.toLowerCase();
       if (normalizedSymbol === 'acon18usdm') {
         normalizedSymbol = Types.CurrencyTypes.USDM;
+      } else if (normalizedSymbol === 'acon6usdt') {
+        normalizedSymbol = Types.CurrencyTypes.USDT;
+      } else if (normalizedSymbol === 'acon6usdc') {
+        normalizedSymbol = Types.CurrencyTypes.USDC;
+      } else if (normalizedSymbol === 'acon8wbtc') {
+        normalizedSymbol = Types.TokenTypes.WBTC;
+      } else if (normalizedSymbol === 'acon18weth') {
+        normalizedSymbol = Types.TokenTypes.WETH;
       }
 
       // Convert balance to number based on decimals
@@ -1353,6 +1361,14 @@ const balancesToValuations = (balancesWithToken, valuations) => {
     let normalizedSymbol = balanceWithToken.currency;
     if (normalizedSymbol === 'acon18usdm') {
       normalizedSymbol = Types.CurrencyTypes.USDM;
+    } else if (normalizedSymbol === 'acon6usdt') {
+      normalizedSymbol = Types.CurrencyTypes.USDT;
+    } else if (normalizedSymbol === 'acon6usdc') {
+      normalizedSymbol = Types.CurrencyTypes.USDC;
+    } else if (normalizedSymbol === 'acon8wbtc') {
+      normalizedSymbol = Types.TokenTypes.WBTC;
+    } else if (normalizedSymbol === 'acon18weth') {
+      normalizedSymbol = Types.TokenTypes.WETH;
     }
 
     const usdValuation = valuations.find((item) =>
