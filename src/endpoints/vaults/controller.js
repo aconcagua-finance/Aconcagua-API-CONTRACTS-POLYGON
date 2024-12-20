@@ -1037,6 +1037,9 @@ const fetchSavingsVaultBalances = async (vault) => {
   const networkName = vault.contractNetwork.toLowerCase();
   const safeAddress = vault.id;
 
+  // Get decimals map for this network
+  const decimalsMap = getCurrencyDecimalsMap(networkName);
+
   // Determine API URL based on network
   const apiBaseUrl = networkName === 'polygon'
     ? 'https://safe-transaction-sepolia.safe.global/api/v1'
@@ -1078,10 +1081,13 @@ const fetchSavingsVaultBalances = async (vault) => {
         normalizedSymbol = Types.TokenTypes.WETH;
       }
 
-      // Convert balance to number based on decimals
+      // Get correct decimals for this token on this network
+      const decimals = decimalsMap.get(normalizedSymbol) || token.decimals;
+
+      // Convert balance to number based on network-specific decimals
       const balance = parseFloat(hre.ethers.utils.formatUnits(
         tokenBalance.balance,
-        token.decimals
+        decimals
       ));
 
       // Find token valuation using normalized symbol
