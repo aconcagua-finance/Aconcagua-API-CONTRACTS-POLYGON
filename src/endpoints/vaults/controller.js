@@ -1056,7 +1056,7 @@ const fetchSavingsVaultBalances = async (vault) => {
 
   try {
     // Fetch balances from Safe API using config
-    const response = await axios.get(`${apiBaseUrl}/safes/${safeAddress}/balances`);
+    const response = await axios.get(`${apiBaseUrl}/api/v1/safes/${safeAddress}/balances`);
     const safeBalances = response.data;
 
     // Initialize arrays for our formatted balances
