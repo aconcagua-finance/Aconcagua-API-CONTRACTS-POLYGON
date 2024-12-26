@@ -785,6 +785,15 @@ const createSavingsVault = async ({
     threshold: 2
   };
 
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
   // Initialize Safe Factory
   const safeFactory = await SafeFactory.create({ ethAdapter });
 
@@ -809,6 +818,8 @@ const createSavingsVault = async ({
   body.proxyContractSignerAddress = safeAddress;
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
 
   // Store entity
   const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
@@ -1041,9 +1052,7 @@ const fetchSavingsVaultBalances = async (vault) => {
   const decimalsMap = getCurrencyDecimalsMap(networkName);
 
   // Determine API URL based on network
-  const apiBaseUrl = networkName === 'polygon'
-    ? 'https://safe-transaction-sepolia.safe.global/api/v1'
-    : `https://transaction-testnet.safe.rootstock.io/api/v1`;
+  const apiBaseUrl = await getEnvVariable('SAFE_BASE_URL', networkName);
 
   try {
     // Fetch balances from Safe API using config
