@@ -336,7 +336,7 @@ const parseQuotations = (quotes) => {
 const getQuotations = async (quoteAmounts) => {
   // TODO: Refactor config file
   const providers = [];
-  
+
   if (ENVIRONMENT !== 'sandbox') {
     providers.push({ name: 'Uniswap', getQuotes: getUniswapQuotes });
   }
