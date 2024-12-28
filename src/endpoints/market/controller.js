@@ -340,7 +340,7 @@ const getQuotations = async (quoteAmounts) => {
   if (ENVIRONMENT !== 'sandbox') {
     providers.push({ name: 'Uniswap', getQuotes: getUniswapQuotes });
   }
-  
+
   providers.push(
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
     { name: 'Kraken', getQuotes: getKrakenQuotes }
