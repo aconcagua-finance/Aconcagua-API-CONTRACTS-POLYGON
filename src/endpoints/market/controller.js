@@ -59,7 +59,7 @@ const {
   fetchItems,
   filterItems,
 } = require('../baseEndpoint');
-const { COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
+const { COINGECKO_URL, KRAKEN_URL, ENVIRONMENT } = require('../../config/appConfig');
 
 const getUniswapQuotes = async () => {
   const tokens = await getTokens();
@@ -335,11 +335,17 @@ const parseQuotations = (quotes) => {
 
 const getQuotations = async (quoteAmounts) => {
   // TODO: Refactor config file
-  const providers = [
-    { name: 'Uniswap', getQuotes: getUniswapQuotes },
+  const providers = [];
+  
+  if (ENVIRONMENT !== 'sandbox') {
+    providers.push({ name: 'Uniswap', getQuotes: getUniswapQuotes });
+  }
+  
+  providers.push(
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
-    { name: 'Kraken', getQuotes: getKrakenQuotes },
-  ];
+    { name: 'Kraken', getQuotes: getKrakenQuotes }
+  );
+
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
   console.log(`Ejecuto llamadas de cotización`);
