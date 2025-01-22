@@ -781,7 +781,7 @@ const createSavingsVault = async ({
   const safeAccountConfig = {
     owners: [
       await getEnvVariable('OPERATOR1_ADDRESS', networkName),
-      await getEnvVariable('OPERATOR3_ADDRESS', networkName) // OPERATOR 3 para Lanin en el ledger 0x7031AF543FeB21d4d4278878b88Fd9671cC9A337
+      await getEnvVariable('OPERATOR2_ADDRESS', networkName)
     ],
     threshold: 2
   };
