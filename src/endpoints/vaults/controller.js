@@ -726,7 +726,7 @@ const createCreditVault = async ({
 
     // Add credit-specific fields
     body.contractAddress = colateralContractAddress;
-    body.contractSignerAddress = lender.safeLiq1.toLowerCase();
+    body.contractSignerAddress = safeA;
     body.contractDeployment = colateralContractDeploy.contractDeployment;
     body.abiencodedargs = abiEncodedArgs;
     body.contractName = colateralContractName;
@@ -734,13 +734,14 @@ const createCreditVault = async ({
     body.contractVersion = '2.0.0';
     body.contractError = contractError || null;
     body.proxyContractAddress = proxyContractAddress;
-    body.proxyContractSignerAddress = lender.safeLiq1.toLowerCase();
+    body.proxyContractSignerAddress = safeA;
     body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
     body.proxyContractName = proxyContractName;
-    body.proxyContractStatus = 'pending-deployment-verification';
+    body.proxyContractStatus = 'deployed';
     body.proxyContractVersion = 'TransparentUpgradeable';
     body.rescueWalletAccount = defaultRescueWalletAddress;
     body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
 
     // Store entity
     const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
@@ -780,7 +781,7 @@ const createSavingsVault = async ({
   const safeAccountConfig = {
     owners: [
       await getEnvVariable('OPERATOR1_ADDRESS', networkName),
-      await getEnvVariable('OPERATOR2_ADDRESS', networkName)
+      await getEnvVariable('OPERATOR3_ADDRESS', networkName) // OPERATOR 3 para Lanin en el ledger 0x7031AF543FeB21d4d4278878b88Fd9671cC9A337
     ],
     threshold: 2
   };
@@ -800,8 +801,8 @@ const createSavingsVault = async ({
   // Deploy Safe
   const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
 
-  // Get safe address
-  const safeAddress = await safeSdk.getAddress();
+  const safeAddress = safeSdk.getAddress();
+  const safeVersion = await safeSdk.getContractVersion();
 
   // Add required fields for schema validation
   body.safeAddress = safeAddress;
@@ -812,17 +813,28 @@ const createSavingsVault = async ({
   // Add contract-related fields required by schema
   body.contractAddress = safeAddress; // Use safe address as contract address
   body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
   body.contractName = 'GnosisSafe'; // Standard name for Safe contracts
+  body.contractVersion = safeVersion; // Safe Version
   body.proxyContractAddress = safeAddress; // Safe contracts are proxies
-  body.proxyContractVersion = '1.3.0'; // Standard Safe version
-  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractVersion = safeVersion; // Safe version
+  body.proxyContractSignerAddress = safeSdk.getAddress();
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
   body.rescueWalletAccount = defaultRescueWalletAddress;
   body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  // Set default service level if not defined
+  if (!body.serviceLevel) {
+    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+  }
 
-  // Store entity
+
+  console.log('Create - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
   const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
   const dbItemData = await createFirestoreDocument({
     collectionName: COLLECTION_NAME,
     itemData,
@@ -1154,7 +1166,7 @@ const fetchSavingsVaultBalances = async (vault) => {
 };
 
 const fetchCreditVaultBalances = async (vault) => {
-  console.log('fetchCreditVaultBalances- Dentro de fetchVaultBalances ' + vault.id);
+  console.log('fetchCreditVaultBalances- Dentro de fetchCreditVaultBalances ' + vault.id);
   console.log('fetchCreditVaultBalances- Vault version vale ' + vault.contractVersion);
 
   // Get the deployed contract.
@@ -1531,7 +1543,7 @@ exports.withdraw = async function (req, res) {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
           serviceLevel: smartContract.serviceLevel,
@@ -1548,7 +1560,7 @@ exports.withdraw = async function (req, res) {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
           serviceLevel: smartContract.serviceLevel,
@@ -1565,7 +1577,7 @@ exports.withdraw = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
           serviceLevel: smartContract.serviceLevel,
@@ -1735,7 +1747,7 @@ exports.rescue = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: rescueInARS,
+          value: rescueInARS.toFixed(4),
           currency,
         },
       },
@@ -1750,7 +1762,7 @@ exports.rescue = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: rescueInARS,
+          value: rescueInARS.toFixed(4),
           currency,
         },
       },
@@ -2109,8 +2121,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: vault.id,
           lender: lender.name,
-          amountBefore: bAmount,
-          amount: movementAmount,
+          amountBefore: bAmount.toFixed(2),
+          amount: movementAmount.toFixed(2),
         },
       },
     });
@@ -2125,8 +2137,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: bAmount,
-        amount: movementAmount,
+        amountBefore: bAmount.toFixed(2),
+        amount: movementAmount.toFixed(2),
       },
     },
   });
@@ -2141,8 +2153,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: bAmount,
-        amount: movementAmount,
+        amountBefore: bAmount.toFixed(2),
+        amount: movementAmount.toFixed(2),
       },
     },
   });
@@ -2199,25 +2211,35 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       transactionType !== VaultTransactionTypes.VAULT_CREATE &&
       transactionType !== VaultTransactionTypes.CREDIT_UPDATE
     ) {
-      // ARS: calculo cambio del balance y signo.
+      /* ARS: calculo cambio del balance y signo.
       const beforeARS = before.balances.find((balance) => {
         return balance.currency === Types.CurrencyTypes.ARS;
       });
       const afterARS = after.balances.find((balance) => {
         return balance.currency === Types.CurrencyTypes.ARS;
       });
+      */
+
+      // USD: calculo cambio del balance y signo.
+      const beforeUSD = before.balances.find((balance) => {
+        return balance.currency === Types.CurrencyTypes.USD;
+      });
+      const afterUSD = after.balances.find((balance) => {
+        return balance.currency === Types.CurrencyTypes.USD;
+      });
 
       if (
-        beforeARS &&
-        afterARS &&
-        typeof afterARS.balance === 'number' &&
-        typeof beforeARS.balance === 'number'
+        beforeUSD &&
+        afterUSD &&
+        typeof afterUSD.balance === 'number' &&
+        typeof beforeUSD.balance === 'number'
       ) {
-        movementAmount = afterARS.balance - beforeARS.balance;
+        movementAmount = afterUSD.balance - beforeUSD.balance;
+        movementCurrency = 'USD';
 
         if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
 
-        if (beforeARS.balance > afterARS.balance) {
+        if (beforeUSD.balance > afterUSD.balance) {
           movementType = 'minus';
         }
       }
@@ -2856,7 +2878,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          value: evalVault.swap.tokenOutAmount,
+          value: evalVault.swap.tokenOutAmount.toFixed(2),
         },
       },
     });
@@ -3416,6 +3438,48 @@ exports.getBalanceHistory = async function (req, res) {
 
       return maxDoc;
     }).filter(Boolean); // Remove null entries
+
+    return res.status(200).send(results);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+exports.getVaultsBalanceHistory = async function (req, res) {
+  try {
+    const { vaultIds, currency, period, backCount } = req.query;
+    const vaultIdList = vaultIds.split(',').filter(id => id.trim());
+
+    // Validate inputs
+    if (!vaultIds || !vaultIdList.length) {
+      throw new CustomError.TechnicalError(
+        'ERROR_MISSING_ARGS', 
+        null, 
+        'Missing or invalid vaultIds list',
+        null
+      );
+    }
+
+    // Create a mock request object for each vault to reuse getBalanceHistory
+    const results = await Promise.all(vaultIdList.map(async (vaultId) => {
+      const mockReq = {
+        params: { id: vaultId.trim() },
+        query: { currency, period, backCount }
+      };
+      
+      const mockRes = {
+        status: () => ({
+          send: (data) => data
+        })
+      };
+
+      const history = await exports.getBalanceHistory(mockReq, mockRes);
+      
+      return {
+        vaultId,
+        history
+      };
+    }));
 
     return res.status(200).send(results);
   } catch (err) {
