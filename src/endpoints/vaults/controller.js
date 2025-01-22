@@ -2163,6 +2163,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
 const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
+  // Define default movement currency
+  let movementCurrency = 'ARS'; // Default to ARS for backward compatibility
 
   if (
     transactionType === VaultTransactionTypes.VAULT_CREATE ||
@@ -2177,7 +2179,6 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         'after:',
         JSON.stringify(after)
       );
-      // movementType = null;
     }
   } else {
     if (
@@ -2211,15 +2212,6 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       transactionType !== VaultTransactionTypes.VAULT_CREATE &&
       transactionType !== VaultTransactionTypes.CREDIT_UPDATE
     ) {
-      /* ARS: calculo cambio del balance y signo.
-      const beforeARS = before.balances.find((balance) => {
-        return balance.currency === Types.CurrencyTypes.ARS;
-      });
-      const afterARS = after.balances.find((balance) => {
-        return balance.currency === Types.CurrencyTypes.ARS;
-      });
-      */
-
       // USD: calculo cambio del balance y signo.
       const beforeUSD = before.balances.find((balance) => {
         return balance.currency === Types.CurrencyTypes.USD;
@@ -2235,7 +2227,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         typeof beforeUSD.balance === 'number'
       ) {
         movementAmount = afterUSD.balance - beforeUSD.balance;
-        movementCurrency = 'USD';
+        movementCurrency = 'USD'; // Set USD for crypto transactions
 
         if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
 
@@ -2292,21 +2284,13 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
         movementAmount = after.amount - before.amount;
+        movementCurrency = 'ARS'; // Credit updates are always in ARS
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
         await sendCreditEmails(after, before.amount);
       }
-    }
-
-    // Validaciones
-    if (transactionType === VaultTransactionTypes.BALANCE_UPDATE) {
-      return;
-    }
-    if (movementAmount === 0 && transactionType !== VaultTransactionTypes.CRYPTO_SWAP) {
-      console.log('movementAmount es cero, finaliza sin crear');
-      return;
     }
   }
 
@@ -2322,9 +2306,10 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     vaultId: docId,
     movementType, // plus / minus
     movementAmount,
+    movementCurrency, // Now properly defined for all cases
     transactionType,
 
-    contractDeployment: null, // para que no grabe el bodoque...
+    contractDeployment: null,
     proxyContractDeployment: null,
 
     state: Types.StateTypes.STATE_ACTIVE,
@@ -3448,13 +3433,13 @@ exports.getBalanceHistory = async function (req, res) {
 exports.getVaultsBalanceHistory = async function (req, res) {
   try {
     const { vaultIds, currency, period, backCount } = req.query;
-    const vaultIdList = vaultIds.split(',').filter(id => id.trim());
+    const vaultIdList = vaultIds.split(',').filter((id) => id.trim());
 
     // Validate inputs
     if (!vaultIds || !vaultIdList.length) {
       throw new CustomError.TechnicalError(
-        'ERROR_MISSING_ARGS', 
-        null, 
+        'ERROR_MISSING_ARGS',
+        null,
         'Missing or invalid vaultIds list',
         null
       );
@@ -3466,7 +3451,7 @@ exports.getVaultsBalanceHistory = async function (req, res) {
         params: { id: vaultId.trim() },
         query: { currency, period, backCount }
       };
-      
+
       const mockRes = {
         status: () => ({
           send: (data) => data
@@ -3474,7 +3459,7 @@ exports.getVaultsBalanceHistory = async function (req, res) {
       };
 
       const history = await exports.getBalanceHistory(mockReq, mockRes);
-      
+
       return {
         vaultId,
         history
