@@ -2163,8 +2163,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
 const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
-  // Define default movement currency
   let movementCurrency = 'ARS'; // Default to ARS for backward compatibility
+  let tokenChanges = []; // Add array to track token changes
 
   if (
     transactionType === VaultTransactionTypes.VAULT_CREATE ||
@@ -2227,10 +2227,28 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         typeof beforeUSD.balance === 'number'
       ) {
         movementAmount = afterUSD.balance - beforeUSD.balance;
-        movementCurrency = 'USD'; // Set USD for crypto transactions
+        movementCurrency = 'USD';
 
-        if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
+        // Track token changes
+        before.balances.forEach((bBalance) => {
+          if (!bBalance.isValuation) {
+            const aBalance = after.balances.find(
+              (aBalance) => aBalance.currency === bBalance.currency
+            );
+            
+            if (aBalance && bBalance.balance !== aBalance.balance) {
+              tokenChanges.push({
+                currency: bBalance.currency,
+                beforeBalance: bBalance.balance,
+                afterBalance: aBalance.balance,
+                difference: aBalance.balance - bBalance.balance,
+                valuations: aBalance.valuations
+              });
+            }
+          }
+        });
 
+        if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (beforeUSD.balance > afterUSD.balance) {
           movementType = 'minus';
         }
@@ -2304,14 +2322,13 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
   const createData = {
     ...after,
     vaultId: docId,
-    movementType, // plus / minus
+    movementType,
     movementAmount,
-    movementCurrency, // Now properly defined for all cases
+    movementCurrency,
     transactionType,
-
+    tokenChanges, // Add token changes to the transaction record
     contractDeployment: null,
     proxyContractDeployment: null,
-
     state: Types.StateTypes.STATE_ACTIVE,
     ...creationStruct('admin'),
   };
