@@ -2164,7 +2164,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
   let movementType = 'plus';
   let movementAmount = 0;
   let movementCurrency = 'ARS'; // Default to ARS for backward compatibility
-  let tokenChanges = []; // Add array to track token changes
+  const tokenChanges = []; // Add array to track token changes
 
   if (
     transactionType === VaultTransactionTypes.VAULT_CREATE ||
@@ -2235,7 +2235,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
             const aBalance = after.balances.find(
               (aBalance) => aBalance.currency === bBalance.currency
             );
-            
+
             if (aBalance && bBalance.balance !== aBalance.balance) {
               tokenChanges.push({
                 currency: bBalance.currency,
