@@ -2269,7 +2269,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
           const aBalance = after.balances.find(
             (aBalance) => aBalance.currency === bBalance.currency
           );
-          return bBalance.balance !== aBalance.balance;
+          // Add null check before accessing balance
+          return aBalance ? bBalance.balance !== aBalance.balance : true;
         }
         return false;
       });
