@@ -2238,9 +2238,9 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         movementAmount = afterUSD.balance - beforeUSD.balance;
         movementCurrency = 'USD';
 
-        // Track token changes
+        // Track token changes - only for non-valuation balances and known currencies
         before.balances.forEach((bBalance) => {
-          if (!bBalance.isValuation) {
+          if (!bBalance.isValuation && bBalance.currency !== 'n/a') {
             const aBalance = after.balances.find(
               (aBalance) => aBalance.currency === bBalance.currency
             );
