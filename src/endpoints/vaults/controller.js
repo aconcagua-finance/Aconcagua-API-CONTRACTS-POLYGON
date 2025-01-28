@@ -1086,26 +1086,35 @@ const fetchSavingsVaultBalances = async (vault) => {
     // Process each token balance
     for (const tokenBalance of safeBalances) {
       const token = tokenBalance.token;
-      if (!token) continue; // Skip native token (ETH) for now
+      const tokenAddress = tokenBalance.tokenAddress;
+      if (!tokenAddress) continue; // Skip native token (ETH) for now
 
-      // Normalize token symbol
-      let normalizedSymbol = token.symbol.toLowerCase();
-      if (normalizedSymbol === 'acon18usdm') {
-        normalizedSymbol = Types.CurrencyTypes.USDM;
-      } else if (normalizedSymbol === 'acon6usdt') {
-        normalizedSymbol = Types.CurrencyTypes.USDT;
-      } else if (normalizedSymbol === 'acon6usdc') {
-        normalizedSymbol = Types.CurrencyTypes.USDC;
-      } else if (normalizedSymbol === 'acon8wbtc') {
-        normalizedSymbol = TokenTypes.WBTC;
-      } else if (normalizedSymbol === 'acon18weth') {
-        normalizedSymbol = TokenTypes.WETH;
+      // Build map of token addresses to their normalized symbols
+      const networkName = vault.contractNetwork.toUpperCase();
+      const tokenAddressMap = new Map([
+        [(await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDC],
+        [(await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDT],
+        [(await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDM],
+        [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
+        [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH]
+      ]);
+
+      // Get normalized symbol from token address
+      const normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
+
+      if (!normalizedSymbol) {
+        console.warn(`Unknown token address: ${tokenAddress}`);
+        continue; // Skip unknown tokens
       }
 
-      // Get correct decimals for this token on this network
-      const decimals = decimalsMap.get(normalizedSymbol) || token.decimals;
+      // Use decimals from token response, fallback to decimalsMap if needed
+      const decimals = token?.decimals ?? decimalsMap.get(normalizedSymbol);
+      if (decimals === undefined) {
+        console.warn(`No decimals found for token: ${tokenAddress}`);
+        continue; // Skip tokens without decimals information
+      }
 
-      // Convert balance to number based on network-specific decimals
+      // Convert balance to number based on decimals
       const balance = parseFloat(hre.ethers.utils.formatUnits(
         tokenBalance.balance,
         decimals
