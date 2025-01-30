@@ -3500,36 +3500,40 @@ exports.getVaultsBalanceHistory = async function (req, res) {
 };
 
 function getTargetDates(period, backCount) {
-  const dates = [];
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
+    const dates = [];
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  for (let i = 0; i < backCount; i++) {
-    let targetDate = new Date(now);
+    for (let i = 0; i < backCount; i++) {
+        let targetDate = new Date(now);
 
-    if (period === 0) { // Daily
-      targetDate.setDate(now.getDate() - i);
+        if (period === 0) { // Daily
+            targetDate.setDate(now.getDate() - i);
+        }
+        else if (period === 1) { // Weekly
+            if (i === 0) {
+                // For the most recent period, use today's date
+                targetDate = new Date(now);
+            } else {
+                // For previous periods, find the Saturday
+                targetDate.setDate(now.getDate() - ((i - 1) * 7));
+                while (targetDate.getDay() !== 6) { // 6 is Saturday
+                    targetDate.setDate(targetDate.getDate() - 1);
+                }
+            }
+        }
+        else { // Monthly
+            targetDate.setMonth(now.getMonth() - i);
+            targetDate = new Date(
+                targetDate.getFullYear(),
+                targetDate.getMonth() + 1,
+                0
+            ); // Last day of month
+        }
+
+        dates.push(targetDate);
     }
-    else if (period === 1) { // Weekly
-      // Go back i weeks and find the Saturday
-      targetDate.setDate(now.getDate() - (i * 7));
-      while (targetDate.getDay() !== 6) { // 6 is Saturday
-        targetDate.setDate(targetDate.getDate() + 1);
-      }
-    }
-    else { // Monthly
-      // Go back i months and find last day of month
-      targetDate.setMonth(now.getMonth() - i);
-      targetDate = new Date(
-        targetDate.getFullYear(),
-        targetDate.getMonth() + 1,
-        0
-      ); // Last day of month
-    }
 
-    dates.push(targetDate);
-  }
-
-  // Sort descending using more descriptive variable names
-  return dates.sort((date1, date2) => date2 - date1);
+    // Sort descending
+    return dates.sort((date1, date2) => date2 - date1);
 }

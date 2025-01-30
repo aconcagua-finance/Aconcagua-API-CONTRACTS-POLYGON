@@ -96,7 +96,7 @@ exports.vaultsRoutesConfig = function (app) {
     getVaultBalances,
   ]);
 
-  app.get('/:userId/:id/balances-history', [
+  app.get('/:companyId/:userId/:id/balances-history', [
     Audit.logger,
     Auth.isAuthenticated,
     Auth.isAuthorized({
@@ -109,7 +109,7 @@ exports.vaultsRoutesConfig = function (app) {
 
 
   // Get balance history for multiple vaults using comma-separated IDs
-  app.get('/:userId/vaults-balance-history', [
+  app.get('/:companyId/:userId/vaults-balance-history', [
     Audit.logger,
     Auth.isAuthenticated,
     Auth.isAuthorized({
