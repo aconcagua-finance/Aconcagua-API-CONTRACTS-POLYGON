@@ -1208,7 +1208,7 @@ const createPremiumVaultwithAllowance = async ({
     const signedTx = await safeSdk.signTransaction(addOwnerTx);
     const executeTxResponse = await safeSdk.executeTransaction(signedTx);
     await executeTxResponse.transactionResponse?.wait();
-    
+
     console.log('Premium vault - Safe B added as owner');
   } catch (error) {
     console.error('Premium vault - Error adding Safe B as owner:', error);
@@ -1248,8 +1248,8 @@ const createPremiumVaultwithAllowance = async ({
     console.log('Premium vault - Final safe owners:', {
       owners: safeOwners,
       expectedOwners: [safeAAddress, safeBAddress],
-      match: safeOwners.length === 2 && 
-            safeOwners.includes(safeAAddress) && 
+      match: safeOwners.length === 2 &&
+            safeOwners.includes(safeAAddress) &&
             safeOwners.includes(safeBAddress)
     });
 
@@ -1262,7 +1262,6 @@ const createPremiumVaultwithAllowance = async ({
         null
       );
     }
-
   } catch (error) {
     console.error('Premium vault - Error removing deployer as owner:', error);
     throw new CustomError.TechnicalError(
