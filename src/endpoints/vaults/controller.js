@@ -4,9 +4,9 @@
 
 // require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
-import { Pool, FeeAmount } from '@uniswap/v3-sdk';
-import { move } from 'fs-extra';
-import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
+const { Pool, FeeAmount } = require('@uniswap/v3-sdk');
+const { move } = require('fs-extra');
+const { getEnvVariable } = require('../../vs-core-firebase/helpers/envGetter');
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -19,7 +19,6 @@ const {Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit')
 const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit');
 const { ErrorHelper } = require('../../vs-core-firebase');
 const { LoggerHelper } = require('../../vs-core-firebase');
-const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
 const {
@@ -35,6 +34,7 @@ const {
 
 const { CustomError } = require('../../vs-core');
 
+const { Types } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
@@ -510,10 +510,29 @@ const createCreditVault = async ({
   targetUserId,
   companyId,
   lender,
-  vaultAdminAddress,
+  vaultAdminAddress, // This is passed in from create()
   auditUid,
-  body // Pass the prepared body instead of full req
+  body
 }) => {
+  // Remove this section since vaultAdminAddress is now handled in create()
+  // if (networkName.toLowerCase() === 'polygon') {
+  //   vaultAdminAddress = lender.vaultAdminAddressPolygon;
+  // } else if (networkName.toLowerCase() === 'rootstock') {
+  //   vaultAdminAddress = lender.vaultAdminAddressRootstock;
+  // }
+  // if (!vaultAdminAddress && lender.vaultAdminAddress) {
+  //   vaultAdminAddress = lender.vaultAdminAddress;
+  // }
+
+  if (!vaultAdminAddress) {
+    throw new CustomError.TechnicalError(
+      'ERROR_VAULT_ADMIN_NOT_FOUND',
+      null,
+      `Vault Admin not found for network ${networkName}`,
+      null
+    );
+  }
+
   // Extract existing credit vault creation logic
   let safeA;
   let safeB;
@@ -742,6 +761,11 @@ const createCreditVault = async ({
     body.rescueWalletAccount = defaultRescueWalletAddress;
     body.withdrawWalletAccount = defaultWithdrawWalletAddress;
     body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+    // Set default service level if not defined
+    if (!body.serviceLevel) {
+      body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+    }
+    console.log('Create Credit Vault - body ', JSON.stringify(body, null, 2));
 
     // Store entity
     const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
@@ -755,7 +779,8 @@ const createCreditVault = async ({
   return dbItemData;
 };
 
-const createSavingsVault = async ({
+// First rename createSavingsVault to createTrustVault
+const createTrustVault = async ({
   networkName,
   targetUserId,
   companyId,
@@ -763,6 +788,29 @@ const createSavingsVault = async ({
   auditUid,
   body
 }) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Trust vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
   const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
   const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
 
@@ -777,11 +825,11 @@ const createSavingsVault = async ({
     provider
   });
 
-  // Configure Safe Account
+  // Configure Safe Account with provided keys
   const safeAccountConfig = {
     owners: [
-      await getEnvVariable('OPERATOR1_ADDRESS', networkName),
-      await getEnvVariable('OPERATOR2_ADDRESS', networkName)
+      body.keyA,
+      body.keyB
     ],
     threshold: 2
   };
@@ -811,26 +859,21 @@ const createSavingsVault = async ({
   body.contractStatus = 'deployed';
 
   // Add contract-related fields required by schema
-  body.contractAddress = safeAddress; // Use safe address as contract address
+  body.contractAddress = safeAddress;
   body.contractSignerAddress = safeAddress;
   body.contractDeployment = 'GnosisSafe';
-  body.contractName = 'GnosisSafe'; // Standard name for Safe contracts
-  body.contractVersion = safeVersion; // Safe Version
-  body.proxyContractAddress = safeAddress; // Safe contracts are proxies
-  body.proxyContractVersion = safeVersion; // Safe version
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
   body.proxyContractSignerAddress = safeSdk.getAddress();
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
   body.proxyContractDeployment = 'GnosisSafeProxy';
   body.rescueWalletAccount = defaultRescueWalletAddress;
   body.withdrawWalletAccount = defaultWithdrawWalletAddress;
-  // Set default service level if not defined
-  if (!body.serviceLevel) {
-    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
-  }
 
-
-  console.log('Create - body ', JSON.stringify(body, null, 2));
+  console.log('Create Trust Vault - body ', JSON.stringify(body, null, 2));
 
   // Sanitize entity
   const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
@@ -845,7 +888,449 @@ const createSavingsVault = async ({
   return dbItemData;
 };
 
-// Modified create function to handle both types
+// Add new vault creation functions that are copies of createTrustVault
+const createStandardVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Standard vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAccountConfig = {
+    owners: [
+      body.keyA,
+      body.keyB,
+      body.keyC
+    ],
+    threshold: 2 // Still require 2 signatures even with 3 owners
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Deploy Safe
+  const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
+
+  const safeAddress = safeSdk.getAddress();
+  const safeVersion = await safeSdk.getContractVersion();
+
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeOwners = safeAccountConfig.owners;
+  body.safeThreshold = safeAccountConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+const createPremiumVaultwithAllowance = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC || !body.keyD || !body.keyE) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Premium vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+    body.keyD = hre.ethers.utils.getAddress(body.keyD);
+    body.keyE = hre.ethers.utils.getAddress(body.keyE);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAAccountConfig = {
+    owners: [
+      body.keyA,
+      body.keyB,
+      body.keyC
+    ],
+    threshold: 2 // Still require 2 signatures even with 3 owners
+  };
+
+  const safeBAccountConfig = {
+    owners: [
+      body.keyD,
+      body.keyE
+    ],
+    threshold: 2
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Deploy Safe
+  const safeASdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAAccountConfig // Fix: use safeAccountConfig as the property name
+  });
+  console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
+  const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
+
+
+  const safeBSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeBAccountConfig // Fix: use safeAccountConfig as the property name
+  });
+  console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
+  const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
+
+  const deployerAddress = await signer.getAddress();
+
+  const safeAccountTemporaryConfig = {
+    owners: [
+      safeAAddress,
+      deployerAddress,
+    ],
+    threshold: 1 // Only 1 signature from either safe is required for the Premium vault
+  };
+
+  // LET'S DANCE
+  const tokenAddresses = [
+    await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+  ];
+
+  const tokenApproveAbi = [
+    'function approve(address spender, uint256 value) public returns (bool)'
+  ];
+
+  // Create token contracts with signer for approvals
+  const tokenContracts = tokenAddresses.map((tokenAddress) => {
+    return new hre.ethers.Contract(
+      tokenAddress,
+      tokenApproveAbi,
+      signer // Use signer instead of provider to be able to send transactions
+    );
+  });
+
+  console.log('Premium vault - Token contracts ready:', tokenContracts.length);
+
+  // After deploying the main safe...
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAccountTemporaryConfig
+  });
+  const safeAddress = await safeSdk.getAddress();
+  console.log('Premium vault - Main Safe created', safeAddress);
+
+  // Create batch of transactions for both Safe A and Safe B approvals
+  console.log('Premium vault - Creating batch approval transactions');
+  const multiSendTxs = [];
+
+  // Add approvals for Safe A
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeAAddress,
+        hre.ethers.constants.MaxUint256
+      ])
+    });
+  }
+
+  // Add approvals for Safe B
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeBAddress,
+        hre.ethers.constants.MaxUint256
+      ])
+    });
+  }
+
+  console.log('Premium vault - Approval ready to be executed');
+
+  // Create and execute the batch transaction
+  try {
+    const multiSendTx = await safeSdk.createTransaction({
+      safeTransactionData: multiSendTxs
+    });
+
+    const signedTx = await safeSdk.signTransaction(multiSendTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - All token approvals confirmed in single transaction');
+  } catch (error) {
+    console.error('Premium vault - Error executing batch token approvals:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_TOKEN_APPROVALS',
+      error,
+      'Error executing batch token approvals',
+      null
+    );
+  }
+
+  // Continue with adding Safe B as owner and removing deployer...
+
+  // Create transaction to add safeBAddress as owner
+  console.log('Premium vault - Adding Safe B as owner');
+  const safeInterface = new hre.ethers.utils.Interface([
+    'function addOwnerWithThreshold(address owner, uint256 _threshold) public',
+    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public'
+  ]);
+
+  const addOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('addOwnerWithThreshold', [
+        safeBAddress,
+        1 // threshold
+      ])
+    }
+  });
+
+  // Execute transaction
+  try {
+    const signedTx = await safeSdk.signTransaction(addOwnerTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+    await executeTxResponse.transactionResponse?.wait();
+    
+    console.log('Premium vault - Safe B added as owner');
+  } catch (error) {
+    console.error('Premium vault - Error adding Safe B as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_ADDING_OWNER',
+      error,
+      'Error adding Safe B as owner to main safe',
+      null
+    );
+  }
+
+  // Remove deployer as owner
+  console.log('Premium vault - Removing deployer as owner');
+  const removeOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('removeOwner', [
+        safeAAddress, // prevOwner - the owner that comes before the one we want to remove
+        deployerAddress, // owner to remove
+        1 // keep threshold at 2
+      ])
+    }
+  });
+
+  let safeOwners; // Declare safeOwners here so it's available in the wider scope
+
+  try {
+    const signedRemoveTx = await safeSdk.signTransaction(removeOwnerTx);
+    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx);
+    await executeRemoveTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Deployer removed as owner');
+
+    // Verify final owners
+    safeOwners = await safeSdk.getOwners(); // Assign to the outer scope variable
+    console.log('Premium vault - Final safe owners:', {
+      owners: safeOwners,
+      expectedOwners: [safeAAddress, safeBAddress],
+      match: safeOwners.length === 2 && 
+            safeOwners.includes(safeAAddress) && 
+            safeOwners.includes(safeBAddress)
+    });
+
+    // Optional: throw error if owners don't match expected
+    if (!safeOwners.includes(safeAAddress) || !safeOwners.includes(safeBAddress) || safeOwners.length !== 2) {
+      throw new CustomError.TechnicalError(
+        'ERROR_OWNER_VERIFICATION',
+        null,
+        'Final safe owners do not match expected configuration',
+        null
+      );
+    }
+
+  } catch (error) {
+    console.error('Premium vault - Error removing deployer as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_REMOVING_OWNER',
+      error,
+      'Error removing deployer as owner from main safe',
+      null
+    );
+  }
+
+  const safeVersion = await safeSdk.getContractVersion();
+    // Add required fields for schema validation
+    body.safeAddress = safeAddress;
+    body.safeAAddress = safeAAddress;
+    body.safeBAddress = safeBAddress;
+    body.safeOwners = safeOwners; // Now safeOwners is defined
+    body.safeThreshold = safeAccountTemporaryConfig.threshold;
+    body.contractStatus = 'deployed';
+
+    // Add contract-related fields required by schema
+    body.contractAddress = safeAddress;
+    body.contractSignerAddress = safeAddress;
+    body.contractDeployment = 'GnosisSafe';
+    body.contractName = 'GnosisSafe';
+    body.contractVersion = safeVersion;
+    body.proxyContractAddress = safeAddress;
+    body.proxyContractVersion = safeVersion;
+    body.proxyContractSignerAddress = safeSdk.getAddress();
+    body.proxyContractName = 'GnosisSafeProxy';
+    body.proxyContractStatus = 'deployed';
+    body.proxyContractDeployment = 'GnosisSafeProxy';
+    body.rescueWalletAccount = defaultRescueWalletAddress;
+    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+    console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+    // Sanitize entity
+    const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+    const dbItemData = await createFirestoreDocument({
+      collectionName: COLLECTION_NAME,
+      itemData,
+      auditUid,
+      documentId: safeAddress,
+    });
+
+  return dbItemData;
+};
+
+const createPrivateVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body
+}) => {
+  // Same implementation as createTrustVault for now
+  return await createTrustVault({
+    networkName,
+    targetUserId,
+    companyId,
+    lender,
+    auditUid,
+    body
+  });
+};
+
+// Update the create function with new logic
 exports.create = async function (req, res) {
   try {
     const { userId } = res.locals;
@@ -853,6 +1338,7 @@ exports.create = async function (req, res) {
     const { userId: targetUserId, companyId } = req.params;
     const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
     const vaultType = req.body.vaultType || 'credit'; // Default to credit for backward compatibility
+    const serviceLevel = req.body.serviceLevel || Types.serviceLevels.SERVICE_LEVEL_STANDARD;
 
     // Validate required params
     if (!targetUserId || !companyId) {
@@ -875,7 +1361,7 @@ exports.create = async function (req, res) {
       );
     }
 
-    // Get vault admin address based on network
+    // Get vaultAdminAddress based on network
     let vaultAdminAddress;
     if (networkName.toLowerCase() === 'polygon') {
       vaultAdminAddress = lender.vaultAdminAddressPolygon;
@@ -884,14 +1370,6 @@ exports.create = async function (req, res) {
     }
     if (!vaultAdminAddress && lender.vaultAdminAddress) {
       vaultAdminAddress = lender.vaultAdminAddress;
-    }
-    if (!vaultAdminAddress) {
-      throw new CustomError.TechnicalError(
-        'ERROR_VAULT_ADMIN_NOT_FOUND',
-        null,
-        `Vault Admin not found for network ${networkName} or in the previous version`,
-        null
-      );
     }
 
     // Prepare common entity fields
@@ -907,25 +1385,77 @@ exports.create = async function (req, res) {
       state: Types.StateTypes.STATE_ACTIVE
     };
 
-    // Create vault based on type
-    const dbItemData = vaultType === 'savings'
-      ? await createSavingsVault({
-          networkName,
-          targetUserId,
-          companyId,
-          lender,
-          auditUid,
-          body
-        })
-      : await createCreditVault({
-          networkName,
-          targetUserId,
-          companyId,
-          lender,
-          vaultAdminAddress,
-          auditUid,
-          body
-        });
+    // Create vault based on type and service level
+    let dbItemData;
+
+    if (vaultType === Types.VaultTypes.VAULT_TYPE_CREDIT) {
+      dbItemData = await createCreditVault({
+        networkName,
+        targetUserId,
+        companyId,
+        lender,
+        vaultAdminAddress,
+        auditUid,
+        body
+      });
+    } else if (vaultType === Types.VaultTypes.VAULT_TYPE_SAVINGS) {
+      switch (serviceLevel) {
+        case Types.serviceLevels.SERVICE_LEVEL_STANDARD:
+          dbItemData = await createStandardVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_PREMIUM:
+          dbItemData = await createPremiumVaultwithAllowance({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_PRIVATE:
+          dbItemData = await createPrivateVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_TRUST:
+          dbItemData = await createTrustVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body
+          });
+          break;
+        default:
+          throw new CustomError.TechnicalError(
+            'ERROR_INVALID_SERVICE_LEVEL',
+            null,
+            'Invalid service level for savings vault',
+            null
+          );
+      }
+    } else {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_VAULT_TYPE',
+        null,
+        'Invalid vault type',
+        null
+      );
+    }
 
     return res.status(201).send(dbItemData);
   } catch (err) {
