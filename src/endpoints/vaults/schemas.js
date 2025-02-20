@@ -22,15 +22,26 @@ const basicData = {
 
   rescueWalletAccount: Joi.string().allow(''),
   withdrawWalletAccount: Joi.string().allow(''),
+  safeAAddress: Joi.string().allow(''),
+  safeBAddress: Joi.string().allow(''),
 
   notes: Joi.string().allow(''),
   attachments: Joi.any(),
+
+  // Add key fields here with allow('')
+  keyA: Joi.string().optional().allow(''),
+  keyB: Joi.string().optional().allow(''),
+  keyC: Joi.string().optional().allow(''),
+  keyD: Joi.string().optional().allow(''),
+  keyE: Joi.string().optional().allow(''),
+  keyF: Joi.string().optional().allow(''),
 };
 
 const createSchema = Joi.object({
   ...basicData,
   vaultType: Joi.string().required(),
   creditType: Joi.string().required(),
+  serviceLevel: Joi.string().required(),
   balances: Joi.array(),
   dueDate: Joi.alternatives().conditional('creditType', {
     is: [
@@ -93,7 +104,10 @@ const requiredBaseFields = [
 
   'rescueWalletAccount',
   'withdrawWalletAccount',
+  'safeAAddress',
+  'safeBAddress',
   'vaultType',
+  'serviceLevel',
   'creditType',
   'loanStatus',
   'currency',

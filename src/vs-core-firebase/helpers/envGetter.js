@@ -31,14 +31,13 @@ export const networkEquivalences = {
 export async function getEnvVariable(variableName, networkName = null) {
   const secretsVariables = ['DEPLOYER_PRIVATE_KEY', 'SWAPPER_PRIVATE_KEY'];
 
-  let finalNetworkName;
+  // Normalize network name once at the beginning
+  const normalizedNetworkName = networkName ?
+    networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
+    'GENERAL';
 
   try {
     if (secretsVariables.includes(variableName)) {
-      const normalizedNetworkName = networkName ?
-        networkEquivalences[networkName.toUpperCase()] || networkName.toUpperCase() :
-        'GENERAL';
-
       const fullVariableName = `${variableName}_${normalizedNetworkName}`;
       const envValue = envVariablesMap[fullVariableName];
 
@@ -49,26 +48,20 @@ export async function getEnvVariable(variableName, networkName = null) {
       return envValue;
     }
 
-    if (!networkName) {
-      finalNetworkName = 'GENERAL';
-    } else {
-      const normalizedNetworkName = networkName.toUpperCase();
-      finalNetworkName = networkEquivalences[normalizedNetworkName] || normalizedNetworkName;
-    }
-
-    const docRef = admin.firestore().collection(CONFIG_NETWORK_COLLECTION).doc(finalNetworkName);
+    // Use the already normalized network name
+    const docRef = admin.firestore().collection(CONFIG_NETWORK_COLLECTION).doc(normalizedNetworkName);
 
     const doc = await docRef.get();
 
     if (!doc.exists) {
-      console.warn(`El documento ${finalNetworkName} no se encontró en Firestore`);
+      console.warn(`El documento ${normalizedNetworkName} no se encontró en Firestore`);
       return null;
     }
 
     const data = doc.data();
     if (!Object.prototype.hasOwnProperty.call(data, variableName)) {
       console.warn(
-        `La variable ${variableName} no se encontró en el documento ${finalNetworkName}`
+        `La variable ${variableName} no se encontró en el documento ${normalizedNetworkName}`
       );
       return null;
     }
@@ -77,7 +70,7 @@ export async function getEnvVariable(variableName, networkName = null) {
     return value;
   } catch (error) {
     console.error(
-      `Error al obtener la variable ${variableName} en el documento ${finalNetworkName}:`,
+      `Error al obtener la variable ${variableName} en el documento ${normalizedNetworkName}:`,
       error
     );
     throw error;
