@@ -14,7 +14,7 @@ const JSBI = require('jsbi');
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 
-const {Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
+const { Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
 
 const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit');
 const { ErrorHelper } = require('../../vs-core-firebase');
@@ -512,7 +512,7 @@ const createCreditVault = async ({
   lender,
   vaultAdminAddress, // This is passed in from create()
   auditUid,
-  body
+  body,
 }) => {
   // Remove this section since vaultAdminAddress is now handled in create()
   // if (networkName.toLowerCase() === 'polygon') {
@@ -554,227 +554,225 @@ const createCreditVault = async ({
   const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
   const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
-    const colateralContractName = 'ColateralContract2';
-    const proxyContractName = 'ColateralProxy';
+  const colateralContractName = 'ColateralContract2';
+  const proxyContractName = 'ColateralProxy';
 
-    // Defino el gas
-    const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
-    console.log(
-      'Create - Listo getGasPriceAndLimit - networkConfig es ' +
-        JSON.stringify(networkConfig, null, 2)
-    );
+  // Defino el gas
+  const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
+  console.log(
+    'Create - Listo getGasPriceAndLimit - networkConfig es ' +
+      JSON.stringify(networkConfig, null, 2)
+  );
 
-    let contractStatus;
-    let contractError = '';
-    let colateralContractAddress;
-    let colateralContractDeploy;
+  let contractStatus;
+  let contractError = '';
+  let colateralContractAddress;
+  let colateralContractDeploy;
 
-    try {
-      // Deploy ColateralContract
-      colateralContractDeploy = await deployContract(
-        colateralContractName,
-        null,
-        networkName,
-        networkConfig
-      );
-
-      const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
-      const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
-
-      colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-
-      if (!colateralContractAddress) {
-        throw new CustomError.TechnicalError(
-          ' ERROR_CREATE_COLATERAL_CONTRACT',
-          null,
-          'Empty Colateral contract address response',
-          null
-        );
-      }
-
-      console.log(
-        'Create - ColateralContract Deployment success. Transaction Hash:',
-        transactionHash
-      );
-      contractStatus = 'deployed';
-    } catch (err) {
-      contractStatus = 'error';
-      contractError = err.message ? err.message.substring(0, 2000) : '';
-      throw new CustomError.TechnicalError(
-        'ERROR_CREATE_COLATERAL_CONTRACT',
-        null,
-        contractError,
-        null
-      );
-    }
-
-    // Deploy ColateralProxy
-
-    const contractJson = require('../../../artifacts/contracts/' +
-      colateralContractName +
-      '.sol/' +
-      colateralContractName +
-      '.json');
-
-    const colateralAbi = contractJson.abi;
-
-    const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
-    const colateralBlockchainContract = new hre.ethers.Contract(
-      colateralContractAddress,
-      colateralAbi,
-      deployerWallet
-    );
-
-    let args;
-    let abiEncodedArgs;
-
-    const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
-    const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
-    const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
-
-    // Asignar las direcciones a la lista de operadores
-    const operators = [operator1Address, operator2Address, operator3Address];
-
-    const defaultRescueWalletAddress = await getEnvVariable(
-      'DEFAULT_RESCUE_WALLET_ADDRESS',
-      networkName
-    );
-    const defaultWithdrawWalletAddress = await getEnvVariable(
-      'DEFAULT_WITHDRAW_WALLET_ADDRESS',
-      networkName
-    );
-
-    if (colateralContractName === 'ColateralContract2') {
-      // Contrato version 2
-      console.log('Create - creando contrato version 2 ');
-
-      // Usar getEnvVariable para obtener las direcciones desde Firestore
-      const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
-
-      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
-      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
-
-      const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
-
-      const tokenAddresses = [
-        await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
-      ];
-
-      const contractKeys = ['router', 'swapper'];
-      const contractAddresses = [swapRouterV3Address, swapperAddress];
-
-      // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
-      args = [
-        validatorAddress,
-        tokenNames,
-        tokenAddresses,
-        operators,
-        defaultRescueWalletAddress,
-        defaultWithdrawWalletAddress,
-        safeA,
-        safeB,
-        contractKeys,
-        contractAddresses,
-      ];
-
-      console.log('Create - args ' + JSON.stringify(args));
-    } else {
-      // Contrato version 1
-      console.log('Create - creando contrato version 1 ');
-
-      // Usar getEnvVariable para obtener las direcciones desde Firestore
-      const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
-      const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
-      const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
-      const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
-
-      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
-      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
-
-      // Crear los argumentos para el contrato
-      args = [
-        usdcTokenAddress,
-        usdtTokenAddress,
-        usdmTokenAddress,
-        wbtcTokenAddress,
-        operators, // Supongo que ya tienes esta variable en tu entorno
-        defaultRescueWalletAddress,
-        defaultWithdrawWalletAddress,
-        safeA, // lender.safeLiq1
-        safeB,
-        swapRouterV3Address,
-        swapperAddress,
-      ];
-
-      console.log('Create - args ' + JSON.stringify(args));
-    }
-
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
-      ...args
-    );
-
-    console.log('Create - proxy args ');
-    console.log(args);
-
-    const proxyContractArgs = [
-      colateralContractAddress,
-      vaultAdminAddress,
-      initializeData.data || '0x',
-    ];
-
-    const proxyContractDeploy = await deployContract(
-      proxyContractName,
-      proxyContractArgs,
+  try {
+    // Deploy ColateralContract
+    colateralContractDeploy = await deployContract(
+      colateralContractName,
+      null,
       networkName,
       networkConfig
     );
-    const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
 
-    if (!proxyContractAddress) {
+    const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
+    const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
+
+    colateralContractAddress = colateralContractDeploy.contractDeployment.address;
+
+    if (!colateralContractAddress) {
       throw new CustomError.TechnicalError(
-        'ERROR_CREATE_PROXY_CONTRACT',
+        ' ERROR_CREATE_COLATERAL_CONTRACT',
         null,
-        'Empty Proxy contract address response',
+        'Empty Colateral contract address response',
         null
       );
     }
 
-    // Add credit-specific fields
-    body.contractAddress = colateralContractAddress;
-    body.contractSignerAddress = safeA;
-    body.contractDeployment = colateralContractDeploy.contractDeployment;
-    body.abiencodedargs = abiEncodedArgs;
-    body.contractName = colateralContractName;
-    body.contractStatus = contractStatus;
-    body.contractVersion = '2.0.0';
-    body.contractError = contractError || null;
-    body.proxyContractAddress = proxyContractAddress;
-    body.proxyContractSignerAddress = safeA;
-    body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
-    body.proxyContractName = proxyContractName;
-    body.proxyContractStatus = 'deployed';
-    body.proxyContractVersion = 'TransparentUpgradeable';
-    body.rescueWalletAccount = defaultRescueWalletAddress;
-    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
-    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
-    // Set default service level if not defined
-    if (!body.serviceLevel) {
-      body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
-    }
-    console.log('Create Credit Vault - body ', JSON.stringify(body, null, 2));
+    console.log(
+      'Create - ColateralContract Deployment success. Transaction Hash:',
+      transactionHash
+    );
+    contractStatus = 'deployed';
+  } catch (err) {
+    contractStatus = 'error';
+    contractError = err.message ? err.message.substring(0, 2000) : '';
+    throw new CustomError.TechnicalError(
+      'ERROR_CREATE_COLATERAL_CONTRACT',
+      null,
+      contractError,
+      null
+    );
+  }
 
-    // Store entity
-    const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
-    const dbItemData = await createFirestoreDocument({
-      collectionName: COLLECTION_NAME,
-      itemData,
-      auditUid,
-      documentId: proxyContractAddress,
-    });
+  // Deploy ColateralProxy
+
+  const contractJson = require('../../../artifacts/contracts/' +
+    colateralContractName +
+    '.sol/' +
+    colateralContractName +
+    '.json');
+
+  const colateralAbi = contractJson.abi;
+
+  const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+  const colateralBlockchainContract = new hre.ethers.Contract(
+    colateralContractAddress,
+    colateralAbi,
+    deployerWallet
+  );
+
+  let args;
+  let abiEncodedArgs;
+
+  const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
+  const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
+  const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
+
+  // Asignar las direcciones a la lista de operadores
+  const operators = [operator1Address, operator2Address, operator3Address];
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  if (colateralContractName === 'ColateralContract2') {
+    // Contrato version 2
+    console.log('Create - creando contrato version 2 ');
+
+    // Usar getEnvVariable para obtener las direcciones desde Firestore
+    const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
+
+    const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+    const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+
+    const tokenAddresses = [
+      await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+    ];
+
+    const contractKeys = ['router', 'swapper'];
+    const contractAddresses = [swapRouterV3Address, swapperAddress];
+
+    // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
+    args = [
+      validatorAddress,
+      tokenNames,
+      tokenAddresses,
+      operators,
+      defaultRescueWalletAddress,
+      defaultWithdrawWalletAddress,
+      safeA,
+      safeB,
+      contractKeys,
+      contractAddresses,
+    ];
+
+    console.log('Create - args ' + JSON.stringify(args));
+  } else {
+    // Contrato version 1
+    console.log('Create - creando contrato version 1 ');
+
+    // Usar getEnvVariable para obtener las direcciones desde Firestore
+    const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
+    const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
+    const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
+    const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
+
+    const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+    const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+    // Crear los argumentos para el contrato
+    args = [
+      usdcTokenAddress,
+      usdtTokenAddress,
+      usdmTokenAddress,
+      wbtcTokenAddress,
+      operators, // Supongo que ya tienes esta variable en tu entorno
+      defaultRescueWalletAddress,
+      defaultWithdrawWalletAddress,
+      safeA, // lender.safeLiq1
+      safeB,
+      swapRouterV3Address,
+      swapperAddress,
+    ];
+
+    console.log('Create - args ' + JSON.stringify(args));
+  }
+
+  const initializeData = await colateralBlockchainContract.populateTransaction.initialize(...args);
+
+  console.log('Create - proxy args ');
+  console.log(args);
+
+  const proxyContractArgs = [
+    colateralContractAddress,
+    vaultAdminAddress,
+    initializeData.data || '0x',
+  ];
+
+  const proxyContractDeploy = await deployContract(
+    proxyContractName,
+    proxyContractArgs,
+    networkName,
+    networkConfig
+  );
+  const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
+
+  if (!proxyContractAddress) {
+    throw new CustomError.TechnicalError(
+      'ERROR_CREATE_PROXY_CONTRACT',
+      null,
+      'Empty Proxy contract address response',
+      null
+    );
+  }
+
+  // Add credit-specific fields
+  body.contractAddress = colateralContractAddress;
+  body.contractSignerAddress = safeA;
+  body.contractDeployment = colateralContractDeploy.contractDeployment;
+  body.abiencodedargs = abiEncodedArgs;
+  body.contractName = colateralContractName;
+  body.contractStatus = contractStatus;
+  body.contractVersion = '2.0.0';
+  body.contractError = contractError || null;
+  body.proxyContractAddress = proxyContractAddress;
+  body.proxyContractSignerAddress = safeA;
+  body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
+  body.proxyContractName = proxyContractName;
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractVersion = 'TransparentUpgradeable';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+  // Set default service level if not defined
+  if (!body.serviceLevel) {
+    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+  }
+  console.log('Create Credit Vault - body ', JSON.stringify(body, null, 2));
+
+  // Store entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: proxyContractAddress,
+  });
 
   return dbItemData;
 };
@@ -786,7 +784,7 @@ const createTrustVault = async ({
   companyId,
   lender,
   auditUid,
-  body
+  body,
 }) => {
   // Validate required keys
   if (!body.keyA || !body.keyB) {
@@ -822,16 +820,13 @@ const createTrustVault = async ({
   const ethAdapter = new EthersAdapter({
     ethers: hre.ethers,
     signerOrProvider: signer,
-    provider
+    provider,
   });
 
   // Configure Safe Account with provided keys
   const safeAccountConfig = {
-    owners: [
-      body.keyA,
-      body.keyB
-    ],
-    threshold: 2
+    owners: [body.keyA, body.keyB],
+    threshold: 2,
   };
 
   const defaultRescueWalletAddress = await getEnvVariable(
@@ -895,7 +890,7 @@ const createStandardVault = async ({
   companyId,
   lender,
   auditUid,
-  body
+  body,
 }) => {
   // Validate required keys
   if (!body.keyA || !body.keyB || !body.keyC) {
@@ -932,17 +927,13 @@ const createStandardVault = async ({
   const ethAdapter = new EthersAdapter({
     ethers: hre.ethers,
     signerOrProvider: signer,
-    provider
+    provider,
   });
 
   // Configure Safe Account with provided keys
   const safeAccountConfig = {
-    owners: [
-      body.keyA,
-      body.keyB,
-      body.keyC
-    ],
-    threshold: 2 // Still require 2 signatures even with 3 owners
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
   };
 
   const defaultRescueWalletAddress = await getEnvVariable(
@@ -1005,7 +996,7 @@ const createPremiumVaultwithAllowance = async ({
   companyId,
   lender,
   auditUid,
-  body
+  body,
 }) => {
   // Validate required keys
   if (!body.keyA || !body.keyB || !body.keyC || !body.keyD || !body.keyE) {
@@ -1044,25 +1035,18 @@ const createPremiumVaultwithAllowance = async ({
   const ethAdapter = new EthersAdapter({
     ethers: hre.ethers,
     signerOrProvider: signer,
-    provider
+    provider,
   });
 
   // Configure Safe Account with provided keys
   const safeAAccountConfig = {
-    owners: [
-      body.keyA,
-      body.keyB,
-      body.keyC
-    ],
-    threshold: 2 // Still require 2 signatures even with 3 owners
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
   };
 
   const safeBAccountConfig = {
-    owners: [
-      body.keyD,
-      body.keyE
-    ],
-    threshold: 2
+    owners: [body.keyD, body.keyE],
+    threshold: 2,
   };
 
   const defaultRescueWalletAddress = await getEnvVariable(
@@ -1079,14 +1063,13 @@ const createPremiumVaultwithAllowance = async ({
 
   // Deploy Safe
   const safeASdk = await safeFactory.deploySafe({
-    safeAccountConfig: safeAAccountConfig // Fix: use safeAccountConfig as the property name
+    safeAccountConfig: safeAAccountConfig, // Fix: use safeAccountConfig as the property name
   });
   console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
   const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
 
-
   const safeBSdk = await safeFactory.deploySafe({
-    safeAccountConfig: safeBAccountConfig // Fix: use safeAccountConfig as the property name
+    safeAccountConfig: safeBAccountConfig, // Fix: use safeAccountConfig as the property name
   });
   console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
   const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
@@ -1094,11 +1077,8 @@ const createPremiumVaultwithAllowance = async ({
   const deployerAddress = await signer.getAddress();
 
   const safeAccountTemporaryConfig = {
-    owners: [
-      safeAAddress,
-      deployerAddress,
-    ],
-    threshold: 1 // Only 1 signature from either safe is required for the Premium vault
+    owners: [safeAAddress, deployerAddress],
+    threshold: 1, // Only 1 signature from either safe is required for the Premium vault
   };
 
   // LET'S DANCE
@@ -1111,7 +1091,7 @@ const createPremiumVaultwithAllowance = async ({
   ];
 
   const tokenApproveAbi = [
-    'function approve(address spender, uint256 value) public returns (bool)'
+    'function approve(address spender, uint256 value) public returns (bool)',
   ];
 
   // Create token contracts with signer for approvals
@@ -1127,7 +1107,7 @@ const createPremiumVaultwithAllowance = async ({
 
   // After deploying the main safe...
   const safeSdk = await safeFactory.deploySafe({
-    safeAccountConfig: safeAccountTemporaryConfig
+    safeAccountConfig: safeAccountTemporaryConfig,
   });
   const safeAddress = await safeSdk.getAddress();
   console.log('Premium vault - Main Safe created', safeAddress);
@@ -1143,8 +1123,8 @@ const createPremiumVaultwithAllowance = async ({
       value: '0',
       data: tokenContract.interface.encodeFunctionData('approve', [
         safeAAddress,
-        hre.ethers.constants.MaxUint256
-      ])
+        hre.ethers.constants.MaxUint256,
+      ]),
     });
   }
 
@@ -1155,8 +1135,8 @@ const createPremiumVaultwithAllowance = async ({
       value: '0',
       data: tokenContract.interface.encodeFunctionData('approve', [
         safeBAddress,
-        hre.ethers.constants.MaxUint256
-      ])
+        hre.ethers.constants.MaxUint256,
+      ]),
     });
   }
 
@@ -1165,7 +1145,7 @@ const createPremiumVaultwithAllowance = async ({
   // Create and execute the batch transaction
   try {
     const multiSendTx = await safeSdk.createTransaction({
-      safeTransactionData: multiSendTxs
+      safeTransactionData: multiSendTxs,
     });
 
     const signedTx = await safeSdk.signTransaction(multiSendTx);
@@ -1189,7 +1169,7 @@ const createPremiumVaultwithAllowance = async ({
   console.log('Premium vault - Adding Safe B as owner');
   const safeInterface = new hre.ethers.utils.Interface([
     'function addOwnerWithThreshold(address owner, uint256 _threshold) public',
-    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public'
+    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public',
   ]);
 
   const addOwnerTx = await safeSdk.createTransaction({
@@ -1198,9 +1178,9 @@ const createPremiumVaultwithAllowance = async ({
       value: '0',
       data: safeInterface.encodeFunctionData('addOwnerWithThreshold', [
         safeBAddress,
-        1 // threshold
-      ])
-    }
+        1, // threshold
+      ]),
+    },
   });
 
   // Execute transaction
@@ -1229,9 +1209,9 @@ const createPremiumVaultwithAllowance = async ({
       data: safeInterface.encodeFunctionData('removeOwner', [
         safeAAddress, // prevOwner - the owner that comes before the one we want to remove
         deployerAddress, // owner to remove
-        1 // keep threshold at 2
-      ])
-    }
+        1, // keep threshold at 2
+      ]),
+    },
   });
 
   let safeOwners; // Declare safeOwners here so it's available in the wider scope
@@ -1248,13 +1228,18 @@ const createPremiumVaultwithAllowance = async ({
     console.log('Premium vault - Final safe owners:', {
       owners: safeOwners,
       expectedOwners: [safeAAddress, safeBAddress],
-      match: safeOwners.length === 2 &&
-            safeOwners.includes(safeAAddress) &&
-            safeOwners.includes(safeBAddress)
+      match:
+        safeOwners.length === 2 &&
+        safeOwners.includes(safeAAddress) &&
+        safeOwners.includes(safeBAddress),
     });
 
     // Optional: throw error if owners don't match expected
-    if (!safeOwners.includes(safeAAddress) || !safeOwners.includes(safeBAddress) || safeOwners.length !== 2) {
+    if (
+      !safeOwners.includes(safeAAddress) ||
+      !safeOwners.includes(safeBAddress) ||
+      safeOwners.length !== 2
+    ) {
       throw new CustomError.TechnicalError(
         'ERROR_OWNER_VERIFICATION',
         null,
@@ -1273,39 +1258,39 @@ const createPremiumVaultwithAllowance = async ({
   }
 
   const safeVersion = await safeSdk.getContractVersion();
-    // Add required fields for schema validation
-    body.safeAddress = safeAddress;
-    body.safeAAddress = safeAAddress;
-    body.safeBAddress = safeBAddress;
-    body.safeOwners = safeOwners; // Now safeOwners is defined
-    body.safeThreshold = safeAccountTemporaryConfig.threshold;
-    body.contractStatus = 'deployed';
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeAAddress = safeAAddress;
+  body.safeBAddress = safeBAddress;
+  body.safeOwners = safeOwners; // Now safeOwners is defined
+  body.safeThreshold = safeAccountTemporaryConfig.threshold;
+  body.contractStatus = 'deployed';
 
-    // Add contract-related fields required by schema
-    body.contractAddress = safeAddress;
-    body.contractSignerAddress = safeAddress;
-    body.contractDeployment = 'GnosisSafe';
-    body.contractName = 'GnosisSafe';
-    body.contractVersion = safeVersion;
-    body.proxyContractAddress = safeAddress;
-    body.proxyContractVersion = safeVersion;
-    body.proxyContractSignerAddress = safeSdk.getAddress();
-    body.proxyContractName = 'GnosisSafeProxy';
-    body.proxyContractStatus = 'deployed';
-    body.proxyContractDeployment = 'GnosisSafeProxy';
-    body.rescueWalletAccount = defaultRescueWalletAddress;
-    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
-    console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
 
-    // Sanitize entity
-    const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
 
-    const dbItemData = await createFirestoreDocument({
-      collectionName: COLLECTION_NAME,
-      itemData,
-      auditUid,
-      documentId: safeAddress,
-    });
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
 
   return dbItemData;
 };
@@ -1316,7 +1301,7 @@ const createPrivateVault = async ({
   companyId,
   lender,
   auditUid,
-  body
+  body,
 }) => {
   // Same implementation as createTrustVault for now
   return await createTrustVault({
@@ -1325,7 +1310,7 @@ const createPrivateVault = async ({
     companyId,
     lender,
     auditUid,
-    body
+    body,
   });
 };
 
@@ -1381,7 +1366,7 @@ exports.create = async function (req, res) {
       balances: [],
       createdAt: new Date(),
       updatedAt: new Date(),
-      state: Types.StateTypes.STATE_ACTIVE
+      state: Types.StateTypes.STATE_ACTIVE,
     };
 
     // Create vault based on type and service level
@@ -1395,7 +1380,7 @@ exports.create = async function (req, res) {
         lender,
         vaultAdminAddress,
         auditUid,
-        body
+        body,
       });
     } else if (vaultType === Types.VaultTypes.VAULT_TYPE_SAVINGS) {
       switch (serviceLevel) {
@@ -1406,7 +1391,7 @@ exports.create = async function (req, res) {
             companyId,
             lender,
             auditUid,
-            body
+            body,
           });
           break;
         case Types.serviceLevels.SERVICE_LEVEL_PREMIUM:
@@ -1416,7 +1401,7 @@ exports.create = async function (req, res) {
             companyId,
             lender,
             auditUid,
-            body
+            body,
           });
           break;
         case Types.serviceLevels.SERVICE_LEVEL_PRIVATE:
@@ -1426,7 +1411,7 @@ exports.create = async function (req, res) {
             companyId,
             lender,
             auditUid,
-            body
+            body,
           });
           break;
         case Types.serviceLevels.SERVICE_LEVEL_TRUST:
@@ -1436,7 +1421,7 @@ exports.create = async function (req, res) {
             companyId,
             lender,
             auditUid,
-            body
+            body,
           });
           break;
         default:
@@ -1595,112 +1580,162 @@ const fetchSavingsVaultBalances = async (vault) => {
   // Determine API URL based on network
   const apiBaseUrl = await getEnvVariable('SAFE_BASE_URL', networkName);
 
+  let safeBalances;
   try {
-    // Fetch balances from Safe API using config
+    // Try Safe API first
     const response = await axios.get(`${apiBaseUrl}/api/v1/safes/${safeAddress}/balances`);
-    const safeBalances = response.data;
+    safeBalances = response.data;
+  } catch (error) {
+    console.log('Safe API failed, falling back to direct contract calls:', error.message);
 
-    // Initialize arrays for our formatted balances
-    const formattedBalances = [];
-    let totalUsdValue = 0;
-    let totalArsValue = 0;
+    // Get provider for the network
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
 
-    // Get valuations for conversion rates
-    const valuations = await getCurrenciesValuations();
-    const usdToArsValuation = valuations.find((valuation) =>
+    // Get token addresses for this network
+    const tokenAddresses = [
+      await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+    ];
+
+    // Create ERC20 interface
+    const erc20Interface = new hre.ethers.utils.Interface([
+      'function balanceOf(address) view returns (uint256)',
+      'function decimals() view returns (uint8)',
+      'function symbol() view returns (string)',
+    ]);
+
+    // Fetch balances directly from contracts
+    safeBalances = await Promise.all(
+      tokenAddresses.map(async (tokenAddress) => {
+        const contract = new hre.ethers.Contract(tokenAddress, erc20Interface, provider);
+        const balance = await contract.balanceOf(safeAddress);
+        const decimals = await contract.decimals();
+        const symbol = await contract.symbol();
+
+        return {
+          tokenAddress,
+          token: {
+            symbol,
+            decimals,
+          },
+          balance: balance.toString(),
+        };
+      })
+    );
+
+    // Filter out zero balances
+    safeBalances = safeBalances.filter((balance) => !balance.balance.startsWith('0'));
+  }
+
+  // Initialize arrays for our formatted balances
+  const formattedBalances = [];
+  let totalUsdValue = 0;
+  let totalArsValue = 0;
+
+  // Get valuations for conversion rates
+  const valuations = await getCurrenciesValuations();
+  const usdToArsValuation = valuations.find(
+    (valuation) =>
       valuation.currency === Types.CurrencyTypes.ARS &&
       valuation.targetCurrency === Types.CurrencyTypes.USD
-    );
+  );
 
-    // Process each token balance
-    for (const tokenBalance of safeBalances) {
-      const token = tokenBalance.token;
-      const tokenAddress = tokenBalance.tokenAddress;
-      if (!tokenAddress) continue; // Skip native token (ETH) for now
+  // Process each token balance
+  for (const tokenBalance of safeBalances) {
+    const token = tokenBalance.token;
+    const tokenAddress = tokenBalance.tokenAddress;
+    if (!tokenAddress) continue;
 
-      // Build map of token addresses to their normalized symbols
-      const networkName = vault.contractNetwork.toUpperCase();
-      const tokenAddressMap = new Map([
-        [(await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDC],
-        [(await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDT],
-        [(await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(), Types.CurrencyTypes.USDM],
-        [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
-        [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH]
-      ]);
+    // Build map of token addresses to their normalized symbols
+    const networkName = vault.contractNetwork.toUpperCase();
+    const tokenAddressMap = new Map([
+      [
+        (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
+        Types.CurrencyTypes.USDC,
+      ],
+      [
+        (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
+        Types.CurrencyTypes.USDT,
+      ],
+      [
+        (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
+        Types.CurrencyTypes.USDM,
+      ],
+      [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
+      [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
+    ]);
 
-      // Get normalized symbol from token address
-      const normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
+    // Get normalized symbol from token address
+    const normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
 
-      if (!normalizedSymbol) {
-        console.warn(`Unknown token address: ${tokenAddress}`);
-        continue; // Skip unknown tokens
-      }
-
-      // Use decimals from token response, fallback to decimalsMap if needed
-      const decimals = token?.decimals ?? decimalsMap.get(normalizedSymbol);
-      if (decimals === undefined) {
-        console.warn(`No decimals found for token: ${tokenAddress}`);
-        continue; // Skip tokens without decimals information
-      }
-
-      // Convert balance to number based on decimals
-      const balance = parseFloat(hre.ethers.utils.formatUnits(
-        tokenBalance.balance,
-        decimals
-      ));
-
-      // Find token valuation using normalized symbol
-      const tokenValuation = valuations.find((valuation) =>
-        valuation.currency === normalizedSymbol &&
-        valuation.targetCurrency === Types.CurrencyTypes.USD
-      );
-
-      // Calculate USD and ARS values
-      const usdValue = balance * (tokenValuation?.value || 0);
-      const arsValue = usdValue * (usdToArsValuation?.value || 0);
-
-      // Add to totals
-      totalUsdValue += usdValue;
-      totalArsValue += arsValue;
-
-      // Create formatted balance entry
-      formattedBalances.push({
-        currency: normalizedSymbol,
-        balance,
-        valuations: [
-          {
-            currency: Types.CurrencyTypes.USD,
-            value: usdValue
-          },
-          {
-            currency: Types.CurrencyTypes.ARS,
-            value: arsValue
-          }
-        ]
-      });
+    if (!normalizedSymbol) {
+      console.warn(`Unknown token address: ${tokenAddress}`);
+      continue; // Skip unknown tokens
     }
 
-    // Add summary valuations
-    formattedBalances.push(
-      {
-        currency: Types.CurrencyTypes.USD,
-        value: totalUsdValue,
-        balance: totalUsdValue,
-        isValuation: true
-      },
-      {
-        currency: Types.CurrencyTypes.ARS,
-        value: totalArsValue,
-        balance: totalArsValue,
-        isValuation: true
-      }
+    // Use decimals from token response, fallback to decimalsMap if needed
+    const decimals = token?.decimals ?? decimalsMap.get(normalizedSymbol);
+    if (decimals === undefined) {
+      console.warn(`No decimals found for token: ${tokenAddress}`);
+      continue; // Skip tokens without decimals information
+    }
+
+    // Convert balance to number based on decimals
+    const balance = parseFloat(hre.ethers.utils.formatUnits(tokenBalance.balance, decimals));
+
+    // Find token valuation using normalized symbol
+    const tokenValuation = valuations.find(
+      (valuation) =>
+        valuation.currency === normalizedSymbol &&
+        valuation.targetCurrency === Types.CurrencyTypes.USD
     );
 
-    return formattedBalances;
-  } catch (error) {
-    console.error('Error fetching Safe balances:', error);
-    throw error;
+    // Calculate USD and ARS values
+    const usdValue = balance * (tokenValuation?.value || 0);
+    const arsValue = usdValue * (usdToArsValuation?.value || 0);
+
+    // Add to totals
+    totalUsdValue += usdValue;
+    totalArsValue += arsValue;
+
+    // Create formatted balance entry
+    formattedBalances.push({
+      currency: normalizedSymbol,
+      balance,
+      valuations: [
+        {
+          currency: Types.CurrencyTypes.USD,
+          value: usdValue,
+        },
+        {
+          currency: Types.CurrencyTypes.ARS,
+          value: arsValue,
+        },
+      ],
+    });
   }
+
+  // Add summary valuations
+  formattedBalances.push(
+    {
+      currency: Types.CurrencyTypes.USD,
+      value: totalUsdValue,
+      balance: totalUsdValue,
+      isValuation: true,
+    },
+    {
+      currency: Types.CurrencyTypes.ARS,
+      value: totalArsValue,
+      balance: totalArsValue,
+      isValuation: true,
+    }
+  );
+
+  return formattedBalances;
 };
 
 const fetchCreditVaultBalances = async (vault) => {
@@ -1831,7 +1866,7 @@ const fetchVaultBalances = async (vault) => {
   if (vault.vaultType === 'savings') {
     return await fetchSavingsVaultBalances(vault);
   }
-    return await fetchCreditVaultBalances(vault);
+  return await fetchCreditVaultBalances(vault);
 };
 
 exports.getVaultBalances = async function (req, res) {
@@ -1916,9 +1951,9 @@ const getCurrenciesValuations = async () => {
 
 const balancesToValuations = (balancesWithToken, valuations) => {
   const newBalances = [];
-  const usdToarsValuation = valuations.find((item) =>
-    item.currency === Types.CurrencyTypes.ARS &&
-    item.targetCurrency === Types.CurrencyTypes.USD
+  const usdToarsValuation = valuations.find(
+    (item) =>
+      item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
   );
 
   balancesWithToken.forEach((balanceWithToken) => {
@@ -1936,9 +1971,9 @@ const balancesToValuations = (balancesWithToken, valuations) => {
       normalizedSymbol = TokenTypes.WETH;
     }
 
-    const usdValuation = valuations.find((item) =>
-      item.currency === normalizedSymbol &&
-      item.targetCurrency === Types.CurrencyTypes.USD
+    const usdValuation = valuations.find(
+      (item) =>
+        item.currency === normalizedSymbol && item.targetCurrency === Types.CurrencyTypes.USD
     );
 
     if (usdValuation) {
@@ -2633,8 +2668,24 @@ const sendCreditEmails = async (vault, beforeAmount) => {
       vault.amount
   );
 
-  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, undefined, undefined, 'ars');
-  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, undefined, undefined, 'ars');
+  const movementAmount = formatMoneyWithCurrency(
+    vault.amount,
+    0,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'ars'
+  );
+  const bAmount = formatMoneyWithCurrency(
+    beforeAmount,
+    0,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'ars'
+  );
 
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
@@ -2780,7 +2831,7 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
                 beforeBalance: bBalance.balance,
                 afterBalance: aBalance.balance,
                 difference: aBalance.balance - bBalance.balance,
-                valuations: aBalance.valuations
+                valuations: aBalance.valuations,
               });
             }
           }
@@ -3066,7 +3117,7 @@ exports.onVaultUpdate = functions.firestore
               timestamp: new Date(),
               balances: balanceUpdateData.balances,
             },
-            auditUid: 'system' // Como es una función automática, usamos 'system' como auditUid
+            auditUid: 'system', // Como es una función automática, usamos 'system' como auditUid
           });
         }
       }
@@ -3914,7 +3965,6 @@ exports.sendEmailBalance = functions.pubsub
     }
   });
 
-
 exports.getBalanceHistory = async function (req, res) {
   try {
     const { id: vaultId } = req.params;
@@ -3925,10 +3975,20 @@ exports.getBalanceHistory = async function (req, res) {
       throw new CustomError.TechnicalError('ERROR_MISSING_ARGS', null, 'Missing vaultId', null);
     }
     if (![0, 1, 2].includes(Number(period))) {
-      throw new CustomError.TechnicalError('ERROR_INVALID_PERIOD', null, 'Invalid period value', null);
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_PERIOD',
+        null,
+        'Invalid period value',
+        null
+      );
     }
     if (!['usd', 'ars'].includes(currency.toLowerCase())) {
-      throw new CustomError.TechnicalError('ERROR_INVALID_CURRENCY', null, 'Invalid currency', null);
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_CURRENCY',
+        null,
+        'Invalid currency',
+        null
+      );
     }
 
     // Get target dates based on period
@@ -3938,7 +3998,8 @@ exports.getBalanceHistory = async function (req, res) {
     const db = admin.firestore();
     const oldestDate = targetDates[targetDates.length - 1];
 
-    const snapshot = await db.collection(COLLECTION_VAULTS_BALANCE_HISTORY)
+    const snapshot = await db
+      .collection(COLLECTION_VAULTS_BALANCE_HISTORY)
       .where('vaultId', '==', vaultId)
       .where('timestamp', '>=', oldestDate)
       .orderBy('timestamp', 'desc')
@@ -3947,38 +4008,44 @@ exports.getBalanceHistory = async function (req, res) {
     const documents = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      timestamp: doc.data().timestamp.toDate()
+      timestamp: doc.data().timestamp.toDate(),
     }));
 
     // Get max values for each target date
-    const results = targetDates.map((targetDate) => {
-      const nextDate = new Date(targetDate);
-      nextDate.setDate(targetDate.getDate() + 1);
+    const results = targetDates
+      .map((targetDate) => {
+        const nextDate = new Date(targetDate);
+        nextDate.setDate(targetDate.getDate() + 1);
 
-      // Find documents for this date range
-      const periodDocs = documents.filter((doc) =>
-        doc.timestamp >= targetDate && doc.timestamp < nextDate
-      );
+        // Find documents for this date range
+        const periodDocs = documents.filter(
+          (doc) => doc.timestamp >= targetDate && doc.timestamp < nextDate
+        );
 
-      if (periodDocs.length === 0) return null;
+        if (periodDocs.length === 0) return null;
 
-      // Find max value for this period
-      const maxDoc = periodDocs.reduce((max, doc) => {
-        const balance = doc.balances.find((balanceItem) =>
-          balanceItem.isValuation === true &&
-          balanceItem.currency.toLowerCase() === currency.toLowerCase()
-        )?.balance || 0;
+        // Find max value for this period
+        const maxDoc = periodDocs.reduce((max, doc) => {
+          const balance =
+            doc.balances.find(
+              (balanceItem) =>
+                balanceItem.isValuation === true &&
+                balanceItem.currency.toLowerCase() === currency.toLowerCase()
+            )?.balance || 0;
 
-        return (!max || balance > max.balance) ? {
-          timestamp: doc.timestamp,
-          balance,
-          id: doc.id,
-          vaultId: doc.vaultId
-        } : max;
-      }, null);
+          return !max || balance > max.balance
+            ? {
+                timestamp: doc.timestamp,
+                balance,
+                id: doc.id,
+                vaultId: doc.vaultId,
+              }
+            : max;
+        }, null);
 
-      return maxDoc;
-    }).filter(Boolean); // Remove null entries
+        return maxDoc;
+      })
+      .filter(Boolean); // Remove null entries
 
     return res.status(200).send(results);
   } catch (err) {
@@ -4002,25 +4069,27 @@ exports.getVaultsBalanceHistory = async function (req, res) {
     }
 
     // Create a mock request object for each vault to reuse getBalanceHistory
-    const results = await Promise.all(vaultIdList.map(async (vaultId) => {
-      const mockReq = {
-        params: { id: vaultId.trim() },
-        query: { currency, period, backCount }
-      };
+    const results = await Promise.all(
+      vaultIdList.map(async (vaultId) => {
+        const mockReq = {
+          params: { id: vaultId.trim() },
+          query: { currency, period, backCount },
+        };
 
-      const mockRes = {
-        status: () => ({
-          send: (data) => data
-        })
-      };
+        const mockRes = {
+          status: () => ({
+            send: (data) => data,
+          }),
+        };
 
-      const history = await exports.getBalanceHistory(mockReq, mockRes);
+        const history = await exports.getBalanceHistory(mockReq, mockRes);
 
-      return {
-        vaultId,
-        history
-      };
-    }));
+        return {
+          vaultId,
+          history,
+        };
+      })
+    );
 
     return res.status(200).send(results);
   } catch (err) {
@@ -4029,40 +4098,38 @@ exports.getVaultsBalanceHistory = async function (req, res) {
 };
 
 function getTargetDates(period, backCount) {
-    const dates = [];
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
+  const dates = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
 
-    for (let i = 0; i < backCount; i++) {
-        let targetDate = new Date(now);
+  for (let i = 0; i < backCount; i++) {
+    let targetDate = new Date(now);
 
-        if (period === 0) { // Daily
-            targetDate.setDate(now.getDate() - i);
+    if (period === 0) {
+      // Daily
+      targetDate.setDate(now.getDate() - i);
+    } else if (period === 1) {
+      // Weekly
+      if (i === 0) {
+        // For the most recent period, use today's date
+        targetDate = new Date(now);
+      } else {
+        // For previous periods, find the Saturday
+        targetDate.setDate(now.getDate() - (i - 1) * 7);
+        while (targetDate.getDay() !== 6) {
+          // 6 is Saturday
+          targetDate.setDate(targetDate.getDate() - 1);
         }
-        else if (period === 1) { // Weekly
-            if (i === 0) {
-                // For the most recent period, use today's date
-                targetDate = new Date(now);
-            } else {
-                // For previous periods, find the Saturday
-                targetDate.setDate(now.getDate() - ((i - 1) * 7));
-                while (targetDate.getDay() !== 6) { // 6 is Saturday
-                    targetDate.setDate(targetDate.getDate() - 1);
-                }
-            }
-        }
-        else { // Monthly
-            targetDate.setMonth(now.getMonth() - i);
-            targetDate = new Date(
-                targetDate.getFullYear(),
-                targetDate.getMonth() + 1,
-                0
-            ); // Last day of month
-        }
-
-        dates.push(targetDate);
+      }
+    } else {
+      // Monthly
+      targetDate.setMonth(now.getMonth() - i);
+      targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // Last day of month
     }
 
-    // Sort descending
-    return dates.sort((date1, date2) => date2 - date1);
+    dates.push(targetDate);
+  }
+
+  // Sort descending
+  return dates.sort((date1, date2) => date2 - date1);
 }
