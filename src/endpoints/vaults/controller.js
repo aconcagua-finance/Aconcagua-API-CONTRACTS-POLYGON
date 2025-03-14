@@ -3741,7 +3741,7 @@ exports.createVaultAdmin = async (req, res) => {
   try {
     console.log(' Comienzo createVaultAdmin');
     console.log(' Comienzo createVaultAdmin req ', JSON.stringify(req.body));
-    const { safeLiq1, safeLiq3 } = req.body;
+    const { safeLiq1, safeLiq3 } = req.body.data;
     // Validar owners de Polygon y Rootstock
     if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
       throw new CustomError.TechnicalError(
