@@ -841,8 +841,17 @@ const createTrustVault = async ({
   // Initialize Safe Factory
   const safeFactory = await SafeFactory.create({ ethAdapter });
 
-  // Deploy Safe
-  const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe with gas parameters
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
 
   const safeAddress = safeSdk.getAddress();
   const safeVersion = await safeSdk.getContractVersion();
@@ -948,8 +957,17 @@ const createStandardVault = async ({
   // Initialize Safe Factory
   const safeFactory = await SafeFactory.create({ ethAdapter });
 
-  // Deploy Safe
-  const safeSdk = await safeFactory.deploySafe({ safeAccountConfig });
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe with gas parameters
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
 
   const safeAddress = safeSdk.getAddress();
   const safeVersion = await safeSdk.getContractVersion();
@@ -1061,15 +1079,26 @@ const createPremiumVaultwithAllowance = async ({
   // Initialize Safe Factory
   const safeFactory = await SafeFactory.create({ ethAdapter });
 
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
   // Deploy Safe
   const safeASdk = await safeFactory.deploySafe({
-    safeAccountConfig: safeAAccountConfig, // Fix: use safeAccountConfig as the property name
+    safeAccountConfig: safeAAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
   });
   console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
   const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
 
   const safeBSdk = await safeFactory.deploySafe({
-    safeAccountConfig: safeBAccountConfig, // Fix: use safeAccountConfig as the property name
+    safeAccountConfig: safeBAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
   });
   console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
   const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
@@ -1108,6 +1137,10 @@ const createPremiumVaultwithAllowance = async ({
   // After deploying the main safe...
   const safeSdk = await safeFactory.deploySafe({
     safeAccountConfig: safeAccountTemporaryConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
   });
   const safeAddress = await safeSdk.getAddress();
   console.log('Premium vault - Main Safe created', safeAddress);
@@ -1303,15 +1336,317 @@ const createPrivateVault = async ({
   auditUid,
   body,
 }) => {
-  // Same implementation as createTrustVault for now
-  return await createTrustVault({
-    networkName,
-    targetUserId,
-    companyId,
-    lender,
-    auditUid,
-    body,
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC || !body.keyD || !body.keyE || !body.keyF) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Premium vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+    body.keyD = hre.ethers.utils.getAddress(body.keyD);
+    body.keyE = hre.ethers.utils.getAddress(body.keyE);
+    body.keyF = hre.ethers.utils.getAddress(body.keyF);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider,
   });
+
+  // Configure Safe Account with provided keys
+  const safeAAccountConfig = {
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
+  };
+
+  const safeBAccountConfig = {
+    owners: [body.keyD, body.keyE, body.keyF],
+    threshold: 2,
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe
+  const safeASdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
+  const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
+
+  const safeBSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeBAccountConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
+  const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
+
+  const deployerAddress = await signer.getAddress();
+
+  const safeAccountTemporaryConfig = {
+    owners: [safeAAddress, deployerAddress],
+    threshold: 1, // Only 1 signature from either safe is required for the Premium vault
+  };
+
+  // LET'S DANCE
+  const tokenAddresses = [
+    await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+  ];
+
+  const tokenApproveAbi = [
+    'function approve(address spender, uint256 value) public returns (bool)',
+  ];
+
+  // Create token contracts with signer for approvals
+  const tokenContracts = tokenAddresses.map((tokenAddress) => {
+    return new hre.ethers.Contract(
+      tokenAddress,
+      tokenApproveAbi,
+      signer // Use signer instead of provider to be able to send transactions
+    );
+  });
+
+  console.log('Premium vault - Token contracts ready:', tokenContracts.length);
+
+  // After deploying the main safe...
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAccountTemporaryConfig,
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  const safeAddress = await safeSdk.getAddress();
+  console.log('Premium vault - Main Safe created', safeAddress);
+
+  // Create batch of transactions for both Safe A and Safe B approvals
+  console.log('Premium vault - Creating batch approval transactions');
+  const multiSendTxs = [];
+
+  // Add approvals for Safe A
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeAAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  // Add approvals for Safe B
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeBAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  console.log('Premium vault - Approval ready to be executed');
+
+  // Create and execute the batch transaction
+  try {
+    const multiSendTx = await safeSdk.createTransaction({
+      safeTransactionData: multiSendTxs,
+    });
+
+    const signedTx = await safeSdk.signTransaction(multiSendTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - All token approvals confirmed in single transaction');
+  } catch (error) {
+    console.error('Premium vault - Error executing batch token approvals:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_TOKEN_APPROVALS',
+      error,
+      'Error executing batch token approvals',
+      null
+    );
+  }
+
+  // Continue with adding Safe B as owner and removing deployer...
+
+  // Create transaction to add safeBAddress as owner
+  console.log('Premium vault - Adding Safe B as owner');
+  const safeInterface = new hre.ethers.utils.Interface([
+    'function addOwnerWithThreshold(address owner, uint256 _threshold) public',
+    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public',
+  ]);
+
+  const addOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('addOwnerWithThreshold', [
+        safeBAddress,
+        1, // threshold
+      ]),
+    },
+  });
+
+  // Execute transaction
+  try {
+    const signedTx = await safeSdk.signTransaction(addOwnerTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Safe B added as owner');
+  } catch (error) {
+    console.error('Premium vault - Error adding Safe B as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_ADDING_OWNER',
+      error,
+      'Error adding Safe B as owner to main safe',
+      null
+    );
+  }
+
+  // Remove deployer as owner
+  console.log('Premium vault - Removing deployer as owner');
+  const removeOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('removeOwner', [
+        safeAAddress, // prevOwner - the owner that comes before the one we want to remove
+        deployerAddress, // owner to remove
+        1, // keep threshold at 2
+      ]),
+    },
+  });
+
+  let safeOwners; // Declare safeOwners here so it's available in the wider scope
+
+  try {
+    const signedRemoveTx = await safeSdk.signTransaction(removeOwnerTx);
+    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx);
+    await executeRemoveTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Deployer removed as owner');
+
+    // Verify final owners
+    safeOwners = await safeSdk.getOwners(); // Assign to the outer scope variable
+    console.log('Premium vault - Final safe owners:', {
+      owners: safeOwners,
+      expectedOwners: [safeAAddress, safeBAddress],
+      match:
+        safeOwners.length === 2 &&
+        safeOwners.includes(safeAAddress) &&
+        safeOwners.includes(safeBAddress),
+    });
+
+    // Optional: throw error if owners don't match expected
+    if (
+      !safeOwners.includes(safeAAddress) ||
+      !safeOwners.includes(safeBAddress) ||
+      safeOwners.length !== 2
+    ) {
+      throw new CustomError.TechnicalError(
+        'ERROR_OWNER_VERIFICATION',
+        null,
+        'Final safe owners do not match expected configuration',
+        null
+      );
+    }
+  } catch (error) {
+    console.error('Premium vault - Error removing deployer as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_REMOVING_OWNER',
+      error,
+      'Error removing deployer as owner from main safe',
+      null
+    );
+  }
+
+  const safeVersion = await safeSdk.getContractVersion();
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeAAddress = safeAAddress;
+  body.safeBAddress = safeBAddress;
+  body.safeOwners = safeOwners; // Now safeOwners is defined
+  body.safeThreshold = safeAccountTemporaryConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
 };
 
 // Update the create function with new logic
@@ -1529,12 +1864,12 @@ const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
         // Obtener fee data para Polygon
         const feeData = await provider.getFeeData();
         // Pruebo usar fees
-        const gasPrice = feeData.gasPrice ? feeData.gasPrice.toString() : null;
-
+        const gasPrice = feeData.gasPrice ? feeData.gasPrice : null;
+        const fastGasPrice = gasPrice ? gasPrice.mul(110).div(100) : null;
         // Intentar obtener el valor de gas limit desde las variables de entorno, si existe, sobreescribir el fallback
         // MRM maxPriorityFee is hardcoded in Polygon
         networkConfig = {
-          gasPrice,
+          fastGasPrice,
           gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
         };
       }
