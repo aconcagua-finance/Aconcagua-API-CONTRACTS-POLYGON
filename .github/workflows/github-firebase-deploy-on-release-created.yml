@@ -48,6 +48,10 @@ jobs:
       - run: npm run prettier-ci
       - run: npm run lint-ci
       - run: npm run test-ci
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{secrets.SWAPPER_PRIVATE_KEY}}
+          HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL}}
+          HARDHAT_NETWORK_NAME: matic
 
       # ya lo hace el firebase.json
       # - run: npm run build

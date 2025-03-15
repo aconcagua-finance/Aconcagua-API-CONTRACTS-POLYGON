@@ -29,9 +29,6 @@ env:
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK: ${{secrets.DEPLOYER_PRIVATE_KEY_QA_ROOTSTOCK}}
   SWAPPER_PRIVATE_KEY_POLYGON: ${{secrets.SWAPPER_PRIVATE_KEY_QA}}
   SWAPPER_PRIVATE_KEY_ROOTSTOCK: ${{secrets.SWAPPER_PRIVATE_KEY_QA_ROOTSTOCK}}
-  HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL_QA}}
-  HARDHAT_NETWORK_NAME: 'sepolia'
-  PROVIDER_NETWORK_NAME: 'sepolia'
   CONFIG_NETWORK_COLLECTION: 'configNetworks'
 
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
@@ -55,6 +52,9 @@ jobs:
       - run: npm run prettier-ci
       - run: npm run lint-ci
       - run: npm run test-ci
+        env:
+          DEPLOYER_PRIVATE_KEY: ${{secrets.SWAPPER_PRIVATE_KEY_QA}}
+          HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL_QA}}
 
       # ya lo hace el firebase.json
       # - run: npm run build
