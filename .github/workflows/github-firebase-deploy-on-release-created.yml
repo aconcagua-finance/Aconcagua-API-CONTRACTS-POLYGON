@@ -22,10 +22,6 @@ env:
   DEPLOYER_PRIVATE_KEY_ROOTSTOCK: ${{secrets.DEPLOYER_PRIVATE_KEY_PROD_ROOTSTOCK}}
   SWAPPER_PRIVATE_KEY_POLYGON: ${{secrets.SWAPPER_PRIVATE_KEY_PROD}}
   SWAPPER_PRIVATE_KEY_ROOTSTOCK: ${{secrets.SWAPPER_PRIVATE_KEY_PROD_ROOTSTOCK}}
-  HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL_PROD}}
-  HARDHAT_NETWORK_NAME: 'matic'
-  PROVIDER_NETWORK_NAME: 'matic'
-  POLYGONSCAN_API_KEY: ${{secrets.POLYGONSCAN_API_KEY_PROD}}
   CONFIG_NETWORK_COLLECTION: 'configNetworks'
 
   COINGECKO_URL: 'https://api.coingecko.com/api/v3'
@@ -51,7 +47,6 @@ jobs:
         env:
           DEPLOYER_PRIVATE_KEY: ${{secrets.SWAPPER_PRIVATE_KEY}}
           HARDHAT_API_URL: ${{secrets.ALCHEMY_API_URL}}
-          HARDHAT_NETWORK_NAME: matic
 
       # ya lo hace el firebase.json
       # - run: npm run build
