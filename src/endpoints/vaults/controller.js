@@ -1865,11 +1865,14 @@ const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
         const feeData = await provider.getFeeData();
         // Pruebo usar fees
         const gasPrice = feeData.gasPrice ? feeData.gasPrice : null;
-        const fastGasPrice = gasPrice ? gasPrice.mul(110).div(100) : null;
-        // Intentar obtener el valor de gas limit desde las variables de entorno, si existe, sobreescribir el fallback
-        // MRM maxPriorityFee is hardcoded in Polygon
+        // Convert to a number by multiplying by 110% and then converting to string and parsing
+        const adjustedGasPrice = gasPrice
+          ? parseInt(gasPrice.mul(110).div(100).toString())
+          : gasPriceFallback;
+
+        // Use the correct property name (gasPrice instead of fastGasPrice)
         networkConfig = {
-          fastGasPrice,
+          gasPrice: adjustedGasPrice,
           gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
         };
       }
