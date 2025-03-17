@@ -1182,7 +1182,16 @@ const createPremiumVaultwithAllowance = async ({
     });
 
     const signedTx = await safeSdk.signTransaction(multiSendTx);
-    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+
+    // Get gas price and limit for this transaction
+    const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'TRANSFER');
+
+    // Execute transaction with gas settings
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+
     await executeTxResponse.transactionResponse?.wait();
 
     console.log('Premium vault - All token approvals confirmed in single transaction');
@@ -1219,7 +1228,10 @@ const createPremiumVaultwithAllowance = async ({
   // Execute transaction
   try {
     const signedTx = await safeSdk.signTransaction(addOwnerTx);
-    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
     await executeTxResponse.transactionResponse?.wait();
 
     console.log('Premium vault - Safe B added as owner');
@@ -1251,7 +1263,10 @@ const createPremiumVaultwithAllowance = async ({
 
   try {
     const signedRemoveTx = await safeSdk.signTransaction(removeOwnerTx);
-    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx);
+    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx, {
+      gasPrice,
+      gasLimit,
+    });
     await executeRemoveTxResponse.transactionResponse?.wait();
 
     console.log('Premium vault - Deployer removed as owner');
@@ -1503,7 +1518,16 @@ const createPrivateVault = async ({
     });
 
     const signedTx = await safeSdk.signTransaction(multiSendTx);
-    const executeTxResponse = await safeSdk.executeTransaction(signedTx);
+
+    // Get gas price and limit for this transaction
+    const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'APPROVE_TOKENS');
+
+    // Execute transaction with gas settings
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+
     await executeTxResponse.transactionResponse?.wait();
 
     console.log('Premium vault - All token approvals confirmed in single transaction');
