@@ -38,6 +38,7 @@ const { Types } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
+const { NativeTokenTypes } = require('../../types/nativeTokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
 const { RebasingTokens } = require('../../types/RebasingTokens');
 const { Valuation, Balance } = require('../../types/BalanceTypes');
@@ -2373,6 +2374,10 @@ const balancesToValuations = (balancesWithToken, valuations) => {
       normalizedSymbol = TokenTypes.WBTC;
     } else if (normalizedSymbol === 'acon18weth') {
       normalizedSymbol = TokenTypes.WETH;
+    } else if (normalizedSymbol === 'pol') {
+      normalizedSymbol = NativeTokenTypes.POL;
+    } else if (normalizedSymbol === 'rbtc') {
+      normalizedSymbol = NativeTokenTypes.RBTC;
     }
 
     const usdValuation = valuations.find(
