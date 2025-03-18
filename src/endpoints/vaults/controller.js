@@ -1952,13 +1952,45 @@ const fetchSavingsVaultBalances = async (vault) => {
   try {
     // Try Safe API first
     const response = await axios.get(`${apiBaseUrl}/api/v1/safes/${safeAddress}/balances`);
-    safeBalances = response.data;
+    const rawBalances = response.data;
+
+    // Find the native token entry (where tokenAddress is null)
+    const nativeTokenEntry = rawBalances.find((balance) => balance.tokenAddress === null);
+    const otherTokens = rawBalances.filter((balance) => balance.tokenAddress !== null);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        name: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
+        decimals: 18,
+      },
+      balance: nativeTokenEntry?.balance || '0',
+    };
+
+    // Combine native token with other tokens
+    safeBalances = [nativeTokenFormatted, ...otherTokens];
   } catch (error) {
     console.log('Safe API failed, falling back to direct contract calls:', error.message);
 
     // Get provider for the network
     const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
     const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+    // Get native token balance
+    const nativeBalance = await provider.getBalance(safeAddress);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        name: networkName.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC',
+        symbol: networkName.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC',
+        decimals: 18,
+      },
+      balance: nativeBalance.toString(),
+    };
 
     // Get token addresses for this network
     const tokenAddresses = [
@@ -1977,7 +2009,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     ]);
 
     // Fetch balances directly from contracts
-    safeBalances = await Promise.all(
+    const tokenBalances = await Promise.all(
       tokenAddresses.map(async (tokenAddress) => {
         const contract = new hre.ethers.Contract(tokenAddress, erc20Interface, provider);
         const balance = await contract.balanceOf(safeAddress);
@@ -1995,9 +2027,14 @@ const fetchSavingsVaultBalances = async (vault) => {
       })
     );
 
-    // Filter out zero balances
-    safeBalances = safeBalances.filter((balance) => !balance.balance.startsWith('0'));
+    // Add native token balance to the array
+    safeBalances = [
+      nativeTokenFormatted,
+      ...tokenBalances.filter((balance) => !balance.balance.startsWith('0')),
+    ];
   }
+
+  console.log('safeBalances: ' + JSON.stringify(safeBalances));
 
   // Initialize arrays for our formatted balances
   const formattedBalances = [];
