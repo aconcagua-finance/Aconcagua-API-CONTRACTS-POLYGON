@@ -1962,13 +1962,14 @@ const fetchSavingsVaultBalances = async (vault) => {
     const nativeTokenFormatted = {
       tokenAddress: null,
       token: {
-        name: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
         symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
         decimals: 18,
       },
       balance: nativeTokenEntry?.balance || '0',
     };
-
+    console.log(
+      'nativeTokenFormatted for vault ' + vault.id + ': ' + JSON.stringify(nativeTokenFormatted)
+    );
     // Combine native token with other tokens
     safeBalances = [nativeTokenFormatted, ...otherTokens];
   } catch (error) {
@@ -1985,8 +1986,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     const nativeTokenFormatted = {
       tokenAddress: null,
       token: {
-        name: networkName.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC',
-        symbol: networkName.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC',
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
         decimals: 18,
       },
       balance: nativeBalance.toString(),
@@ -2034,7 +2034,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     ];
   }
 
-  console.log('safeBalances: ' + JSON.stringify(safeBalances));
+  console.log('safeBalances for vault ' + vault.id + ': ' + JSON.stringify(safeBalances));
 
   // Initialize arrays for our formatted balances
   const formattedBalances = [];
