@@ -2053,8 +2053,6 @@ const fetchSavingsVaultBalances = async (vault) => {
   for (const tokenBalance of safeBalances) {
     const token = tokenBalance.token;
     const tokenAddress = tokenBalance.tokenAddress;
-    if (!tokenAddress) continue;
-
     // Build map of token addresses to their normalized symbols
     const networkName = vault.contractNetwork.toUpperCase();
     const tokenAddressMap = new Map([
