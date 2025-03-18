@@ -2053,31 +2053,32 @@ const fetchSavingsVaultBalances = async (vault) => {
   for (const tokenBalance of safeBalances) {
     const token = tokenBalance.token;
     const tokenAddress = tokenBalance.tokenAddress;
-    // Build map of token addresses to their normalized symbols
-    const networkName = vault.contractNetwork.toUpperCase();
-    const tokenAddressMap = new Map([
-      [
-        (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDC,
-      ],
-      [
-        (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDT,
-      ],
-      [
-        (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDM,
-      ],
-      [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
-      [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
-    ]);
 
-    // Get normalized symbol from token address
-    const normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
+    let normalizedSymbol;
+    if (!tokenAddress) {
+      // This is a native token
+      normalizedSymbol = vault.contractNetwork.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC';
+    } else {
+      // Build map of token addresses to their normalized symbols
+      const networkName = vault.contractNetwork.toUpperCase();
+      const tokenAddressMap = new Map([
+        [
+          (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDC,
+        ],
+        [
+          (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDT,
+        ],
+        [
+          (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDM,
+        ],
+        [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
+        [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
+      ]);
 
-    if (!normalizedSymbol) {
-      console.warn(`Unknown token address: ${tokenAddress}`);
-      continue; // Skip unknown tokens
+      normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
     }
 
     // Use decimals from token response, fallback to decimalsMap if needed
