@@ -1962,7 +1962,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     const nativeTokenFormatted = {
       tokenAddress: null,
       token: {
-        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
         decimals: 18,
       },
       balance: nativeTokenEntry?.balance || '0',
@@ -1986,7 +1986,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     const nativeTokenFormatted = {
       tokenAddress: null,
       token: {
-        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'POL' : 'RBTC',
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
         decimals: 18,
       },
       balance: nativeBalance.toString(),
@@ -2057,7 +2057,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     let normalizedSymbol;
     if (!tokenAddress) {
       // This is a native token
-      normalizedSymbol = vault.contractNetwork.toUpperCase() === 'POLYGON' ? 'POL' : 'RBTC';
+      normalizedSymbol = vault.contractNetwork.toUpperCase() === 'POLYGON' ? 'pol' : 'rbtc';
     } else {
       // Build map of token addresses to their normalized symbols
       const networkName = vault.contractNetwork.toUpperCase();

@@ -468,6 +468,8 @@ const evaluateQuotations = async (quotations) => {
   const results = [
     ['wbtc', processQuotes('wbtc', quotations)],
     ['weth', processQuotes('weth', quotations)],
+    ['pol', processQuotes('pol', quotations)],
+    ['rbtc', processQuotes('rbtc', quotations)],
   ];
   console.log('evaluateQuotations - results');
   console.log(results);
