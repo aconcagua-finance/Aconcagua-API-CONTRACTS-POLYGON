@@ -361,6 +361,7 @@ const getQuotations = async (quoteAmounts) => {
 
   console.log('Cotizaciones solicitadas exitosamente');
   const rawQuotations = quotations.map((result) => result.value).filter((obj) => obj);
+  console.log('rawQuotations ', rawQuotations);
 
   return parseQuotations(rawQuotations);
 };
