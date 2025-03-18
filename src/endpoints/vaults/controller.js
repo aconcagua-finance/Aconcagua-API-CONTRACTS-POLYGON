@@ -2139,7 +2139,7 @@ const fetchSavingsVaultBalances = async (vault) => {
       isValuation: true,
     }
   );
-
+  console.log('formattedBalances for vault ' + vault.id + ': ' + JSON.stringify(formattedBalances));
   return formattedBalances;
 };
 
@@ -2307,11 +2307,11 @@ exports.getVaultBalances = async function (req, res) {
     console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
     console.log(
-      'getVaultBalances - Balances en la base es: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances en la base es: ',
       JSON.stringify(vault.balances, null, 2)
     );
     console.log(
-      'getVaultBalances - Balances obtenidos del contrato: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances obtenidos del contrato: ',
       JSON.stringify(allBalances, null, 2)
     );
 
