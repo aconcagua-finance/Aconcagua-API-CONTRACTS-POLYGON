@@ -2360,6 +2360,8 @@ const balancesToValuations = (balancesWithToken, valuations) => {
     (item) =>
       item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
   );
+  console.log('balancesToValuations - balancesWithToken: ' + JSON.stringify(balancesWithToken));
+  console.log('balancesToValuations - valuations: ' + JSON.stringify(valuations));
 
   balancesWithToken.forEach((balanceWithToken) => {
     // Normalize token symbol
@@ -2375,9 +2377,9 @@ const balancesToValuations = (balancesWithToken, valuations) => {
     } else if (normalizedSymbol === 'acon18weth') {
       normalizedSymbol = TokenTypes.WETH;
     } else if (normalizedSymbol === 'pol') {
-      normalizedSymbol = NativeTokenTypes.POL.toLowerCase();
+      normalizedSymbol.toUpperCase() = NativeTokenTypes.POL;
     } else if (normalizedSymbol === 'rbtc') {
-      normalizedSymbol = NativeTokenTypes.RBTC.toLowerCase();
+      normalizedSymbol.toUpperCase() = NativeTokenTypes.RBTC;
     }
 
     const usdValuation = valuations.find(
