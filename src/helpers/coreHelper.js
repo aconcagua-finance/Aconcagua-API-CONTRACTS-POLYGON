@@ -212,9 +212,9 @@ function getArsStableValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const arsValuation = item.valuations
-      ? item.valuations.find((valuation) => valuation.currency === 'ars')
-      : null;
+    const arsValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'ars') :
+      null;
 
     const arsValue = arsValuation ? arsValuation.value : 0;
 
@@ -235,9 +235,9 @@ function getArsVolatileValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const arsValuation = item.valuations
-      ? item.valuations.find((valuation) => valuation.currency === 'ars')
-      : null;
+    const arsValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'ars') :
+      null;
 
     const arsValue = arsValuation ? arsValuation.value : 0;
 
@@ -258,9 +258,9 @@ function getUsdStableValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const usdValuation = item.valuations
-      ? item.valuations.find((valuation) => valuation.currency === 'usd')
-      : null;
+    const usdValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'usd') :
+      null;
 
     const usdValue = usdValuation ? usdValuation.value : 0;
 
@@ -281,9 +281,9 @@ function getUsdVolatileValue(balances) {
 
   balances.forEach((item) => {
     const currency = item.currency.toLowerCase();
-    const usdValuation = item.valuations
-      ? item.valuations.find((valuation) => valuation.currency === 'usd')
-      : null;
+    const usdValuation = item.valuations ?
+      item.valuations.find((valuation) => valuation.currency === 'usd') :
+      null;
 
     const usdValue = usdValuation ? usdValuation.value : 0;
 
@@ -323,12 +323,12 @@ export const formatMoneyWithCurrency = function (
       negativeSign +
       (jj ? ii.substring(0, jj) + thousands : '') +
       ii.substring(jj).replace(/(\d{3})(?=\d)/g, `$1${thousands}`) +
-      (decimalCount
-        ? decimal +
+      (decimalCount ?
+        decimal +
           Math.abs(amount - ii)
             .toFixed(decimalCount)
-            .slice(2)
-        : '')
+            .slice(2) :
+        '')
     );
   } else if (currency == 'usd') {
     const currencySign = 'U$D';
@@ -349,12 +349,12 @@ export const formatMoneyWithCurrency = function (
       negativeSign +
       (jj ? ii.substring(0, jj) + thousands : '') +
       ii.substring(jj).replace(/(\d{3})(?=\d)/g, `$1${thousands}`) +
-      (decimalCount
-        ? decimal +
+      (decimalCount ?
+        decimal +
           Math.abs(amount - ii)
             .toFixed(decimalCount)
-            .slice(2)
-        : '')
+            .slice(2) :
+        '')
     );
   }
   return 0;
