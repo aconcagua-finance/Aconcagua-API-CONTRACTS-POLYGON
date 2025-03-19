@@ -2091,7 +2091,18 @@ const fetchSavingsVaultBalances = async (vault) => {
 
     // Convert balance to number based on decimals
     const balance = parseFloat(hre.ethers.utils.formatUnits(tokenBalance.balance, decimals));
-
+    console.log(
+      'getting token valuation vault ' +
+        vault.id +
+        ' - normalizedSymbol: ' +
+        normalizedSymbol +
+        ' valuation ' +
+        JSON.stringify(valuations) +
+        'Types.CurrencyTypes.USD: ' +
+        Types.CurrencyTypes.USD +
+        'Types.CurrencyTypes.ARS: ' +
+        Types.CurrencyTypes.ARS
+    );
     // Find token valuation using normalized symbol
     const tokenValuation = valuations.find(
       (valuation) =>
