@@ -2388,9 +2388,9 @@ const balancesToValuations = (balancesWithToken, valuations) => {
     } else if (normalizedSymbol === 'acon18weth') {
       normalizedSymbol = TokenTypes.WETH;
     } else if (normalizedSymbol === 'pol') {
-      normalizedSymbol.toUpperCase() = NativeTokenTypes.POL;
+      normalizedSymbol = NativeTokenTypes.POL;
     } else if (normalizedSymbol === 'rbtc') {
-      normalizedSymbol.toUpperCase() = NativeTokenTypes.RBTC;
+      normalizedSymbol = NativeTokenTypes.RBTC;
     }
 
     const usdValuation = valuations.find(
