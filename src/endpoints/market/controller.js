@@ -362,6 +362,16 @@ const getQuotations = async (quoteAmounts) => {
   console.log('Cotizaciones solicitadas exitosamente');
   const rawQuotations = quotations.map((result) => result.value).filter((obj) => obj);
 
+  // Add RBTC with same value as WBTC for each provider
+  rawQuotations.forEach((quotation) => {
+    const wbtcValue = quotation.quotes.wbtc || quotation.quotes.WBTC;
+    if (wbtcValue) {
+      quotation.quotes.rbtc = wbtcValue;
+    }
+  });
+
+  console.log('rawQuotations ', rawQuotations);
+
   return parseQuotations(rawQuotations);
 };
 
@@ -458,6 +468,8 @@ const evaluateQuotations = async (quotations) => {
   const results = [
     ['wbtc', processQuotes('wbtc', quotations)],
     ['weth', processQuotes('weth', quotations)],
+    ['pol', processQuotes('pol', quotations)],
+    ['rbtc', processQuotes('rbtc', quotations)],
   ];
   console.log('evaluateQuotations - results');
   console.log(results);

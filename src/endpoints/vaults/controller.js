@@ -38,6 +38,7 @@ const { Types } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
+const { NativeTokenTypes } = require('../../types/nativeTokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
 const { RebasingTokens } = require('../../types/RebasingTokens');
 const { Valuation, Balance } = require('../../types/BalanceTypes');
@@ -1952,13 +1953,45 @@ const fetchSavingsVaultBalances = async (vault) => {
   try {
     // Try Safe API first
     const response = await axios.get(`${apiBaseUrl}/api/v1/safes/${safeAddress}/balances`);
-    safeBalances = response.data;
+    const rawBalances = response.data;
+
+    // Find the native token entry (where tokenAddress is null)
+    const nativeTokenEntry = rawBalances.find((balance) => balance.tokenAddress === null);
+    const otherTokens = rawBalances.filter((balance) => balance.tokenAddress !== null);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
+        decimals: 18,
+      },
+      balance: nativeTokenEntry?.balance || '0',
+    };
+    console.log(
+      'nativeTokenFormatted for vault ' + vault.id + ': ' + JSON.stringify(nativeTokenFormatted)
+    );
+    // Combine native token with other tokens
+    safeBalances = [nativeTokenFormatted, ...otherTokens];
   } catch (error) {
     console.log('Safe API failed, falling back to direct contract calls:', error.message);
 
     // Get provider for the network
     const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
     const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+    // Get native token balance
+    const nativeBalance = await provider.getBalance(safeAddress);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
+        decimals: 18,
+      },
+      balance: nativeBalance.toString(),
+    };
 
     // Get token addresses for this network
     const tokenAddresses = [
@@ -1977,7 +2010,7 @@ const fetchSavingsVaultBalances = async (vault) => {
     ]);
 
     // Fetch balances directly from contracts
-    safeBalances = await Promise.all(
+    const tokenBalances = await Promise.all(
       tokenAddresses.map(async (tokenAddress) => {
         const contract = new hre.ethers.Contract(tokenAddress, erc20Interface, provider);
         const balance = await contract.balanceOf(safeAddress);
@@ -1995,9 +2028,14 @@ const fetchSavingsVaultBalances = async (vault) => {
       })
     );
 
-    // Filter out zero balances
-    safeBalances = safeBalances.filter((balance) => !balance.balance.startsWith('0'));
+    // Add native token balance to the array
+    safeBalances = [
+      nativeTokenFormatted,
+      ...tokenBalances.filter((balance) => !balance.balance.startsWith('0')),
+    ];
   }
+
+  console.log('safeBalances for vault ' + vault.id + ': ' + JSON.stringify(safeBalances));
 
   // Initialize arrays for our formatted balances
   const formattedBalances = [];
@@ -2016,33 +2054,32 @@ const fetchSavingsVaultBalances = async (vault) => {
   for (const tokenBalance of safeBalances) {
     const token = tokenBalance.token;
     const tokenAddress = tokenBalance.tokenAddress;
-    if (!tokenAddress) continue;
 
-    // Build map of token addresses to their normalized symbols
-    const networkName = vault.contractNetwork.toUpperCase();
-    const tokenAddressMap = new Map([
-      [
-        (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDC,
-      ],
-      [
-        (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDT,
-      ],
-      [
-        (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
-        Types.CurrencyTypes.USDM,
-      ],
-      [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
-      [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
-    ]);
+    let normalizedSymbol;
+    if (!tokenAddress) {
+      // This is a native token
+      normalizedSymbol = vault.contractNetwork.toUpperCase() === 'POLYGON' ? 'pol' : 'rbtc';
+    } else {
+      // Build map of token addresses to their normalized symbols
+      const networkName = vault.contractNetwork.toUpperCase();
+      const tokenAddressMap = new Map([
+        [
+          (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDC,
+        ],
+        [
+          (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDT,
+        ],
+        [
+          (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDM,
+        ],
+        [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
+        [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
+      ]);
 
-    // Get normalized symbol from token address
-    const normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
-
-    if (!normalizedSymbol) {
-      console.warn(`Unknown token address: ${tokenAddress}`);
-      continue; // Skip unknown tokens
+      normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
     }
 
     // Use decimals from token response, fallback to decimalsMap if needed
@@ -2054,7 +2091,18 @@ const fetchSavingsVaultBalances = async (vault) => {
 
     // Convert balance to number based on decimals
     const balance = parseFloat(hre.ethers.utils.formatUnits(tokenBalance.balance, decimals));
-
+    console.log(
+      'getting token valuation vault ' +
+        vault.id +
+        ' - normalizedSymbol: ' +
+        normalizedSymbol +
+        ' valuation ' +
+        JSON.stringify(valuations) +
+        'Types.CurrencyTypes.USD: ' +
+        Types.CurrencyTypes.USD +
+        'Types.CurrencyTypes.ARS: ' +
+        Types.CurrencyTypes.ARS
+    );
     // Find token valuation using normalized symbol
     const tokenValuation = valuations.find(
       (valuation) =>
@@ -2102,7 +2150,7 @@ const fetchSavingsVaultBalances = async (vault) => {
       isValuation: true,
     }
   );
-
+  console.log('formattedBalances for vault ' + vault.id + ': ' + JSON.stringify(formattedBalances));
   return formattedBalances;
 };
 
@@ -2270,11 +2318,11 @@ exports.getVaultBalances = async function (req, res) {
     console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
     console.log(
-      'getVaultBalances - Balances en la base es: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances en la base es: ',
       JSON.stringify(vault.balances, null, 2)
     );
     console.log(
-      'getVaultBalances - Balances obtenidos del contrato: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances obtenidos del contrato: ',
       JSON.stringify(allBalances, null, 2)
     );
 
@@ -2323,6 +2371,8 @@ const balancesToValuations = (balancesWithToken, valuations) => {
     (item) =>
       item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
   );
+  console.log('balancesToValuations - balancesWithToken: ' + JSON.stringify(balancesWithToken));
+  console.log('balancesToValuations - valuations: ' + JSON.stringify(valuations));
 
   balancesWithToken.forEach((balanceWithToken) => {
     // Normalize token symbol
@@ -2337,6 +2387,10 @@ const balancesToValuations = (balancesWithToken, valuations) => {
       normalizedSymbol = TokenTypes.WBTC;
     } else if (normalizedSymbol === 'acon18weth') {
       normalizedSymbol = TokenTypes.WETH;
+    } else if (normalizedSymbol === 'pol') {
+      normalizedSymbol = NativeTokenTypes.POL;
+    } else if (normalizedSymbol === 'rbtc') {
+      normalizedSymbol = NativeTokenTypes.RBTC;
     }
 
     const usdValuation = valuations.find(
