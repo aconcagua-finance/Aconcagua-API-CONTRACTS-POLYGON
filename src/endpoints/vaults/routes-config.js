@@ -16,6 +16,7 @@ const {
   amountToConversions,
   getBalanceHistory,
   getVaultsBalanceHistory,
+  executeTransactionRequest,
 } = require('./controller');
 
 const { Audit } = require('../../vs-core-firebase');
@@ -106,7 +107,6 @@ exports.vaultsRoutesConfig = function (app) {
     }),
     getBalanceHistory,
   ]);
-
 
   // Get balance history for multiple vaults using comma-separated IDs
   app.get('/:companyId/:userId/vaults-balance-history', [
@@ -220,5 +220,17 @@ exports.vaultsRoutesConfig = function (app) {
     Auth.isAuthenticated,
     Auth.isAuthorized({ hasAppRole: [Types.AppRols.APP_ADMIN] }),
     remove,
+  ]);
+
+  // Execute transaction request
+  app.post('/:companyId/:userId/:id/execute-transaction', [
+    Audit.logger,
+    Auth.isAuthenticated,
+    Auth.isAuthorized({
+      hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
+      allowStaffRelationship: true,
+      isEnterpriseEmployee: true,
+    }),
+    executeTransactionRequest,
   ]);
 };

@@ -15,6 +15,10 @@ const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 
 const { Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
+const SafeSDKNoAPI = require('../../helpers/safe/SafeSDKNoAPIBackend').default;
+
+const { ethers } = require('ethers');
+const { getAdapter } = require('../../helpers/safe/EthersAdapter');
 
 const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit');
 const { ErrorHelper } = require('../../vs-core-firebase');
@@ -1816,16 +1820,16 @@ exports.create = async function (req, res) {
 const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
   console.log(' getGasPriceAndLimit - networkName - ', networkName, ' actionName - ', actionName);
   const functionName = 'getGasPriceAndLimit'; // Nombre de la función para los mensajes de error
-  const gasPriceFallback = 50000000000; // Fallback gas price (en wei)
+  const gasPriceFallback = 500000; // Fallback gas price (en wei)
 
   // Lista fija de acciones permitidas
   const allowedActions = ['CREATE', 'TRANSFER', 'SWAP'];
 
   // Definición de gasLimit por acción (valores por defecto)
   const gasLimitActionFallback = {
-    CREATE: 5000000, // 5,000,000 para CREATE
+    CREATE: 500000, // 500,000 para CREATE
     TRANSFER: 500000, // 500,000 para TRANSFER
-    SWAP: 1000000, // 1,000,000 para SWAP
+    SWAP: 500000, // 500,000 para SWAP
   };
 
   // Convertir el enum en una lista de valores válidos
@@ -4555,3 +4559,47 @@ function getTargetDates(period, backCount) {
   // Sort descending
   return dates.sort((date1, date2) => date2 - date1);
 }
+
+exports.executeTransactionRequest = async function (req, res) {
+  console.log('executeTransactionRequest - Iniciando ejecución de la transacción');
+  console.log('executeTransactionRequest - Parámetros recibidos:', req.body);
+  const { executionData } = req.body;
+  const vault = await fetchSingleItem({
+    collectionName: COLLECTION_NAME,
+    id: executionData.vaultId,
+  });
+
+  try {
+    if (!executionData.safeMainTransaction || !executionData.safeConfirmations) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_DATA',
+        null,
+        'Transaction request missing required safe transaction data',
+        null
+      );
+    }
+
+    const safeAddress = ethers.utils.getAddress(executionData.safeAddress);
+
+    const networkName = vault.contractNetwork;
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+    const provider = new ethers.providers.JsonRpcProvider(NETWORK_URL);
+    const signer = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+    const adapter = getAdapter(signer);
+
+    const safeSDK = SafeSDKNoAPI.getInstance();
+    await safeSDK.initSDK(adapter, safeAddress);
+    console.log('executeTransactionRequest - Iniciando ejecución de la transacción');
+    const executionResult = await safeSDK.executeTransaction(executionData);
+    console.log('executeTransactionRequest - Transacción ejecutada con éxito');
+    // 8. Send success response
+    return res.status(200).send({
+      success: true,
+      executionResult,
+    });
+  } catch (err) {
+    console.error('Error executing transaction request:', err);
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
