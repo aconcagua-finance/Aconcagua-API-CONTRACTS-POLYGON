@@ -852,13 +852,14 @@ const createTrustVault = async ({
   // Deploy Safe with gas parameters
   const safeSdk = await safeFactory.deploySafe({
     safeAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
     },
   });
 
-  const safeAddress = safeSdk.getAddress();
+  const safeAddress = await safeSdk.getAddress();
   const safeVersion = await safeSdk.getContractVersion();
 
   // Add required fields for schema validation
@@ -875,7 +876,7 @@ const createTrustVault = async ({
   body.contractVersion = safeVersion;
   body.proxyContractAddress = safeAddress;
   body.proxyContractVersion = safeVersion;
-  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractSignerAddress = safeAddress;
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
   body.proxyContractDeployment = 'GnosisSafeProxy';
@@ -968,13 +969,14 @@ const createStandardVault = async ({
   // Deploy Safe with gas parameters
   const safeSdk = await safeFactory.deploySafe({
     safeAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
     },
   });
 
-  const safeAddress = safeSdk.getAddress();
+  const safeAddress = await safeSdk.getAddress();
   const safeVersion = await safeSdk.getContractVersion();
 
   // Add required fields for schema validation
@@ -991,7 +993,7 @@ const createStandardVault = async ({
   body.contractVersion = safeVersion;
   body.proxyContractAddress = safeAddress;
   body.proxyContractVersion = safeVersion;
-  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractSignerAddress = safeAddress;
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
   body.proxyContractDeployment = 'GnosisSafeProxy';
@@ -1090,6 +1092,7 @@ const createPremiumVaultwithAllowance = async ({
   // Deploy Safe
   const safeASdk = await safeFactory.deploySafe({
     safeAccountConfig: safeAAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1100,6 +1103,7 @@ const createPremiumVaultwithAllowance = async ({
 
   const safeBSdk = await safeFactory.deploySafe({
     safeAccountConfig: safeBAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1142,6 +1146,7 @@ const createPremiumVaultwithAllowance = async ({
   // After deploying the main safe...
   const safeSdk = await safeFactory.deploySafe({
     safeAccountConfig: safeAccountTemporaryConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1327,7 +1332,7 @@ const createPremiumVaultwithAllowance = async ({
   body.contractVersion = safeVersion;
   body.proxyContractAddress = safeAddress;
   body.proxyContractVersion = safeVersion;
-  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractSignerAddress = safeAddress;
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
   body.proxyContractDeployment = 'GnosisSafeProxy';
@@ -1426,6 +1431,7 @@ const createPrivateVault = async ({
   // Deploy Safe
   const safeASdk = await safeFactory.deploySafe({
     safeAccountConfig: safeAAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1436,6 +1442,7 @@ const createPrivateVault = async ({
 
   const safeBSdk = await safeFactory.deploySafe({
     safeAccountConfig: safeBAccountConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1478,6 +1485,7 @@ const createPrivateVault = async ({
   // After deploying the main safe...
   const safeSdk = await safeFactory.deploySafe({
     safeAccountConfig: safeAccountTemporaryConfig,
+    saltNonce: Date.now().toString(),
     options: {
       gasPrice,
       gasLimit,
@@ -1663,7 +1671,7 @@ const createPrivateVault = async ({
   body.contractVersion = safeVersion;
   body.proxyContractAddress = safeAddress;
   body.proxyContractVersion = safeVersion;
-  body.proxyContractSignerAddress = safeSdk.getAddress();
+  body.proxyContractSignerAddress = safeAddress;
   body.proxyContractName = 'GnosisSafeProxy';
   body.proxyContractStatus = 'deployed';
   body.proxyContractDeployment = 'GnosisSafeProxy';
