@@ -112,6 +112,7 @@ export const getSwapOptions = (networkName = UNISWAP_NETWORK_FOR_QUOTES) => ({
 export const quoteAmounts = {
   wbtc: 2,
   weth: 2,
+  pol: 2,
 };
 
 // Función para obtener las direcciones de los tokens de forma asíncrona

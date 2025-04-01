@@ -59,7 +59,7 @@ const {
   fetchItems,
   filterItems,
 } = require('../baseEndpoint');
-const { COINGECKO_URL, KRAKEN_URL } = require('../../config/appConfig');
+const { COINGECKO_URL, KRAKEN_URL, ENVIRONMENT } = require('../../config/appConfig');
 
 const getUniswapQuotes = async () => {
   const tokens = await getTokens();
@@ -335,11 +335,17 @@ const parseQuotations = (quotes) => {
 
 const getQuotations = async (quoteAmounts) => {
   // TODO: Refactor config file
-  const providers = [
-    { name: 'Uniswap', getQuotes: getUniswapQuotes },
+  const providers = [];
+
+  if (ENVIRONMENT !== 'sandbox') {
+    providers.push({ name: 'Uniswap', getQuotes: getUniswapQuotes });
+  }
+
+  providers.push(
     { name: 'Coingecko', getQuotes: getCoingeckoQuotes },
-    { name: 'Kraken', getQuotes: getKrakenQuotes },
-  ];
+    { name: 'Kraken', getQuotes: getKrakenQuotes }
+  );
+
   const quoters = providers.map((provider) => provider.getQuotes(quoteAmounts));
 
   console.log(`Ejecuto llamadas de cotización`);
@@ -355,6 +361,16 @@ const getQuotations = async (quoteAmounts) => {
 
   console.log('Cotizaciones solicitadas exitosamente');
   const rawQuotations = quotations.map((result) => result.value).filter((obj) => obj);
+
+  // Add RBTC with same value as WBTC for each provider
+  rawQuotations.forEach((quotation) => {
+    const wbtcValue = quotation.quotes.wbtc || quotation.quotes.WBTC;
+    if (wbtcValue) {
+      quotation.quotes.rbtc = wbtcValue;
+    }
+  });
+
+  console.log('rawQuotations ', rawQuotations);
 
   return parseQuotations(rawQuotations);
 };
@@ -452,6 +468,8 @@ const evaluateQuotations = async (quotations) => {
   const results = [
     ['wbtc', processQuotes('wbtc', quotations)],
     ['weth', processQuotes('weth', quotations)],
+    ['pol', processQuotes('pol', quotations)],
+    ['rbtc', processQuotes('rbtc', quotations)],
   ];
   console.log('evaluateQuotations - results');
   console.log(results);

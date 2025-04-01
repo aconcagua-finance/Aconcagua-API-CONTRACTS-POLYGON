@@ -230,7 +230,7 @@ exports.getArsStableValue = getArsStableValue;
 
 // Función para obtener la suma de ARS para los tokens volátiles: WBTC, WETH
 function getArsVolatileValue(balances) {
-  const volatileTokens = ['wbtc', 'weth'];
+  const volatileTokens = ['wbtc', 'weth', 'pol', 'rbtc'];
   let arsVolatileSum = 0;
 
   balances.forEach((item) => {
@@ -276,7 +276,7 @@ exports.getUsdStableValue = getUsdStableValue;
 
 // Función para obtener la suma de ARS para los tokens volátiles: WBTC, WETH
 function getUsdVolatileValue(balances) {
-  const volatileTokens = ['wbtc', 'weth'];
+  const volatileTokens = ['wbtc', 'weth', 'pol', 'rbtc'];
   let usdVolatileSum = 0;
 
   balances.forEach((item) => {

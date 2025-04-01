@@ -4,9 +4,9 @@
 
 // require('@uniswap/swap-router-contracts/artifacts/contracts/SwapRouter02.sol/SwapRouter02.json');
 // require('@uniswap/v3-periphery/artifacts/contracts/SwapRouter.sol/SwapRouter.json');
-import { Pool, FeeAmount } from '@uniswap/v3-sdk';
-import { move } from 'fs-extra';
-import { getEnvVariable } from '../../vs-core-firebase/helpers/envGetter';
+const { Pool, FeeAmount } = require('@uniswap/v3-sdk');
+const { move } = require('fs-extra');
+const { getEnvVariable } = require('../../vs-core-firebase/helpers/envGetter');
 
 const { Alchemy, Network, Wallet, Utils } = require('alchemy-sdk');
 const JSBI = require('jsbi');
@@ -14,12 +14,15 @@ const JSBI = require('jsbi');
 const admin = require('firebase-admin');
 const functions = require('firebase-functions');
 
-const { EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
+const { Safe, EthersAdapter, SafeFactory } = require('@safe-global/protocol-kit');
+const SafeSDKNoAPI = require('../../helpers/safe/SafeSDKNoAPIBackend').default;
+
+const { ethers } = require('ethers');
+const { getAdapter } = require('../../helpers/safe/EthersAdapter');
 
 const { creationStruct, updateStruct } = require('../../vs-core-firebase/audit');
 const { ErrorHelper } = require('../../vs-core-firebase');
 const { LoggerHelper } = require('../../vs-core-firebase');
-const { Types } = require('../../vs-core');
 const { EmailSender } = require('../../vs-core-firebase');
 const { Auth } = require('../../vs-core-firebase');
 const {
@@ -35,9 +38,11 @@ const {
 
 const { CustomError } = require('../../vs-core');
 
+const { Types } = require('../../vs-core');
 const { Collections } = require('../../types/collectionsTypes');
 const { ContractTypes } = require('../../types/contractTypes');
 const { TokenTypes, ActionTypes } = require('../../types/tokenTypes');
+const { NativeTokenTypes } = require('../../types/nativeTokenTypes');
 const { VaultTransactionTypes } = require('../../types/vaultTransactionTypes');
 const { RebasingTokens } = require('../../types/RebasingTokens');
 const { Valuation, Balance } = require('../../types/BalanceTypes');
@@ -102,6 +107,7 @@ const { TechnicalError } = require('../../vs-core/error');
 // require('hardhat-change-network');
 
 const COLLECTION_NAME = Collections.VAULTS;
+const COLLECTION_VAULTS_BALANCE_HISTORY = Collections.VAULTS_BALANCE_HISTORY;
 const COLLECTION_MARKET_CAP = Collections.MARKET_CAP;
 const COLLECTION_TOKEN_RATIOS = Collections.TOKEN_RATIOS;
 const COLLECTION_NAME_USERS = Collections.USERS;
@@ -504,15 +510,1199 @@ const getDeployedContract = async (vault) => {
   return blockchainContract;
 };
 
+const createCreditVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  vaultAdminAddress, // This is passed in from create()
+  auditUid,
+  body,
+}) => {
+  // Remove this section since vaultAdminAddress is now handled in create()
+  // if (networkName.toLowerCase() === 'polygon') {
+  //   vaultAdminAddress = lender.vaultAdminAddressPolygon;
+  // } else if (networkName.toLowerCase() === 'rootstock') {
+  //   vaultAdminAddress = lender.vaultAdminAddressRootstock;
+  // }
+  // if (!vaultAdminAddress && lender.vaultAdminAddress) {
+  //   vaultAdminAddress = lender.vaultAdminAddress;
+  // }
+
+  if (!vaultAdminAddress) {
+    throw new CustomError.TechnicalError(
+      'ERROR_VAULT_ADMIN_NOT_FOUND',
+      null,
+      `Vault Admin not found for network ${networkName}`,
+      null
+    );
+  }
+
+  // Extract existing credit vault creation logic
+  let safeA;
+  let safeB;
+
+  switch (networkName) {
+    case networkTypes.NETWORK_TYPE_POLYGON:
+      safeA = lender.safeLiq1.toLowerCase();
+      safeB = lender.safeLiq2.toLowerCase();
+      break;
+    case networkTypes.NETWORK_TYPE_ROOTSTOCK:
+      safeA = lender.safeLiq3.toLowerCase();
+      safeB = lender.safeLiq4.toLowerCase();
+      break;
+    default:
+      break;
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+  const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+  const colateralContractName = 'ColateralContract2';
+  const proxyContractName = 'ColateralProxy';
+
+  // Defino el gas
+  const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
+  console.log(
+    'Create - Listo getGasPriceAndLimit - networkConfig es ' +
+      JSON.stringify(networkConfig, null, 2)
+  );
+
+  let contractStatus;
+  let contractError = '';
+  let colateralContractAddress;
+  let colateralContractDeploy;
+
+  try {
+    // Deploy ColateralContract
+    colateralContractDeploy = await deployContract(
+      colateralContractName,
+      null,
+      networkName,
+      networkConfig
+    );
+
+    const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
+    const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
+
+    colateralContractAddress = colateralContractDeploy.contractDeployment.address;
+
+    if (!colateralContractAddress) {
+      throw new CustomError.TechnicalError(
+        ' ERROR_CREATE_COLATERAL_CONTRACT',
+        null,
+        'Empty Colateral contract address response',
+        null
+      );
+    }
+
+    console.log(
+      'Create - ColateralContract Deployment success. Transaction Hash:',
+      transactionHash
+    );
+    contractStatus = 'deployed';
+  } catch (err) {
+    contractStatus = 'error';
+    contractError = err.message ? err.message.substring(0, 2000) : '';
+    throw new CustomError.TechnicalError(
+      'ERROR_CREATE_COLATERAL_CONTRACT',
+      null,
+      contractError,
+      null
+    );
+  }
+
+  // Deploy ColateralProxy
+
+  const contractJson = require('../../../artifacts/contracts/' +
+    colateralContractName +
+    '.sol/' +
+    colateralContractName +
+    '.json');
+
+  const colateralAbi = contractJson.abi;
+
+  const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
+  const colateralBlockchainContract = new hre.ethers.Contract(
+    colateralContractAddress,
+    colateralAbi,
+    deployerWallet
+  );
+
+  let args;
+  let abiEncodedArgs;
+
+  const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
+  const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
+  const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
+
+  // Asignar las direcciones a la lista de operadores
+  const operators = [operator1Address, operator2Address, operator3Address];
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  if (colateralContractName === 'ColateralContract2') {
+    // Contrato version 2
+    console.log('Create - creando contrato version 2 ');
+
+    // Usar getEnvVariable para obtener las direcciones desde Firestore
+    const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
+
+    const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+    const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+    const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
+
+    const tokenAddresses = [
+      await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+    ];
+
+    const contractKeys = ['router', 'swapper'];
+    const contractAddresses = [swapRouterV3Address, swapperAddress];
+
+    // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
+    args = [
+      validatorAddress,
+      tokenNames,
+      tokenAddresses,
+      operators,
+      defaultRescueWalletAddress,
+      defaultWithdrawWalletAddress,
+      safeA,
+      safeB,
+      contractKeys,
+      contractAddresses,
+    ];
+
+    console.log('Create - args ' + JSON.stringify(args));
+  } else {
+    // Contrato version 1
+    console.log('Create - creando contrato version 1 ');
+
+    // Usar getEnvVariable para obtener las direcciones desde Firestore
+    const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
+    const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
+    const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
+    const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
+
+    const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
+    const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
+
+    // Crear los argumentos para el contrato
+    args = [
+      usdcTokenAddress,
+      usdtTokenAddress,
+      usdmTokenAddress,
+      wbtcTokenAddress,
+      operators, // Supongo que ya tienes esta variable en tu entorno
+      defaultRescueWalletAddress,
+      defaultWithdrawWalletAddress,
+      safeA, // lender.safeLiq1
+      safeB,
+      swapRouterV3Address,
+      swapperAddress,
+    ];
+
+    console.log('Create - args ' + JSON.stringify(args));
+  }
+
+  const initializeData = await colateralBlockchainContract.populateTransaction.initialize(...args);
+
+  console.log('Create - proxy args ');
+  console.log(args);
+
+  const proxyContractArgs = [
+    colateralContractAddress,
+    vaultAdminAddress,
+    initializeData.data || '0x',
+  ];
+
+  const proxyContractDeploy = await deployContract(
+    proxyContractName,
+    proxyContractArgs,
+    networkName,
+    networkConfig
+  );
+  const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
+
+  if (!proxyContractAddress) {
+    throw new CustomError.TechnicalError(
+      'ERROR_CREATE_PROXY_CONTRACT',
+      null,
+      'Empty Proxy contract address response',
+      null
+    );
+  }
+
+  // Add credit-specific fields
+  body.contractAddress = colateralContractAddress;
+  body.contractSignerAddress = safeA;
+  body.contractDeployment = colateralContractDeploy.contractDeployment;
+  body.abiencodedargs = abiEncodedArgs;
+  body.contractName = colateralContractName;
+  body.contractStatus = contractStatus;
+  body.contractVersion = '2.0.0';
+  body.contractError = contractError || null;
+  body.proxyContractAddress = proxyContractAddress;
+  body.proxyContractSignerAddress = safeA;
+  body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
+  body.proxyContractName = proxyContractName;
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractVersion = 'TransparentUpgradeable';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+  // Set default service level if not defined
+  if (!body.serviceLevel) {
+    body.serviceLevel = Types.serviceLevels.SERVICE_LEVEL_STANDARD;
+  }
+  console.log('Create Credit Vault - body ', JSON.stringify(body, null, 2));
+
+  // Store entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: proxyContractAddress,
+  });
+
+  return dbItemData;
+};
+
+// First rename createSavingsVault to createTrustVault
+const createTrustVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body,
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Trust vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider,
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAccountConfig = {
+    owners: [body.keyA, body.keyB],
+    threshold: 2,
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe with gas parameters
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+
+  const safeAddress = await safeSdk.getAddress();
+  const safeVersion = await safeSdk.getContractVersion();
+
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeOwners = safeAccountConfig.owners;
+  body.safeThreshold = safeAccountConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+
+  console.log('Create Trust Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+// Add new vault creation functions that are copies of createTrustVault
+const createStandardVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body,
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Standard vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider,
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAccountConfig = {
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe with gas parameters
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+
+  const safeAddress = await safeSdk.getAddress();
+  const safeVersion = await safeSdk.getContractVersion();
+
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeOwners = safeAccountConfig.owners;
+  body.safeThreshold = safeAccountConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+const createPremiumVaultwithAllowance = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body,
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC || !body.keyD || !body.keyE) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Premium vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+    body.keyD = hre.ethers.utils.getAddress(body.keyD);
+    body.keyE = hre.ethers.utils.getAddress(body.keyE);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider,
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAAccountConfig = {
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
+  };
+
+  const safeBAccountConfig = {
+    owners: [body.keyD, body.keyE],
+    threshold: 2,
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe
+  const safeASdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
+  const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
+
+  const safeBSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeBAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
+  const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
+
+  const deployerAddress = await signer.getAddress();
+
+  const safeAccountTemporaryConfig = {
+    owners: [safeAAddress, deployerAddress],
+    threshold: 1, // Only 1 signature from either safe is required for the Premium vault
+  };
+
+  // LET'S DANCE
+  const tokenAddresses = [
+    await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+  ];
+
+  const tokenApproveAbi = [
+    'function approve(address spender, uint256 value) public returns (bool)',
+  ];
+
+  // Create token contracts with signer for approvals
+  const tokenContracts = tokenAddresses.map((tokenAddress) => {
+    return new hre.ethers.Contract(
+      tokenAddress,
+      tokenApproveAbi,
+      signer // Use signer instead of provider to be able to send transactions
+    );
+  });
+
+  console.log('Premium vault - Token contracts ready:', tokenContracts.length);
+
+  // After deploying the main safe...
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAccountTemporaryConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  const safeAddress = await safeSdk.getAddress();
+  console.log('Premium vault - Main Safe created', safeAddress);
+
+  // Create batch of transactions for both Safe A and Safe B approvals
+  console.log('Premium vault - Creating batch approval transactions');
+  const multiSendTxs = [];
+
+  // Add approvals for Safe A
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeAAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  // Add approvals for Safe B
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeBAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  console.log('Premium vault - Approval ready to be executed');
+
+  // Create and execute the batch transaction
+  try {
+    const multiSendTx = await safeSdk.createTransaction({
+      safeTransactionData: multiSendTxs,
+    });
+
+    const signedTx = await safeSdk.signTransaction(multiSendTx);
+
+    // Get gas price and limit for this transaction
+    const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'TRANSFER');
+
+    // Execute transaction with gas settings
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - All token approvals confirmed in single transaction');
+  } catch (error) {
+    console.error('Premium vault - Error executing batch token approvals:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_TOKEN_APPROVALS',
+      error,
+      'Error executing batch token approvals',
+      null
+    );
+  }
+
+  // Continue with adding Safe B as owner and removing deployer...
+
+  // Create transaction to add safeBAddress as owner
+  console.log('Premium vault - Adding Safe B as owner');
+  const safeInterface = new hre.ethers.utils.Interface([
+    'function addOwnerWithThreshold(address owner, uint256 _threshold) public',
+    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public',
+  ]);
+
+  const addOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('addOwnerWithThreshold', [
+        safeBAddress,
+        1, // threshold
+      ]),
+    },
+  });
+
+  // Execute transaction
+  try {
+    const signedTx = await safeSdk.signTransaction(addOwnerTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Safe B added as owner');
+  } catch (error) {
+    console.error('Premium vault - Error adding Safe B as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_ADDING_OWNER',
+      error,
+      'Error adding Safe B as owner to main safe',
+      null
+    );
+  }
+
+  // Remove deployer as owner
+  console.log('Premium vault - Removing deployer as owner');
+  const removeOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('removeOwner', [
+        safeAAddress, // prevOwner - the owner that comes before the one we want to remove
+        deployerAddress, // owner to remove
+        1, // keep threshold at 2
+      ]),
+    },
+  });
+
+  let safeOwners; // Declare safeOwners here so it's available in the wider scope
+
+  try {
+    const signedRemoveTx = await safeSdk.signTransaction(removeOwnerTx);
+    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx, {
+      gasPrice,
+      gasLimit,
+    });
+    await executeRemoveTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Deployer removed as owner');
+
+    // Verify final owners
+    safeOwners = await safeSdk.getOwners(); // Assign to the outer scope variable
+    console.log('Premium vault - Final safe owners:', {
+      owners: safeOwners,
+      expectedOwners: [safeAAddress, safeBAddress],
+      match:
+        safeOwners.length === 2 &&
+        safeOwners.includes(safeAAddress) &&
+        safeOwners.includes(safeBAddress),
+    });
+
+    // Optional: throw error if owners don't match expected
+    if (
+      !safeOwners.includes(safeAAddress) ||
+      !safeOwners.includes(safeBAddress) ||
+      safeOwners.length !== 2
+    ) {
+      throw new CustomError.TechnicalError(
+        'ERROR_OWNER_VERIFICATION',
+        null,
+        'Final safe owners do not match expected configuration',
+        null
+      );
+    }
+  } catch (error) {
+    console.error('Premium vault - Error removing deployer as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_REMOVING_OWNER',
+      error,
+      'Error removing deployer as owner from main safe',
+      null
+    );
+  }
+
+  const safeVersion = await safeSdk.getContractVersion();
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeAAddress = safeAAddress;
+  body.safeBAddress = safeBAddress;
+  body.safeOwners = safeOwners; // Now safeOwners is defined
+  body.safeThreshold = safeAccountTemporaryConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+const createPrivateVault = async ({
+  networkName,
+  targetUserId,
+  companyId,
+  lender,
+  auditUid,
+  body,
+}) => {
+  // Validate required keys
+  if (!body.keyA || !body.keyB || !body.keyC || !body.keyD || !body.keyE || !body.keyF) {
+    throw new CustomError.TechnicalError(
+      'ERROR_MISSING_KEYS',
+      null,
+      'Required keys not provided for Premium vault',
+      null
+    );
+  }
+
+  // Validate addresses
+  try {
+    body.keyA = hre.ethers.utils.getAddress(body.keyA);
+    body.keyB = hre.ethers.utils.getAddress(body.keyB);
+    body.keyC = hre.ethers.utils.getAddress(body.keyC);
+    body.keyD = hre.ethers.utils.getAddress(body.keyD);
+    body.keyE = hre.ethers.utils.getAddress(body.keyE);
+    body.keyF = hre.ethers.utils.getAddress(body.keyF);
+  } catch (error) {
+    throw new CustomError.TechnicalError(
+      'ERROR_INVALID_ADDRESS',
+      null,
+      'Invalid ethereum address provided for keys',
+      null
+    );
+  }
+
+  const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+  const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+
+  // Create provider and signer
+  const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+  const signer = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+
+  // Create ethAdapter with both signer and provider
+  const ethAdapter = new EthersAdapter({
+    ethers: hre.ethers,
+    signerOrProvider: signer,
+    provider,
+  });
+
+  // Configure Safe Account with provided keys
+  const safeAAccountConfig = {
+    owners: [body.keyA, body.keyB, body.keyC],
+    threshold: 2, // Still require 2 signatures even with 3 owners
+  };
+
+  const safeBAccountConfig = {
+    owners: [body.keyD, body.keyE, body.keyF],
+    threshold: 2,
+  };
+
+  const defaultRescueWalletAddress = await getEnvVariable(
+    'DEFAULT_RESCUE_WALLET_ADDRESS',
+    networkName
+  );
+  const defaultWithdrawWalletAddress = await getEnvVariable(
+    'DEFAULT_WITHDRAW_WALLET_ADDRESS',
+    networkName
+  );
+
+  // Initialize Safe Factory
+  const safeFactory = await SafeFactory.create({ ethAdapter });
+
+  // Get appropriate gas price and limit for Safe deployment
+  const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'CREATE');
+
+  // Deploy Safe
+  const safeASdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe A created', safeASdk.getAddress()); // Fix: getAddress is a function
+  const safeAAddress = await safeASdk.getAddress(); // Fix: await the promise
+
+  const safeBSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeBAccountConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  console.log('Premium vault - safe B created', safeBSdk.getAddress()); // Fix: getAddress is a function
+  const safeBAddress = await safeBSdk.getAddress(); // Fix: await the promise
+
+  const deployerAddress = await signer.getAddress();
+
+  const safeAccountTemporaryConfig = {
+    owners: [safeAAddress, deployerAddress],
+    threshold: 1, // Only 1 signature from either safe is required for the Premium vault
+  };
+
+  // LET'S DANCE
+  const tokenAddresses = [
+    await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+    await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+  ];
+
+  const tokenApproveAbi = [
+    'function approve(address spender, uint256 value) public returns (bool)',
+  ];
+
+  // Create token contracts with signer for approvals
+  const tokenContracts = tokenAddresses.map((tokenAddress) => {
+    return new hre.ethers.Contract(
+      tokenAddress,
+      tokenApproveAbi,
+      signer // Use signer instead of provider to be able to send transactions
+    );
+  });
+
+  console.log('Premium vault - Token contracts ready:', tokenContracts.length);
+
+  // After deploying the main safe...
+  const safeSdk = await safeFactory.deploySafe({
+    safeAccountConfig: safeAccountTemporaryConfig,
+    saltNonce: Date.now().toString(),
+    options: {
+      gasPrice,
+      gasLimit,
+    },
+  });
+  const safeAddress = await safeSdk.getAddress();
+  console.log('Premium vault - Main Safe created', safeAddress);
+
+  // Create batch of transactions for both Safe A and Safe B approvals
+  console.log('Premium vault - Creating batch approval transactions');
+  const multiSendTxs = [];
+
+  // Add approvals for Safe A
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeAAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  // Add approvals for Safe B
+  for (const tokenContract of tokenContracts) {
+    multiSendTxs.push({
+      to: tokenContract.address,
+      value: '0',
+      data: tokenContract.interface.encodeFunctionData('approve', [
+        safeBAddress,
+        hre.ethers.constants.MaxUint256,
+      ]),
+    });
+  }
+
+  console.log('Premium vault - Approval ready to be executed');
+
+  // Create and execute the batch transaction
+  try {
+    const multiSendTx = await safeSdk.createTransaction({
+      safeTransactionData: multiSendTxs,
+    });
+
+    const signedTx = await safeSdk.signTransaction(multiSendTx);
+
+    // Get gas price and limit for this transaction
+    const { gasPrice, gasLimit } = await getGasPriceAndLimit(networkName, 'TRANSFER');
+
+    // Execute transaction with gas settings
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - All token approvals confirmed in single transaction');
+  } catch (error) {
+    console.error('Premium vault - Error executing batch token approvals:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_TOKEN_APPROVALS',
+      error,
+      'Error executing batch token approvals',
+      null
+    );
+  }
+
+  // Continue with adding Safe B as owner and removing deployer...
+
+  // Create transaction to add safeBAddress as owner
+  console.log('Premium vault - Adding Safe B as owner');
+  const safeInterface = new hre.ethers.utils.Interface([
+    'function addOwnerWithThreshold(address owner, uint256 _threshold) public',
+    'function removeOwner(address prevOwner, address owner, uint256 _threshold) public',
+  ]);
+
+  const addOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('addOwnerWithThreshold', [
+        safeBAddress,
+        1, // threshold
+      ]),
+    },
+  });
+
+  // Execute transaction
+  try {
+    const signedTx = await safeSdk.signTransaction(addOwnerTx);
+    const executeTxResponse = await safeSdk.executeTransaction(signedTx, {
+      gasPrice,
+      gasLimit,
+    });
+    await executeTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Safe B added as owner');
+  } catch (error) {
+    console.error('Premium vault - Error adding Safe B as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_ADDING_OWNER',
+      error,
+      'Error adding Safe B as owner to main safe',
+      null
+    );
+  }
+
+  // Remove deployer as owner
+  console.log('Premium vault - Removing deployer as owner');
+  const removeOwnerTx = await safeSdk.createTransaction({
+    safeTransactionData: {
+      to: await safeSdk.getAddress(),
+      value: '0',
+      data: safeInterface.encodeFunctionData('removeOwner', [
+        safeAAddress, // prevOwner - the owner that comes before the one we want to remove
+        deployerAddress, // owner to remove
+        1, // keep threshold at 2
+      ]),
+    },
+  });
+
+  let safeOwners; // Declare safeOwners here so it's available in the wider scope
+
+  try {
+    const signedRemoveTx = await safeSdk.signTransaction(removeOwnerTx);
+    const executeRemoveTxResponse = await safeSdk.executeTransaction(signedRemoveTx, {
+      gasPrice,
+      gasLimit,
+    });
+    await executeRemoveTxResponse.transactionResponse?.wait();
+
+    console.log('Premium vault - Deployer removed as owner');
+
+    // Verify final owners
+    safeOwners = await safeSdk.getOwners(); // Assign to the outer scope variable
+    console.log('Premium vault - Final safe owners:', {
+      owners: safeOwners,
+      expectedOwners: [safeAAddress, safeBAddress],
+      match:
+        safeOwners.length === 2 &&
+        safeOwners.includes(safeAAddress) &&
+        safeOwners.includes(safeBAddress),
+    });
+
+    // Optional: throw error if owners don't match expected
+    if (
+      !safeOwners.includes(safeAAddress) ||
+      !safeOwners.includes(safeBAddress) ||
+      safeOwners.length !== 2
+    ) {
+      throw new CustomError.TechnicalError(
+        'ERROR_OWNER_VERIFICATION',
+        null,
+        'Final safe owners do not match expected configuration',
+        null
+      );
+    }
+  } catch (error) {
+    console.error('Premium vault - Error removing deployer as owner:', error);
+    throw new CustomError.TechnicalError(
+      'ERROR_REMOVING_OWNER',
+      error,
+      'Error removing deployer as owner from main safe',
+      null
+    );
+  }
+
+  const safeVersion = await safeSdk.getContractVersion();
+  // Add required fields for schema validation
+  body.safeAddress = safeAddress;
+  body.safeAAddress = safeAAddress;
+  body.safeBAddress = safeBAddress;
+  body.safeOwners = safeOwners; // Now safeOwners is defined
+  body.safeThreshold = safeAccountTemporaryConfig.threshold;
+  body.contractStatus = 'deployed';
+
+  // Add contract-related fields required by schema
+  body.contractAddress = safeAddress;
+  body.contractSignerAddress = safeAddress;
+  body.contractDeployment = 'GnosisSafe';
+  body.contractName = 'GnosisSafe';
+  body.contractVersion = safeVersion;
+  body.proxyContractAddress = safeAddress;
+  body.proxyContractVersion = safeVersion;
+  body.proxyContractSignerAddress = safeAddress;
+  body.proxyContractName = 'GnosisSafeProxy';
+  body.proxyContractStatus = 'deployed';
+  body.proxyContractDeployment = 'GnosisSafeProxy';
+  body.rescueWalletAccount = defaultRescueWalletAddress;
+  body.withdrawWalletAccount = defaultWithdrawWalletAddress;
+  console.log('Create Standard Vault - body ', JSON.stringify(body, null, 2));
+
+  // Sanitize entity
+  const itemData = await sanitizeData({ data: body, validationSchema: schemas.create });
+
+  const dbItemData = await createFirestoreDocument({
+    collectionName: COLLECTION_NAME,
+    itemData,
+    auditUid,
+    documentId: safeAddress,
+  });
+
+  return dbItemData;
+};
+
+// Update the create function with new logic
 exports.create = async function (req, res) {
   try {
     const { userId } = res.locals;
     const auditUid = userId;
     const { userId: targetUserId, companyId } = req.params;
-    console.log('Req.body es ' + JSON.stringify(req.body));
     const networkName = (req.body.networkTypes || req.body.networkName || 'POLYGON').toUpperCase();
-    console.log('create - networkName = ' + networkName);
+    const vaultType = req.body.vaultType || 'credit'; // Default to credit for backward compatibility
+    const serviceLevel = req.body.serviceLevel || Types.serviceLevels.SERVICE_LEVEL_STANDARD;
 
+    // Validate required params
     if (!targetUserId || !companyId) {
       throw new CustomError.TechnicalError(
         'ERROR_INVALID_ARGS',
@@ -522,9 +1712,8 @@ exports.create = async function (req, res) {
       );
     }
 
-    // Asumiendo que tienes una variable `networkName` que especifica la red (Polygon o Rootstock)
+    // Get and validate lender
     const lender = await fetchSingleItem({ collectionName: Collections.COMPANIES, id: companyId });
-
     if (!lender) {
       throw new CustomError.TechnicalError(
         'ERROR_COMPANY_NOT_FOUND',
@@ -534,330 +1723,103 @@ exports.create = async function (req, res) {
       );
     }
 
-    // Inicializamos una variable para almacenar el vaultAdminAddress
+    // Get vaultAdminAddress based on network
     let vaultAdminAddress;
-
-    // Verificar si hay un vaultAdmin específico para la red
     if (networkName.toLowerCase() === 'polygon') {
-      vaultAdminAddress = lender.vaultAdminAddressPolygon; // Dirección de Vault Admin para Polygon
+      vaultAdminAddress = lender.vaultAdminAddressPolygon;
     } else if (networkName.toLowerCase() === 'rootstock') {
-      vaultAdminAddress = lender.vaultAdminAddressRootstock; // Dirección de Vault Admin para Rootstock
+      vaultAdminAddress = lender.vaultAdminAddressRootstock;
     }
-
-    // Si no se encuentra un vaultAdmin específico para la red, usamos el campo genérico anterior (versión anterior)
     if (!vaultAdminAddress && lender.vaultAdminAddress) {
-      vaultAdminAddress = lender.vaultAdminAddress; // Compatibilidad con la versión anterior
+      vaultAdminAddress = lender.vaultAdminAddress;
     }
 
-    console.log('vaultAdminAddress para la bóveda es ' + vaultAdminAddress);
+    // Prepare common entity fields
+    const body = {
+      ...req.body,
+      userId: targetUserId,
+      companyId,
+      contractNetwork: networkName,
+      vaultType,
+      balances: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      state: Types.StateTypes.STATE_ACTIVE,
+    };
 
-    // Si todavía no se encuentra un vaultAdminAddress, lanzamos un error
-    if (!vaultAdminAddress) {
-      throw new CustomError.TechnicalError(
-        'ERROR_VAULT_ADMIN_NOT_FOUND',
-        null,
-        `Vault Admin not found for network ${networkName} or in the previous version`,
-        null
-      );
-    }
+    // Create vault based on type and service level
+    let dbItemData;
 
-    // Defino variables según la red
-    let safeA;
-    let safeB;
-
-    switch (networkName) {
-      case networkTypes.NETWORK_TYPE_POLYGON:
-        console.log('Create - Defino las variables de polygon network');
-        safeA = lender.safeLiq1.toLowerCase();
-        safeB = lender.safeLiq2.toLowerCase();
-        break;
-
-      case networkTypes.NETWORK_TYPE_ROOTSTOCK:
-        console.log('Create - Defino las variables de rootstock network');
-        safeA = lender.safeLiq3.toLowerCase();
-        safeB = lender.safeLiq4.toLowerCase();
-        break;
-
-      default:
-        // Default to Polygon if network name is not provided
-        console.log('Create - No Defino las variables no identifiqué red');
-        break;
-    }
-
-    // Abro wallet
-
-    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
-    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
-    const alchemy = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
-
-    const colateralContractName = 'ColateralContract2';
-    const proxyContractName = 'ColateralProxy';
-
-    // Defino el gas
-    const networkConfig = await getGasPriceAndLimit(networkName, 'CREATE');
-    console.log(
-      'Create - Listo getGasPriceAndLimit - networkConfig es ' +
-        JSON.stringify(networkConfig, null, 2)
-    );
-
-    let contractStatus;
-    let contractError = '';
-    let colateralContractAddress;
-    let colateralContractDeploy;
-
-    try {
-      // Deploy ColateralContract
-      colateralContractDeploy = await deployContract(
-        colateralContractName,
-        null,
+    if (vaultType === Types.VaultTypes.VAULT_TYPE_CREDIT) {
+      dbItemData = await createCreditVault({
         networkName,
-        networkConfig
-      );
-
-      const deploymentResponse = await colateralContractDeploy.deploymentResponse.deployed();
-      const transactionHash = colateralContractDeploy.deploymentResponse.deployTransaction.hash;
-
-      colateralContractAddress = colateralContractDeploy.contractDeployment.address;
-
-      if (!colateralContractAddress) {
-        throw new CustomError.TechnicalError(
-          ' ERROR_CREATE_COLATERAL_CONTRACT',
-          null,
-          'Empty Colateral contract address response',
-          null
-        );
+        targetUserId,
+        companyId,
+        lender,
+        vaultAdminAddress,
+        auditUid,
+        body,
+      });
+    } else if (vaultType === Types.VaultTypes.VAULT_TYPE_SAVINGS) {
+      switch (serviceLevel) {
+        case Types.serviceLevels.SERVICE_LEVEL_STANDARD:
+          dbItemData = await createStandardVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body,
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_PREMIUM:
+          dbItemData = await createPremiumVaultwithAllowance({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body,
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_PRIVATE:
+          dbItemData = await createPrivateVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body,
+          });
+          break;
+        case Types.serviceLevels.SERVICE_LEVEL_TRUST:
+          dbItemData = await createTrustVault({
+            networkName,
+            targetUserId,
+            companyId,
+            lender,
+            auditUid,
+            body,
+          });
+          break;
+        default:
+          throw new CustomError.TechnicalError(
+            'ERROR_INVALID_SERVICE_LEVEL',
+            null,
+            'Invalid service level for savings vault',
+            null
+          );
       }
-
-      console.log(
-        'Create - ColateralContract Deployment success. Transaction Hash:',
-        transactionHash
-      );
-      contractStatus = 'deployed';
-    } catch (err) {
-      contractStatus = 'error';
-      contractError = err.message ? err.message.substring(0, 2000) : '';
-      throw new CustomError.TechnicalError(
-        'ERROR_CREATE_COLATERAL_CONTRACT',
-        null,
-        contractError,
-        null
-      );
-    }
-
-    // Deploy ColateralProxy
-
-    const contractJson = require('../../../artifacts/contracts/' +
-      colateralContractName +
-      '.sol/' +
-      colateralContractName +
-      '.json');
-
-    const colateralAbi = contractJson.abi;
-
-    const deployerWallet = new hre.ethers.Wallet(DEPLOYER_PRIVATE_KEY, alchemy);
-    const colateralBlockchainContract = new hre.ethers.Contract(
-      colateralContractAddress,
-      colateralAbi,
-      deployerWallet
-    );
-
-    let args;
-    let abiEncodedArgs;
-
-    const operator1Address = await getEnvVariable('OPERATOR1_ADDRESS', networkName);
-    const operator2Address = await getEnvVariable('OPERATOR2_ADDRESS', networkName);
-    const operator3Address = await getEnvVariable('OPERATOR3_ADDRESS', networkName);
-
-    // Asignar las direcciones a la lista de operadores
-    const operators = [operator1Address, operator2Address, operator3Address];
-
-    const defaultRescueWalletAddress = await getEnvVariable(
-      'DEFAULT_RESCUE_WALLET_ADDRESS',
-      networkName
-    );
-    const defaultWithdrawWalletAddress = await getEnvVariable(
-      'DEFAULT_WITHDRAW_WALLET_ADDRESS',
-      networkName
-    );
-
-    if (colateralContractName === 'ColateralContract2') {
-      // Contrato version 2
-      console.log('Create - creando contrato version 2 ');
-
-      // Usar getEnvVariable para obtener las direcciones desde Firestore
-      const validatorAddress = await getEnvVariable('VALIDATOR_CONTRACT_ADDRESS', networkName);
-
-      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
-      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
-
-      const tokenNames = ['USDC', 'USDT', 'USDM', 'WBTC', 'WETH'];
-
-      const tokenAddresses = [
-        await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
-        await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
-      ];
-
-      const contractKeys = ['router', 'swapper'];
-      const contractAddresses = [swapRouterV3Address, swapperAddress];
-
-      // We use .toLowerCase() because RSK has a different address checksum (capitalization of letters) that Ethereum
-      args = [
-        validatorAddress,
-        tokenNames,
-        tokenAddresses,
-        operators,
-        defaultRescueWalletAddress,
-        defaultWithdrawWalletAddress,
-        safeA,
-        safeB,
-        contractKeys,
-        contractAddresses,
-      ];
-
-      console.log('Create - args ' + JSON.stringify(args));
     } else {
-      // Contrato version 1
-      console.log('Create - creando contrato version 1 ');
-
-      // Usar getEnvVariable para obtener las direcciones desde Firestore
-      const usdcTokenAddress = await getEnvVariable('USDC_TOKEN_ADDRESS', networkName);
-      const usdtTokenAddress = await getEnvVariable('USDT_TOKEN_ADDRESS', networkName);
-      const usdmTokenAddress = await getEnvVariable('USDM_TOKEN_ADDRESS', networkName);
-      const wbtcTokenAddress = await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName);
-
-      const swapRouterV3Address = await getEnvVariable('SWAP_ROUTER_V3_ADDRESS', networkName);
-      const swapperAddress = await getEnvVariable('SWAPPER_ADDRESS', networkName);
-
-      // Crear los argumentos para el contrato
-      args = [
-        usdcTokenAddress,
-        usdtTokenAddress,
-        usdmTokenAddress,
-        wbtcTokenAddress,
-        operators, // Supongo que ya tienes esta variable en tu entorno
-        defaultRescueWalletAddress,
-        defaultWithdrawWalletAddress,
-        safeA, // lender.safeLiq1
-        safeB,
-        swapRouterV3Address,
-        swapperAddress,
-      ];
-
-      console.log('Create - args ' + JSON.stringify(args));
-    }
-
-    const initializeData = await colateralBlockchainContract.populateTransaction.initialize(
-      ...args
-    );
-
-    console.log('Create - proxy args ');
-    console.log(args);
-
-    const proxyContractArgs = [
-      colateralContractAddress,
-      vaultAdminAddress,
-      initializeData.data || '0x',
-    ];
-
-    const proxyContractDeploy = await deployContract(
-      proxyContractName,
-      proxyContractArgs,
-      networkName,
-      networkConfig
-    );
-    const proxyContractAddress = proxyContractDeploy.contractDeployment.address;
-    const proxyContractSignerAddress = colateralContractDeploy.contractDeployment.signerAddress;
-
-    if (!proxyContractAddress) {
       throw new CustomError.TechnicalError(
-        'ERROR_CREATE_PROXY_CONTRACT',
+        'ERROR_INVALID_VAULT_TYPE',
         null,
-        'Empty Proxy contract address response',
+        'Invalid vault type',
         null
       );
     }
 
-    // Build entity
-    const collectionName = COLLECTION_NAME;
-    const validationSchema = schemas.create;
-
-    const body = req.body;
-    body.userId = targetUserId;
-    body.companyId = companyId;
-    body.rescueWalletAccount = defaultRescueWalletAddress;
-    body.withdrawWalletAccount = defaultWithdrawWalletAddress;
-    body.balances = [];
-
-    body.contractAddress = colateralContractAddress;
-    body.contractSignerAddress = lender.safeLiq1.toLowerCase();
-    body.contractDeployment = colateralContractDeploy.contractDeployment;
-    body.abiencodedargs = abiEncodedArgs;
-    body.contractName = colateralContractName;
-    body.contractStatus = contractStatus;
-    body.contractNetwork = networkName;
-    body.contractVersion = '';
-    contractError ? (body.contractError = contractError) : null;
-
-    body.proxyContractAddress = proxyContractAddress;
-    body.proxyContractSignerAddress = proxyContractSignerAddress;
-    body.proxyContractDeployment = proxyContractDeploy.contractDeployment;
-    body.proxyContractName = proxyContractName;
-    body.proxyContractStatus = 'pending-deployment-verification';
-    body.proxyContractVersion = 'TransparentUpgradeable';
-
-    // Store entity and response
-    const itemData = await sanitizeData({ data: body, validationSchema });
-    const dbItemData = await createFirestoreDocument({
-      collectionName,
-      itemData,
-      auditUid,
-      documentId: proxyContractAddress,
-    });
-
-    res.status(201).send(dbItemData);
-
-    // Check Proxy deployment and update status & contract version
-    try {
-      await proxyContractDeploy.deploymentResponse.deployed();
-      console.log('ProxyContract Deployment success');
-
-      const blockchainContract = new hre.ethers.Contract(
-        proxyContractAddress,
-        colateralAbi,
-        deployerWallet
-      );
-
-      const contractVersion = await blockchainContract.version();
-
-      await updateSingleItem({
-        collectionName,
-        data: { proxyContractStatus: 'deployed', contractVersion },
-        auditUid,
-        id: proxyContractAddress,
-      });
-
-      console.log('Updated deployment status of ProxyContract for Vault' + proxyContractAddress);
-    } catch (e) {
-      console.log(
-        'Deployment error while waiting for Proxy contract deploy confirmation for Vault ' +
-          proxyContractAddress,
-        JSON.stringify(e)
-      );
-
-      await updateSingleItem({
-        collectionName,
-        data: { proxyContractError: e.message },
-        auditUid,
-        id: proxyContractAddress,
-      });
-
-      console.log(
-        'Updated deployment status error of ProxyContract for Vault ' + proxyContractAddress
-      );
-    }
+    return res.status(201).send(dbItemData);
   } catch (err) {
     return ErrorHelper.handleError(req, res, err);
   }
@@ -866,16 +1828,16 @@ exports.create = async function (req, res) {
 const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
   console.log(' getGasPriceAndLimit - networkName - ', networkName, ' actionName - ', actionName);
   const functionName = 'getGasPriceAndLimit'; // Nombre de la función para los mensajes de error
-  const gasPriceFallback = 50000000000; // Fallback gas price (en wei)
+  const gasPriceFallback = 500000; // Fallback gas price (en wei)
 
   // Lista fija de acciones permitidas
   const allowedActions = ['CREATE', 'TRANSFER', 'SWAP'];
 
   // Definición de gasLimit por acción (valores por defecto)
   const gasLimitActionFallback = {
-    CREATE: 5000000, // 5,000,000 para CREATE
+    CREATE: 500000, // 500,000 para CREATE
     TRANSFER: 500000, // 500,000 para TRANSFER
-    SWAP: 1000000, // 1,000,000 para SWAP
+    SWAP: 500000, // 500,000 para SWAP
   };
 
   // Convertir el enum en una lista de valores válidos
@@ -945,12 +1907,15 @@ const getGasPriceAndLimit = async (networkName = 'POLYGON', actionName) => {
         // Obtener fee data para Polygon
         const feeData = await provider.getFeeData();
         // Pruebo usar fees
-        const gasPrice = feeData.gasPrice ? feeData.gasPrice.toString() : null;
+        const gasPrice = feeData.gasPrice ? feeData.gasPrice : null;
+        // Convert to a number by multiplying by 110% and then converting to string and parsing
+        const adjustedGasPrice = gasPrice
+          ? parseInt(gasPrice.mul(110).div(100).toString())
+          : gasPriceFallback;
 
-        // Intentar obtener el valor de gas limit desde las variables de entorno, si existe, sobreescribir el fallback
-        // MRM maxPriorityFee is hardcoded in Polygon
+        // Use the correct property name (gasPrice instead of fastGasPrice)
         networkConfig = {
-          gasPrice,
+          gasPrice: adjustedGasPrice,
           gasLimit, // Usar el gasLimit específico para la acción, ya sea dinámico o fallback
         };
       }
@@ -986,9 +1951,224 @@ const setSmartContractRescueAcount = async function ({ vault, rescueWalletAccoun
   console.log('after: ' + (await blockchainContract.rescueWalletAddress()));
 };
 
-const fetchVaultBalances = async (vault) => {
-  console.log('fetchVaultBalances- Dentro de fetchVaultBalances ' + vault.id);
-  console.log('fetchVaultBalances- Vault version vale ' + vault.contractVersion);
+const fetchSavingsVaultBalances = async (vault) => {
+  const networkName = vault.contractNetwork.toLowerCase();
+  const safeAddress = vault.id;
+
+  // Get decimals map for this network
+  const decimalsMap = getCurrencyDecimalsMap(networkName);
+
+  // Determine API URL based on network
+  const apiBaseUrl = await getEnvVariable('SAFE_BASE_URL', networkName);
+
+  let safeBalances;
+  try {
+    // Try Safe API first
+    const response = await axios.get(`${apiBaseUrl}/api/v1/safes/${safeAddress}/balances`);
+    const rawBalances = response.data;
+
+    // Find the native token entry (where tokenAddress is null)
+    const nativeTokenEntry = rawBalances.find((balance) => balance.tokenAddress === null);
+    const otherTokens = rawBalances.filter((balance) => balance.tokenAddress !== null);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
+        decimals: 18,
+      },
+      balance: nativeTokenEntry?.balance || '0',
+    };
+    console.log(
+      'nativeTokenFormatted for vault ' + vault.id + ': ' + JSON.stringify(nativeTokenFormatted)
+    );
+    // Combine native token with other tokens
+    safeBalances = [nativeTokenFormatted, ...otherTokens];
+  } catch (error) {
+    console.log('Safe API failed, falling back to direct contract calls:', error.message);
+
+    // Get provider for the network
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const provider = new hre.ethers.providers.JsonRpcProvider(NETWORK_URL);
+
+    // Get native token balance
+    const nativeBalance = await provider.getBalance(safeAddress);
+
+    // Format native token based on network
+    const nativeTokenFormatted = {
+      tokenAddress: null,
+      token: {
+        symbol: networkName.toUpperCase() === networkTypes.NETWORK_TYPE_POLYGON ? 'pol' : 'rbtc',
+        decimals: 18,
+      },
+      balance: nativeBalance.toString(),
+    };
+
+    // Get token addresses for this network
+    const tokenAddresses = [
+      await getEnvVariable('USDC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDT_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('USDM_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName),
+      await getEnvVariable('WETH_TOKEN_ADDRESS', networkName),
+    ];
+
+    // Create ERC20 interface
+    const erc20Interface = new hre.ethers.utils.Interface([
+      'function balanceOf(address) view returns (uint256)',
+      'function decimals() view returns (uint8)',
+      'function symbol() view returns (string)',
+    ]);
+
+    // Fetch balances directly from contracts
+    const tokenBalances = await Promise.all(
+      tokenAddresses.map(async (tokenAddress) => {
+        const contract = new hre.ethers.Contract(tokenAddress, erc20Interface, provider);
+        const balance = await contract.balanceOf(safeAddress);
+        const decimals = await contract.decimals();
+        const symbol = await contract.symbol();
+
+        return {
+          tokenAddress,
+          token: {
+            symbol,
+            decimals,
+          },
+          balance: balance.toString(),
+        };
+      })
+    );
+
+    // Add native token balance to the array
+    safeBalances = [
+      nativeTokenFormatted,
+      ...tokenBalances.filter((balance) => !balance.balance.startsWith('0')),
+    ];
+  }
+
+  console.log('safeBalances for vault ' + vault.id + ': ' + JSON.stringify(safeBalances));
+
+  // Initialize arrays for our formatted balances
+  const formattedBalances = [];
+  let totalUsdValue = 0;
+  let totalArsValue = 0;
+
+  // Get valuations for conversion rates
+  const valuations = await getCurrenciesValuations();
+  const usdToArsValuation = valuations.find(
+    (valuation) =>
+      valuation.currency === Types.CurrencyTypes.ARS &&
+      valuation.targetCurrency === Types.CurrencyTypes.USD
+  );
+
+  // Process each token balance
+  for (const tokenBalance of safeBalances) {
+    const token = tokenBalance.token;
+    const tokenAddress = tokenBalance.tokenAddress;
+
+    let normalizedSymbol;
+    if (!tokenAddress) {
+      // This is a native token
+      normalizedSymbol = vault.contractNetwork.toUpperCase() === 'POLYGON' ? 'pol' : 'rbtc';
+    } else {
+      // Build map of token addresses to their normalized symbols
+      const networkName = vault.contractNetwork.toUpperCase();
+      const tokenAddressMap = new Map([
+        [
+          (await getEnvVariable('USDC_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDC,
+        ],
+        [
+          (await getEnvVariable('USDT_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDT,
+        ],
+        [
+          (await getEnvVariable('USDM_TOKEN_ADDRESS', networkName)).toLowerCase(),
+          Types.CurrencyTypes.USDM,
+        ],
+        [(await getEnvVariable('WBTC_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WBTC],
+        [(await getEnvVariable('WETH_TOKEN_ADDRESS', networkName)).toLowerCase(), TokenTypes.WETH],
+      ]);
+
+      normalizedSymbol = tokenAddressMap.get(tokenAddress.toLowerCase());
+    }
+
+    // Use decimals from token response, fallback to decimalsMap if needed
+    const decimals = token?.decimals ?? decimalsMap.get(normalizedSymbol);
+    if (decimals === undefined) {
+      console.warn(`No decimals found for token: ${tokenAddress}`);
+      continue; // Skip tokens without decimals information
+    }
+
+    // Convert balance to number based on decimals
+    const balance = parseFloat(hre.ethers.utils.formatUnits(tokenBalance.balance, decimals));
+    console.log(
+      'getting token valuation vault ' +
+        vault.id +
+        ' - normalizedSymbol: ' +
+        normalizedSymbol +
+        ' valuation ' +
+        JSON.stringify(valuations) +
+        'Types.CurrencyTypes.USD: ' +
+        Types.CurrencyTypes.USD +
+        'Types.CurrencyTypes.ARS: ' +
+        Types.CurrencyTypes.ARS
+    );
+    // Find token valuation using normalized symbol
+    const tokenValuation = valuations.find(
+      (valuation) =>
+        valuation.currency === normalizedSymbol &&
+        valuation.targetCurrency === Types.CurrencyTypes.USD
+    );
+
+    // Calculate USD and ARS values
+    const usdValue = balance * (tokenValuation?.value || 0);
+    const arsValue = usdValue * (usdToArsValuation?.value || 0);
+
+    // Add to totals
+    totalUsdValue += usdValue;
+    totalArsValue += arsValue;
+
+    // Create formatted balance entry
+    formattedBalances.push({
+      currency: normalizedSymbol,
+      balance,
+      valuations: [
+        {
+          currency: Types.CurrencyTypes.USD,
+          value: usdValue,
+        },
+        {
+          currency: Types.CurrencyTypes.ARS,
+          value: arsValue,
+        },
+      ],
+    });
+  }
+
+  // Add summary valuations
+  formattedBalances.push(
+    {
+      currency: Types.CurrencyTypes.USD,
+      value: totalUsdValue,
+      balance: totalUsdValue,
+      isValuation: true,
+    },
+    {
+      currency: Types.CurrencyTypes.ARS,
+      value: totalArsValue,
+      balance: totalArsValue,
+      isValuation: true,
+    }
+  );
+  console.log('formattedBalances for vault ' + vault.id + ': ' + JSON.stringify(formattedBalances));
+  return formattedBalances;
+};
+
+const fetchCreditVaultBalances = async (vault) => {
+  console.log('fetchCreditVaultBalances- Dentro de fetchCreditVaultBalances ' + vault.id);
+  console.log('fetchCreditVaultBalances- Vault version vale ' + vault.contractVersion);
 
   // Get the deployed contract.
   const blockchainContract = await getDeployedContract(vault);
@@ -1002,13 +2182,13 @@ const fetchVaultBalances = async (vault) => {
 
   if (isMultiToken) {
     // Handle new version of the contract
-    console.log('fetchVaultBalances- Vault ' + vault.id + ' es multitoken');
+    console.log('fetchCreditVaultBalances- Vault ' + vault.id + ' es multitoken');
 
     try {
       // Fetch the tokenNames array
       const tokenNames = await blockchainContract.getTokenNames();
-      console.log('fetchVaultBalances- tokenNames length: ' + tokenNames.length);
-      console.log('fetchVaultBalances- tokenNames: ' + JSON.stringify(tokenNames));
+      console.log('fetchCreditVaultBalances- tokenNames length: ' + tokenNames.length);
+      console.log('fetchCreditVaultBalances- tokenNames: ' + JSON.stringify(tokenNames));
 
       // Fetch the contract balances (assuming this is needed for the new version as well)
       const contractBalances = await blockchainContract.getBalances();
@@ -1026,7 +2206,7 @@ const fetchVaultBalances = async (vault) => {
         );
 
         console.log(
-          'fetchVaultBalances - Balance de ',
+          'fetchCreditVaultBalances - Balance de ',
           tokenName,
           ' es ',
           tokenBalance,
@@ -1077,7 +2257,7 @@ const fetchVaultBalances = async (vault) => {
   }
 
   console.log(
-    'fetchVaultBalances - vault ',
+    'fetchCreditVaultBalances - vault ',
     vault.id,
     ' - balancesWithCurrencies es ',
     JSON.stringify(balancesWithCurrencies)
@@ -1108,6 +2288,13 @@ const fetchVaultBalances = async (vault) => {
   const allBalances = [...balancesWithValuations, ...sumarizedBalances];
   console.log('BALANCES WITH TOKEN FOR ' + vault.id + ': ' + JSON.stringify(allBalances));
   return allBalances;
+};
+
+const fetchVaultBalances = async (vault) => {
+  if (vault.vaultType === 'savings') {
+    return await fetchSavingsVaultBalances(vault);
+  }
+  return await fetchCreditVaultBalances(vault);
 };
 
 exports.getVaultBalances = async function (req, res) {
@@ -1143,11 +2330,11 @@ exports.getVaultBalances = async function (req, res) {
     console.log('getVaultBalances - La vault que estoy procesando es');
     console.log(vault.id);
     console.log(
-      'getVaultBalances - Balances en la base es: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances en la base es: ',
       JSON.stringify(vault.balances, null, 2)
     );
     console.log(
-      'getVaultBalances - Balances obtenidos del contrato: ',
+      'getVaultBalances - vault ' + vault.id + ' - Balances obtenidos del contrato: ',
       JSON.stringify(allBalances, null, 2)
     );
 
@@ -1192,23 +2379,41 @@ const getCurrenciesValuations = async () => {
 
 const balancesToValuations = (balancesWithToken, valuations) => {
   const newBalances = [];
-  const usdToarsValuation = valuations.find((item) => {
-    return (
+  const usdToarsValuation = valuations.find(
+    (item) =>
       item.currency === Types.CurrencyTypes.ARS && item.targetCurrency === Types.CurrencyTypes.USD
-    );
-  });
+  );
+  console.log('balancesToValuations - balancesWithToken: ' + JSON.stringify(balancesWithToken));
+  console.log('balancesToValuations - valuations: ' + JSON.stringify(valuations));
 
   balancesWithToken.forEach((balanceWithToken) => {
-    const usdValuation = valuations.find((item) => {
-      return (
-        item.currency === balanceWithToken.currency &&
-        item.targetCurrency === Types.CurrencyTypes.USD
-      );
-    });
+    // Normalize token symbol
+    let normalizedSymbol = balanceWithToken.currency;
+    if (normalizedSymbol === 'acon18usdm') {
+      normalizedSymbol = Types.CurrencyTypes.USDM;
+    } else if (normalizedSymbol === 'acon6usdt') {
+      normalizedSymbol = Types.CurrencyTypes.USDT;
+    } else if (normalizedSymbol === 'acon6usdc') {
+      normalizedSymbol = Types.CurrencyTypes.USDC;
+    } else if (normalizedSymbol === 'acon8wbtc') {
+      normalizedSymbol = TokenTypes.WBTC;
+    } else if (normalizedSymbol === 'acon18weth') {
+      normalizedSymbol = TokenTypes.WETH;
+    } else if (normalizedSymbol === 'pol') {
+      normalizedSymbol = NativeTokenTypes.POL;
+    } else if (normalizedSymbol === 'rbtc') {
+      normalizedSymbol = NativeTokenTypes.RBTC;
+    }
+
+    const usdValuation = valuations.find(
+      (item) =>
+        item.currency === normalizedSymbol && item.targetCurrency === Types.CurrencyTypes.USD
+    );
 
     if (usdValuation) {
       const newBalance = {
         ...balanceWithToken,
+        currency: normalizedSymbol, // Use normalized symbol
         valuations: [
           {
             currency: Types.CurrencyTypes.USD,
@@ -1345,9 +2550,10 @@ exports.withdraw = async function (req, res) {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
@@ -1361,9 +2567,10 @@ exports.withdraw = async function (req, res) {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
@@ -1377,9 +2584,10 @@ exports.withdraw = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: withdrawInARS,
+          value: withdrawInARS.toFixed(2),
           vaultType: smartContract.vaultType,
           creditType: smartContract.creditType,
+          serviceLevel: smartContract.serviceLevel,
         },
       },
     });
@@ -1546,7 +2754,7 @@ exports.rescue = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: rescueInARS,
+          value: rescueInARS.toFixed(4),
           currency,
         },
       },
@@ -1561,7 +2769,7 @@ exports.rescue = async function (req, res) {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: id,
           lender: lender.name,
-          value: rescueInARS,
+          value: rescueInARS.toFixed(4),
           currency,
         },
       },
@@ -1894,8 +3102,24 @@ const sendCreditEmails = async (vault, beforeAmount) => {
       vault.amount
   );
 
-  const movementAmount = formatMoneyWithCurrency(vault.amount, 0, undefined, undefined, 'ars');
-  const bAmount = formatMoneyWithCurrency(beforeAmount, 0, undefined, undefined, 'ars');
+  const movementAmount = formatMoneyWithCurrency(
+    vault.amount,
+    0,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'ars'
+  );
+  const bAmount = formatMoneyWithCurrency(
+    beforeAmount,
+    0,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'ars'
+  );
 
   const lender = await fetchSingleItem({
     collectionName: Collections.COMPANIES,
@@ -1920,8 +3144,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
           username: employee.firstName + ' ' + employee.lastName,
           vaultId: vault.id,
           lender: lender.name,
-          amountBefore: bAmount,
-          amount: movementAmount,
+          amountBefore: bAmount.toFixed(2),
+          amount: movementAmount.toFixed(2),
         },
       },
     });
@@ -1936,8 +3160,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: bAmount,
-        amount: movementAmount,
+        amountBefore: bAmount.toFixed(2),
+        amount: movementAmount.toFixed(2),
       },
     },
   });
@@ -1952,8 +3176,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
         username: borrower.firstName + ' ' + borrower.lastName,
         vaultId: vault.id,
         lender: lender.name,
-        amountBefore: bAmount,
-        amount: movementAmount,
+        amountBefore: bAmount.toFixed(2),
+        amount: movementAmount.toFixed(2),
       },
     },
   });
@@ -1962,6 +3186,8 @@ const sendCreditEmails = async (vault, beforeAmount) => {
 const createVaultTransaction = async ({ docId, before, after, transactionType }) => {
   let movementType = 'plus';
   let movementAmount = 0;
+  let movementCurrency = 'ARS'; // Default to ARS for backward compatibility
+  const tokenChanges = []; // Add array to track token changes
 
   if (
     transactionType === VaultTransactionTypes.VAULT_CREATE ||
@@ -1976,7 +3202,6 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
         'after:',
         JSON.stringify(after)
       );
-      // movementType = null;
     }
   } else {
     if (
@@ -2010,25 +3235,44 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
       transactionType !== VaultTransactionTypes.VAULT_CREATE &&
       transactionType !== VaultTransactionTypes.CREDIT_UPDATE
     ) {
-      // ARS: calculo cambio del balance y signo.
-      const beforeARS = before.balances.find((balance) => {
-        return balance.currency === Types.CurrencyTypes.ARS;
+      // USD: calculo cambio del balance y signo.
+      const beforeUSD = before.balances.find((balance) => {
+        return balance.currency === Types.CurrencyTypes.USD;
       });
-      const afterARS = after.balances.find((balance) => {
-        return balance.currency === Types.CurrencyTypes.ARS;
+      const afterUSD = after.balances.find((balance) => {
+        return balance.currency === Types.CurrencyTypes.USD;
       });
 
       if (
-        beforeARS &&
-        afterARS &&
-        typeof afterARS.balance === 'number' &&
-        typeof beforeARS.balance === 'number'
+        beforeUSD &&
+        afterUSD &&
+        typeof afterUSD.balance === 'number' &&
+        typeof beforeUSD.balance === 'number'
       ) {
-        movementAmount = afterARS.balance - beforeARS.balance;
+        movementAmount = afterUSD.balance - beforeUSD.balance;
+        movementCurrency = 'USD';
 
-        if (movementAmount < 0) movementAmount = movementAmount * -1; // saco el signo
+        // Track token changes - only for non-valuation balances and known currencies
+        before.balances.forEach((bBalance) => {
+          if (!bBalance.isValuation && bBalance.currency !== 'n/a') {
+            const aBalance = after.balances.find(
+              (aBalance) => aBalance.currency === bBalance.currency
+            );
 
-        if (beforeARS.balance > afterARS.balance) {
+            if (aBalance && bBalance.balance !== aBalance.balance) {
+              tokenChanges.push({
+                currency: bBalance.currency,
+                beforeBalance: bBalance.balance,
+                afterBalance: aBalance.balance,
+                difference: aBalance.balance - bBalance.balance,
+                valuations: aBalance.valuations,
+              });
+            }
+          }
+        });
+
+        if (movementAmount < 0) movementAmount = movementAmount * -1;
+        if (beforeUSD.balance > afterUSD.balance) {
           movementType = 'minus';
         }
       }
@@ -2039,7 +3283,8 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
           const aBalance = after.balances.find(
             (aBalance) => aBalance.currency === bBalance.currency
           );
-          return bBalance.balance !== aBalance.balance;
+          // Add null check before accessing balance
+          return aBalance ? bBalance.balance !== aBalance.balance : true;
         }
         return false;
       });
@@ -2081,21 +3326,13 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
     if (transactionType === VaultTransactionTypes.CREDIT_UPDATE) {
       if (typeof after.amount === 'number' && typeof before.amount === 'number') {
         movementAmount = after.amount - before.amount;
+        movementCurrency = 'ARS'; // Credit updates are always in ARS
         if (movementAmount < 0) movementAmount = movementAmount * -1;
         if (before.amount > after.amount) {
           movementType = 'minus';
         }
         await sendCreditEmails(after, before.amount);
       }
-    }
-
-    // Validaciones
-    if (transactionType === VaultTransactionTypes.BALANCE_UPDATE) {
-      return;
-    }
-    if (movementAmount === 0 && transactionType !== VaultTransactionTypes.CRYPTO_SWAP) {
-      console.log('movementAmount es cero, finaliza sin crear');
-      return;
     }
   }
 
@@ -2109,13 +3346,13 @@ const createVaultTransaction = async ({ docId, before, after, transactionType })
   const createData = {
     ...after,
     vaultId: docId,
-    movementType, // plus / minus
+    movementType,
     movementAmount,
+    movementCurrency,
     transactionType,
-
-    contractDeployment: null, // para que no grabe el bodoque...
+    tokenChanges, // Add token changes to the transaction record
+    contractDeployment: null,
     proxyContractDeployment: null,
-
     state: Types.StateTypes.STATE_ACTIVE,
     ...creationStruct('admin'),
   };
@@ -2286,7 +3523,6 @@ exports.onVaultUpdate = functions.firestore
     const before = change.before.data();
     const after = change.after.data();
 
-    // Casos: que se actualiza el crédito, que se hace un withdraw p.ej (saca cripto y cambia crédito), que se retira (saca cripto nomás?)
     try {
       console.log(
         'onVaultUpdate ' +
@@ -2295,15 +3531,29 @@ exports.onVaultUpdate = functions.firestore
           JSON.stringify(getDifferences(before, after))
       );
 
-      const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId }); // Actualiza los balances en memoria
+      const balanceUpdateData = await onVaultUpdate_ThenUpdateBalances({ after, docId });
       const evaluateUpdateData = await onVaultUpdate_ThenEvaluateBalances({ after, docId });
       await onVaultUpdate_ThenCreateTransaction({ before, after, docId });
 
       const updateData = { ...balanceUpdateData, ...evaluateUpdateData };
       console.log('onVaultUpdate ' + documentPath + ' updateData ' + JSON.stringify(updateData));
       if (Object.keys(updateData).length > 0) {
+        console.log('onVaultUpdate actualizando ', updateData);
         const db = admin.firestore();
-        const doc = await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+        await db.collection(COLLECTION_NAME).doc(docId).update(updateData);
+
+        // Guardar en el histórico de balances si hay nuevos balances
+        if (balanceUpdateData?.balances) {
+          await createFirestoreDocument({
+            collectionName: COLLECTION_VAULTS_BALANCE_HISTORY,
+            itemData: {
+              vaultId: docId,
+              timestamp: new Date(),
+              balances: balanceUpdateData.balances,
+            },
+            auditUid: 'system', // Como es una función automática, usamos 'system' como auditUid
+          });
+        }
       }
       console.log('onVaultUpdate success ' + documentPath);
     } catch (err) {
@@ -2654,7 +3904,7 @@ const sendVaultEvaluationEmail = async (evalVault) => {
           username: borrower.firstName + ' ' + borrower.lastName,
           vaultId: evalVault.vault.id,
           lender: lender.name,
-          value: evalVault.swap.tokenOutAmount,
+          value: evalVault.swap.tokenOutAmount.toFixed(2),
         },
       },
     });
@@ -2925,7 +4175,7 @@ exports.createVaultAdmin = async (req, res) => {
   try {
     console.log(' Comienzo createVaultAdmin');
     console.log(' Comienzo createVaultAdmin req ', JSON.stringify(req.body));
-    const { safeLiq1, safeLiq3 } = req.body;
+    const { safeLiq1, safeLiq3 } = req.body.data;
     // Validar owners de Polygon y Rootstock
     if (!safeLiq1 || typeof safeLiq1 !== 'string' || safeLiq1.length !== 42) {
       throw new CustomError.TechnicalError(
@@ -3148,3 +4398,216 @@ exports.sendEmailBalance = functions.pubsub
       console.error('Error sending email balance:', error);
     }
   });
+
+exports.getBalanceHistory = async function (req, res) {
+  try {
+    const { id: vaultId } = req.params;
+    const { currency = 'usd', period = 1, backCount = 6 } = req.query;
+
+    // Validate inputs
+    if (!vaultId) {
+      throw new CustomError.TechnicalError('ERROR_MISSING_ARGS', null, 'Missing vaultId', null);
+    }
+    if (![0, 1, 2].includes(Number(period))) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_PERIOD',
+        null,
+        'Invalid period value',
+        null
+      );
+    }
+    if (!['usd', 'ars'].includes(currency.toLowerCase())) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_CURRENCY',
+        null,
+        'Invalid currency',
+        null
+      );
+    }
+
+    // Get target dates based on period
+    const targetDates = getTargetDates(Number(period), Number(backCount));
+
+    // Query Firestore for all relevant documents
+    const db = admin.firestore();
+    const oldestDate = targetDates[targetDates.length - 1];
+
+    const snapshot = await db
+      .collection(COLLECTION_VAULTS_BALANCE_HISTORY)
+      .where('vaultId', '==', vaultId)
+      .where('timestamp', '>=', oldestDate)
+      .orderBy('timestamp', 'desc')
+      .get();
+
+    const documents = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp.toDate(),
+    }));
+
+    // Get max values for each target date
+    const results = targetDates
+      .map((targetDate) => {
+        const nextDate = new Date(targetDate);
+        nextDate.setDate(targetDate.getDate() + 1);
+
+        // Find documents for this date range
+        const periodDocs = documents.filter(
+          (doc) => doc.timestamp >= targetDate && doc.timestamp < nextDate
+        );
+
+        if (periodDocs.length === 0) return null;
+
+        // Find max value for this period
+        const maxDoc = periodDocs.reduce((max, doc) => {
+          const balance =
+            doc.balances.find(
+              (balanceItem) =>
+                balanceItem.isValuation === true &&
+                balanceItem.currency.toLowerCase() === currency.toLowerCase()
+            )?.balance || 0;
+
+          return !max || balance > max.balance
+            ? {
+                timestamp: doc.timestamp,
+                balance,
+                id: doc.id,
+                vaultId: doc.vaultId,
+              }
+            : max;
+        }, null);
+
+        return maxDoc;
+      })
+      .filter(Boolean); // Remove null entries
+
+    return res.status(200).send(results);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+exports.getVaultsBalanceHistory = async function (req, res) {
+  try {
+    const { vaultIds, currency, period, backCount } = req.query;
+    const vaultIdList = vaultIds.split(',').filter((id) => id.trim());
+
+    // Validate inputs
+    if (!vaultIds || !vaultIdList.length) {
+      throw new CustomError.TechnicalError(
+        'ERROR_MISSING_ARGS',
+        null,
+        'Missing or invalid vaultIds list',
+        null
+      );
+    }
+
+    // Create a mock request object for each vault to reuse getBalanceHistory
+    const results = await Promise.all(
+      vaultIdList.map(async (vaultId) => {
+        const mockReq = {
+          params: { id: vaultId.trim() },
+          query: { currency, period, backCount },
+        };
+
+        const mockRes = {
+          status: () => ({
+            send: (data) => data,
+          }),
+        };
+
+        const history = await exports.getBalanceHistory(mockReq, mockRes);
+
+        return {
+          vaultId,
+          history,
+        };
+      })
+    );
+
+    return res.status(200).send(results);
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
+
+function getTargetDates(period, backCount) {
+  const dates = [];
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i < backCount; i++) {
+    let targetDate = new Date(now);
+
+    if (period === 0) {
+      // Daily
+      targetDate.setDate(now.getDate() - i);
+    } else if (period === 1) {
+      // Weekly
+      if (i === 0) {
+        // For the most recent period, use today's date
+        targetDate = new Date(now);
+      } else {
+        // For previous periods, find the Saturday
+        targetDate.setDate(now.getDate() - (i - 1) * 7);
+        while (targetDate.getDay() !== 6) {
+          // 6 is Saturday
+          targetDate.setDate(targetDate.getDate() - 1);
+        }
+      }
+    } else {
+      // Monthly
+      targetDate.setMonth(now.getMonth() - i);
+      targetDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0); // Last day of month
+    }
+
+    dates.push(targetDate);
+  }
+
+  // Sort descending
+  return dates.sort((date1, date2) => date2 - date1);
+}
+
+exports.executeTransactionRequest = async function (req, res) {
+  console.log('executeTransactionRequest - Iniciando ejecución de la transacción');
+  console.log('executeTransactionRequest - Parámetros recibidos:', req.body);
+  const { executionData } = req.body;
+  const vault = await fetchSingleItem({
+    collectionName: COLLECTION_NAME,
+    id: executionData.vaultId,
+  });
+
+  try {
+    if (!executionData.safeMainTransaction || !executionData.safeConfirmations) {
+      throw new CustomError.TechnicalError(
+        'ERROR_INVALID_DATA',
+        null,
+        'Transaction request missing required safe transaction data',
+        null
+      );
+    }
+
+    const safeAddress = ethers.utils.getAddress(executionData.safeAddress);
+
+    const networkName = vault.contractNetwork;
+    const NETWORK_URL = await getEnvVariable('HARDHAT_API_URL', networkName);
+    const DEPLOYER_PRIVATE_KEY = await getEnvVariable('DEPLOYER_PRIVATE_KEY', networkName);
+    const provider = new ethers.providers.JsonRpcProvider(NETWORK_URL);
+    const signer = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
+    const adapter = getAdapter(signer);
+
+    const safeSDK = SafeSDKNoAPI.getInstance();
+    await safeSDK.initSDK(adapter, safeAddress);
+    console.log('executeTransactionRequest - Iniciando ejecución de la transacción');
+    const executionResult = await safeSDK.executeTransaction(executionData);
+    console.log('executeTransactionRequest - Transacción ejecutada con éxito');
+    // 8. Send success response
+    return res.status(200).send({
+      success: true,
+      executionResult,
+    });
+  } catch (err) {
+    console.error('Error executing transaction request:', err);
+    return ErrorHelper.handleError(req, res, err);
+  }
+};

@@ -26,10 +26,6 @@ export const DEPLOYER_PRIVATE_KEY_POLYGON = Config.getEnvConfig('DEPLOYER_PRIVAT
 export const DEPLOYER_PRIVATE_KEY_ROOTSTOCK = Config.getEnvConfig('DEPLOYER_PRIVATE_KEY_ROOTSTOCK');
 export const SWAPPER_PRIVATE_KEY_POLYGON = Config.getEnvConfig('SWAPPER_PRIVATE_KEY_POLYGON');
 export const SWAPPER_PRIVATE_KEY_ROOTSTOCK = Config.getEnvConfig('SWAPPER_PRIVATE_KEY_ROOTSTOCK');
-export const HARDHAT_API_URL = Config.getEnvConfig('HARDHAT_API_URL');
-export const HARDHAT_NETWORK_NAME = Config.getEnvConfig('HARDHAT_NETWORK_NAME');
-export const PROVIDER_NETWORK_NAME = Config.getEnvConfig('PROVIDER_NETWORK_NAME');
-export const POLYGONSCAN_API_KEY = Config.getEnvConfig('POLYGONSCAN_API_KEY');
 
 export const COINGECKO_URL = Config.getEnvConfig('COINGECKO_URL');
 export const KRAKEN_URL = Config.getEnvConfig('KRAKEN_URL');
