@@ -530,8 +530,11 @@ exports.getDolarOficial = async function (req, res) {
       throw new Error('No se encontró el campo tipoCotizacion en la respuesta');
     }
 
-    // Retornar el valor como respuesta
-    return res.status(200).send({ tipoCotizacion });
+    // Formatear el valor para asegurar que tenga dos decimales
+    const formattedValue = Number(tipoCotizacion).toFixed(2);
+
+    // Retornar solo el número como respuesta
+    return res.status(200).send(formattedValue);
   } catch (err) {
     console.error(`Error al obtener dólar oficial: ${err.message}`);
 
@@ -542,10 +545,8 @@ exports.getDolarOficial = async function (req, res) {
       err.message.includes('certificate') ||
       (err.response && (err.response.status === 404 || err.response.status === 503))
     ) {
-      return res.status(200).send({
-        tipoCotizacion: 1132.0,
-        source: 'fallback',
-      });
+      // Retornar solo el número como respuesta
+      return res.status(200).send('1132.00');
     }
 
     return ErrorHelper.handleError(req, res, err);
