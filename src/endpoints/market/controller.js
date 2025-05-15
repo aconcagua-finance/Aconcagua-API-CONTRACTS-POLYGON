@@ -491,3 +491,35 @@ exports.getTokensQuotes = async function (req, res) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.getDolarOficial = async function (req, res) {
+  try {
+    // URL de la API
+    const apiUrl = 'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD';
+
+    // Hacer la solicitud GET a la API usando el helper invoke_get_api
+    const response = await invoke_get_api({
+      endpoint: apiUrl,
+    });
+
+    const data = response.data;
+
+    // Verificar que existan resultados en la respuesta
+    if (!data.results || data.results.length === 0) {
+      throw new Error('No se encontraron resultados en la respuesta de la API');
+    }
+
+    // Extraer el valor de tipoCotizacion
+    const tipoCotizacion = data.results[0].detalle[0].tipoCotizacion;
+
+    // Verificar que el campo exista
+    if (!tipoCotizacion) {
+      throw new Error('No se encontró el campo tipoCotizacion en la respuesta');
+    }
+
+    // Devolver solo el número como respuesta
+    return res.status(200).send({ tipoCotizacion });
+  } catch (err) {
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
