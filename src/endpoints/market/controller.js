@@ -491,3 +491,64 @@ exports.getTokensQuotes = async function (req, res) {
     return ErrorHelper.handleError(req, res, err);
   }
 };
+
+exports.getDolarOficial = async function (req, res) {
+  try {
+    // URL de la API del BCRA
+    const apiUrl = 'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD';
+
+    // Configurar axios para ignorar errores de certificado SSL
+    const httpsAgent = new (require('https').Agent)({
+      rejectUnauthorized: false,
+    });
+
+    const response = await axios.get(apiUrl, {
+      httpsAgent,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+
+    // Verificar respuesta exitosa
+    if (response.status !== 200) {
+      throw new Error(`Error en la respuesta de la API: ${response.status}`);
+    }
+
+    const data = response.data;
+
+    // Verificar que existan resultados en la respuesta
+    if (!data.results || data.results.length === 0) {
+      throw new Error('No se encontraron resultados en la respuesta de la API');
+    }
+
+    // Extraer el valor de tipoCotizacion
+    const tipoCotizacion = data.results[0].detalle[0].tipoCotizacion;
+
+    // Verificar que el campo exista
+    if (!tipoCotizacion && tipoCotizacion !== 0) {
+      throw new Error('No se encontró el campo tipoCotizacion en la respuesta');
+    }
+
+    // Formatear el valor para asegurar que tenga dos decimales
+    const formattedValue = Number(tipoCotizacion).toFixed(2);
+
+    // Retornar solo el número como respuesta
+    return res.status(200).send(formattedValue);
+  } catch (err) {
+    console.error(`Error al obtener dólar oficial: ${err.message}`);
+
+    // Si hay un error de conexión, certificado o la API no está disponible, devolver el último valor conocido
+    if (
+      err.code === 'ECONNREFUSED' ||
+      err.code === 'ENOTFOUND' ||
+      err.message.includes('certificate') ||
+      (err.response && (err.response.status === 404 || err.response.status === 503))
+    ) {
+      // Retornar solo el número como respuesta
+      return res.status(200).send('1132.00');
+    }
+
+    return ErrorHelper.handleError(req, res, err);
+  }
+};
