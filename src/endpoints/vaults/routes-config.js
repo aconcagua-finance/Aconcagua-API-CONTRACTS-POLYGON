@@ -230,6 +230,7 @@ exports.vaultsRoutesConfig = function (app) {
       hasAppRole: [Types.AppRols.APP_ADMIN, Types.AppRols.APP_VIEWER],
       allowStaffRelationship: true,
       isEnterpriseEmployee: true,
+      allowSameUser: true,
     }),
     executeTransactionRequest,
   ]);
