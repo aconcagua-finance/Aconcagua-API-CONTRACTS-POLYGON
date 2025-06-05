@@ -231,6 +231,7 @@ exports.vaultsRoutesConfig = function (app) {
       allowStaffRelationship: true,
       isEnterpriseEmployee: true,
       allowSameUser: true,
+      allowDelegateAccess: true,
     }),
     executeTransactionRequest,
   ]);
