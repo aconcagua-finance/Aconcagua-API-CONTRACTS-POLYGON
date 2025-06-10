@@ -4601,6 +4601,18 @@ exports.executeTransactionRequest = async function (req, res) {
     console.log('executeTransactionRequest - Iniciando ejecución de la transacción');
     const executionResult = await safeSDK.executeTransaction(executionData);
     console.log('executeTransactionRequest - Transacción ejecutada con éxito');
+
+    // Refresh vault balances after transaction
+    console.log('executeTransactionRequest - Refreshing vault balances');
+    const allBalances = await fetchVaultBalances(vault);
+    await updateSingleItem({
+      collectionName: COLLECTION_NAME,
+      data: { balances: allBalances, mustUpdate: false, balancesUpdateRetries: 0 },
+      auditUid: res.locals.userId,
+      id: vault.id,
+    });
+    console.log('executeTransactionRequest - Vault balances refreshed successfully');
+
     // 8. Send success response
     return res.status(200).send({
       success: true,
