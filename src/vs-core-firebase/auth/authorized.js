@@ -5,6 +5,8 @@
 const admin = require('firebase-admin');
 const { Types } = require('../../vs-core');
 
+const { DelegateRelationshipTypes } = Types;
+
 export const userIsGranted = function ({
   userAppRols,
   userEnterpriseRols,
@@ -45,6 +47,7 @@ export const isAuthorized = function ({
   hasEnterpriseRole,
   isEnterpriseEmployee,
   allowStaffRelationship,
+  allowDelegateAccess,
 }) {
   return async (req, res, next) => {
     const SYS_ADMIN_EMAIL = process.env.SYS_ADMIN_EMAIL;
@@ -99,11 +102,42 @@ export const isAuthorized = function ({
         console.log('staff relationship founded');
         // console.log('allowStaffRelationship: ', JSON.stringify(doc));
         return next();
-        // eslint-disable-next-line no-else-return
-      } else {
-        console.log('staff relationship NOT founded');
-        // console.log('allowStaffRelationship: ', JSON.stringify({ userId, paramUserId }));
       }
+      console.log('staff relationship NOT founded');
+      // console.log('allowStaffRelationship: ', JSON.stringify({ userId, paramUserId }));
+    }
+
+    // Check delegate relationship
+    if (allowDelegateAccess) {
+      console.log('Checking delegate access...');
+      console.log('Current user ID:', userId);
+      console.log('Company ID:', companyId);
+      console.log('Vault ID:', req.params.id);
+
+      const db = admin.firestore();
+      console.log('Querying delegate relationships collection...');
+
+      const querySnapshot = await db
+        .collection(DelegateRelationshipTypes.COLLECTION_NAME)
+        .where(DelegateRelationshipTypes.DELEGATE_ID_PROP_NAME, '==', userId)
+        .where(DelegateRelationshipTypes.COMPANY_ID_PROP_NAME, '==', companyId)
+        .where(DelegateRelationshipTypes.VAULT_ID_PROP_NAME, '==', req.params.id)
+        .get();
+
+      console.log('Delegate relationships query result:', {
+        empty: querySnapshot.empty,
+        size: querySnapshot.size,
+        docs: querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          data: doc.data(),
+        })),
+      });
+
+      if (querySnapshot.docs && querySnapshot.docs.length) {
+        console.log('Delegate access granted');
+        return next();
+      }
+      console.log('No delegate relationships found');
     }
 
     // eslint-disable-next-line no-console

@@ -1,6 +1,7 @@
 export * from './appRols';
 export * from './enterpriseRols';
 export * from './stateTypes';
+export * from './DelegateRelationshipTypes';
 export * from './userStatusTypes';
 export * from './staffUsersRelationshipTypes';
 export * from './vaultTypes';
